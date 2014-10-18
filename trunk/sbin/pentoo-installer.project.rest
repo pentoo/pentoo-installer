@@ -1,0 +1,990 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# use the first VT not dedicated to a running console
+DESTDIR="/mnt/gentoo"
+EDITOR=
+
+# clock
+HARDWARECLOCK=
+TIMEZONE=
+
+# install stages
+S_CLOCK=0       # clock and timezone
+S_PART=0        # partitioning
+S_MKFS=0        # formatting
+S_MKFSAUTO=0    # auto fs part/formatting TODO: kill this
+S_CONFIG=0      # configuration editing
+S_GRUB=0        # TODO: kill this - if using grub
+S_BOOT=""       # bootloader installed (set to loader name instead of 1)
+S_FDE=0         # Full disk encryption, need key in /boot
+
+# main menu selection tracker
+CURRENT_SELECTION=""
+
+# chroot_mount()
+# prepares target system as a chroot
+#
+chroot_mount()
+{
+    [ -e "${DESTDIR}/sys" ] || mkdir "${DESTDIR}/sys"
+    [ -e "${DESTDIR}/proc" ] || mkdir "${DESTDIR}/proc"
+    [ -e "${DESTDIR}/dev" ] || mkdir "${DESTDIR}/dev"
+    mount -t sysfs sysfs "${DESTDIR}/sys"
+    mount -t proc proc "${DESTDIR}/proc"
+    mount -o bind /dev "${DESTDIR}/dev"
+}
+
+# chroot_umount()
+# tears down chroot in target system
+#
+chroot_umount()
+{
+    sleep 1
+    umount ${DESTDIR}/proc
+    umount ${DESTDIR}/sys
+    umount ${DESTDIR}/dev
+}
+
+# getuuid()
+# converts /dev/[hs]d?[0-9] devices to UUIDs
+#
+# parameters: device file
+# outputs:    UUID on success
+#             nothing on failure
+# returns:    nothing
+getuuid()
+{
+    if [ "${1%%/[hs]d?[0-9]}" != "${1}" ]; then
+        echo "$(blkid -s UUID -o value ${1})"
+    fi
+}
+
+# getkernelversion()
+# outputs the kernel version
+#
+# parameters: none
+# outputs:    kernel version on success
+#             nothing on failure
+# returns:    0 on success
+#             1 on failure
+getkernelversion()
+{
+    local kernver=$(ls ${DESTDIR}/boot/kernel-genkernel-* |sed -e "s|kernel-genkernel||g" -e "s|${DESTDIR}/boot/||") \
+        || return 1
+    echo "${kernver}"
+}
+
+get_grub_map() {
+    [ -e /tmp/dev.map ] && rm /tmp/dev.map
+    show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
+    ${DESTDIR}/sbin/grub --no-floppy --device-map /tmp/dev.map >/tmp/grub.log 2>&1 <<EOF
+quit
+EOF
+}
+
+mapdev() {
+    partition_flag=0
+    device_found=0
+    devs=$(cat /tmp/dev.map | grep -v fd | sed 's/ *\t/ /' | sed ':a;$!N;$!ba;s/\n/ /g')
+    linuxdevice=$(echo $1 | cut -b1-8)
+    if [ "$(echo $1 | egrep '[0-9]$')" ]; then
+        # /dev/hdXY
+        pnum=$(echo $1 | cut -b9-)
+        pnum=$((${pnum}-1))
+        partition_flag=1
+    fi
+    for  dev in ${devs}
+    do
+        if [ "(" = $(echo ${dev} | cut -b1) ]; then
+        grubdevice="${dev}"
+        else
+        if [ "${dev}" = "${linuxdevice}" ]; then
+            device_found=1
+            break
+        fi
+       fi
+    done
+    if [ "${device_found}" = "1" ]; then
+        if [ "${partition_flag}" = "0" ]; then
+            echo "${grubdevice}"
+        else
+            grubdevice_stringlen=${#grubdevice}
+            grubdevice_stringlen=$((${grubdevice_stringlen} - 1))
+            grubdevice=$(echo ${grubdevice} | cut -b1-${grubdevice_stringlen})
+            echo "${grubdevice},${pnum})"
+        fi
+    else
+        echo "_DEVICE NOT FOUND"
+    fi
+}
+
+# seteditor()
+# prompts the user to choose an editor
+# sets EDITOR global variable
+#
+seteditor() {
+    chroot_mount
+    show_dialog --menu "Select a Text Editor to Use" 10 35 3 \
+        "1" "nano (easier)" \
+        "2" "vi" \
+        "3" "mcedit" 2>"${ANSWER}"
+    case $(get_answer) in
+        "1") EDITOR="nano"
+             eselect editor set /bin/nano
+             source /etc/profile
+             chroot ${DESTDIR} /bin/bash <<EOF
+eselect editor set /bin/nano
+source /etc/profile
+EOF
+             ;;
+        "2") EDITOR="vi"
+#             sed -i 's#/bin/nano#/usr/bin/vi#' ${DISTDIR}/etc/profile
+             eselect editor set /usr/bin/vi
+             source /etc/profile
+             chroot ${DESTDIR} /bin/bash <<EOF
+eselect editor set /usr/bin/vi
+source /etc/profile
+EOF
+             ;;
+        "3") EDITOR="mcedit"
+             eselect editor set /usr/bin/mcedit
+             source /etc/profile
+             chroot ${DESTDIR} /bin/bash <<EOF
+eselect editor set /usr/bin/mcedit
+source /etc/profile
+EOF
+             ;;
+        *)   EDITOR="nano" ;;
+    esac
+    chroot_umount
+}
+
+mountpoints() {
+    if [ "${S_MKFSAUTO}" = "1" ]; then
+        show_dialog --msgbox "You have already prepared your filesystems with Auto-prepare" 0 0
+        return 0
+    fi
+    while [ "${PARTFINISH}" != "DONE" ]; do
+        : >/tmp/.fstab
+        : >/tmp/.dmcrypt
+        : >/tmp/.parts
+
+        # Determine which filesystems are available
+        FSOPTS="ext2 ext2 ext3 ext3 ext3-luks ext3-luks ext4 ext4 ext4-luks ext4-luks"
+        [ "$(which mkreiserfs 2>/dev/null)" ] && FSOPTS="${FSOPTS} reiserfs Reiser3 reiserfs-luks Reiser3-luks"
+        [ "$(which mkfs.xfs 2>/dev/null)" ]   && FSOPTS="${FSOPTS} xfs XFS"
+        [ "$(which mkfs.jfs 2>/dev/null)" ]   && FSOPTS="${FSOPTS} jfs JFS"
+        [ "$(which mkfs.vfat 2>/dev/null)" ]  && FSOPTS="${FSOPTS} vfat VFAT"
+
+        # Select mountpoints
+        show_dialog --msgbox "Available Disks:\n\n$(partition_getavaildisks)\n" 0 0
+        PARTS=$(findpartitions _)
+        show_dialog --menu "Select the partition to use as swap" 21 50 13 NONE - ${PARTS} 2>"${ANSWER}" || return 1
+        PART=$(get_answer)
+        PARTS="$(echo ${PARTS} | sed -e "s#${PART}\ _##g")"
+        if [ "${PART}" != "NONE" ]; then
+            DOMKFS="no"
+            show_dialog --yesno "Would you like to create a filesystem on ${PART}?\n\n(This will overwrite existing data!)" 0 0 && DOMKFS="yes"
+            show_dialog --yesno "Would you like to encrypt the swap partition?" 0 0 && CRYPTSWAP="yes"
+            if [ "${CRYPTSWAP}" = "yes" ]; then
+                echo "${PART}:crypt-swap:swap:${DOMKFS}" >>/tmp/.parts
+            else
+                echo "${PART}:swap:swap:${DOMKFS}" >>/tmp/.parts
+            fi
+        fi
+
+        show_dialog --menu "Select the partition to mount as /" 21 50 13 ${PARTS} 2>"${ANSWER}" || return 1
+        PART=$(get_answer)
+        PARTS="$(echo ${PARTS} | sed -e "s#${PART}\ _##g")"
+        PART_ROOT=${PART}
+        # Select root filesystem type
+        show_dialog --menu "Select a filesystem for ${PART}" 13 45 6 ${FSOPTS} 2>"${ANSWER}" || return 1
+        FSTYPE=$(get_answer)
+        DOMKFS="no"
+        show_dialog --yesno "Would you like to create a filesystem on ${PART}?\n\n(This will overwrite existing data!)" 0 0 && DOMKFS="yes"
+        echo "${PART}:${FSTYPE}:/:${DOMKFS}" >>/tmp/.parts
+
+        #
+        # Additional partitions
+        #
+        show_dialog --menu "Select any additional partitions to mount under your new root (select DONE when finished)" 21 50 13 ${PARTS} DONE _ 2>"${ANSWER}" || return 1
+        PART=$(get_answer)
+        while [ "${PART}" != "DONE" ]; do
+            PARTS="$(echo ${PARTS} | sed -e "s#${PART}\ _##g")"
+            # Select a filesystem type
+            show_dialog --menu "Select a filesystem for ${PART}" 13 45 6 ${FSOPTS} 2>"${ANSWER}" || return 1
+            FSTYPE=$(get_answer)
+            MP=""
+            while [ "${MP}" = "" ]; do
+                show_dialog --inputbox "Enter the mountpoint for ${PART}" 8 65 "/boot" 2>"${ANSWER}" || return 1
+                MP=$(get_answer)
+                if grep ":${MP}:" /tmp/.parts; then
+                    show_dialog --msgbox "ERROR: You have defined 2 identical mountpoints! Please select another mountpoint." 8 65
+                    MP=""
+                fi
+            done
+            DOMKFS="no"
+            show_dialog --yesno "Would you like to create a filesystem on ${PART}?\n\n(This will overwrite existing data!)" 0 0 && DOMKFS="yes"
+            echo "${PART}:${FSTYPE}:${MP}:${DOMKFS}" >>/tmp/.parts
+            show_dialog --menu "Select any additional partitions to mount under your new root" 21 50 13 ${PARTS} DONE _ 2>"${ANSWER}" || return 1
+            PART=$(get_answer)
+        done
+        show_dialog --yesno "Would you like to create and mount the filesytems like this?\n\nSyntax\n------\n_DEVICE:TYPE:MOUNTPOINT:FORMAT\n\n$(for i in $(cat /tmp/.parts); do echo "${i\}n";done)" 18 0 && PARTFINISH="DONE"
+    done
+
+    partition_umountall
+
+    for line in $(cat /tmp/.parts); do
+        PART=$(echo ${line} | cut -d: -f 1)
+        FSTYPE=$(echo ${line} | cut -d: -f 2)
+        MP=$(echo ${line} | cut -d: -f 3)
+        DOMKFS=$(echo ${line} | cut -d: -f 4)
+        umount ${DESTDIR}${MP}
+        if [ "${DOMKFS}" = "yes" ]; then
+            if [ "${FSTYPE}" = "swap" ]; then
+                show_dialog --infobox "Creating and activating swapspace on ${PART}" 0 0
+            else
+                show_dialog --infobox "Creating ${FSTYPE} on ${PART}, mounting to ${DESTDIR}${MP}" 0 0
+            fi
+            partition_mkfs yes ${PART} ${FSTYPE} ${DESTDIR} ${MP} || return 1
+        else
+            if [ "${FSTYPE}" = "swap" ]; then
+                show_dialog --infobox "Activating swapspace on ${PART}" 0 0
+            else
+                show_dialog --infobox "Mounting ${PART} to ${DESTDIR}${MP}" 0 0
+            fi
+            partition_mkfs no ${PART} ${FSTYPE} ${DESTDIR} ${MP} || return 1
+        fi
+        sleep 1
+    done
+
+    show_dialog --msgbox "Partitions were successfully mounted." 0 0
+    S_MKFS=1
+}
+
+# run_unsquashfs()
+# runs unsquashfs on the target system, displays output
+# $1 : source
+# $2 : dest
+# $3 : msg
+# taken from manjaro
+run_unsquashfs()
+{
+    # all unsquashfs output goes to /tmp/unsquashfs.log, which we tail
+    # into a dialog
+    touch /tmp/setup-unsquashfs-running
+    #set the return code to failure so if things race we catch the failure
+    echo 1 > /tmp/.unsquashfs-retcode
+    ( \
+        echo "unsquashing $(basename $1)..." > /tmp/unsquashfs.log; \
+        echo >> /tmp/unsquashfs.log; \
+        unsquashfs -f -d $2 $1 >>/tmp/unsquashfs.log 2>&1
+        echo $? > /tmp/.unsquashfs-retcode
+        echo >> /tmp/unsquashfs.log
+        rm -f /tmp/setup-unsquashfs-running
+    ) &
+sleep 1
+( \
+c=0
+while [ -e /tmp/setup-unsquashfs-running ]
+    do
+        sleep 1
+        #value=$(cat /tmp/unsquashfs.log | grep -Eo --color=never " [0-9]*%" | sed -e "s|[^0-9]||g" | tail -n1)
+        value=$(tail -n10 /tmp/unsquashfs.log | grep -Eo --color=never " [0-9]*%" | sed -e "s|[^0-9]||g" | tail -n1)
+        if [[ ${value} =~ ${ISNUMBER} ]]; then
+            c=${value}
+            echo ${c}
+            echo "###"
+            echo "${c} %"
+            echo "###"
+        else
+            echo "###"
+            echo "Progress Indicator Frozen at ${c} % (but no errors seen)"
+            echo "###"
+        fi
+done
+) |
+show_dialog --gauge "${3}" 6 75 0
+
+    while [ -e /tmp/setup-unsquashfs-running ]
+    do
+        echo "Won the race, night night (This should have been impossible)"
+        sleep 1
+    done
+    if ! [ -f /tmp/.unsquashfs-retcode ]; then
+        echo "This shouldn't be possible, /tmp/.unsquashfs-retcode is missing"
+    fi
+    # alert the user to fatal errors
+    #make sure we have a retcode
+    if [ -z "$(cat /tmp/.unsquashfs-retcode)" ]; then
+        killall unsquashfs
+        show_dialog --title "Error unsquashing, no return code" --exit-label \
+        "OK" --textbox "/tmp/unsquashfs.log" 18 70
+        return 1
+    fi
+    #make sure the retcode is a number
+    if ! [[ $(cat /tmp/.unsquashfs-retcode) =~ ${ISNUMBER} ]]; then
+        killall unsquashfs
+        show_dialog --title "Error unsquashing, code \"$(cat /tmp/.unsquashfs-retcode)\"" --exit-label \
+        "OK" --textbox "/tmp/unsquashfs.log" 18 70
+        return 1
+    fi
+    #make sure the retcode is 0
+    if [ $(cat /tmp/.unsquashfs-retcode) -ne 0 ]; then
+        killall unsquashfs
+        show_dialog --title "Error unsquashing, code \"$(cat /tmp/.unsquashfs-retcode)\"" --exit-label \
+        "OK" --textbox "/tmp/unsquashfs.log" 18 70
+        return 1
+    fi
+
+    # save unsquashfs.log
+    mv "/tmp/unsquashfs.log" "/tmp/unsquashfs-$(basename $1).log"
+}
+
+
+# do_rsync()
+# does the rsync
+#
+# params: none
+# returns: 1 on error
+do_rsync() {
+    mountpoint -q "${DESTDIR}"
+    if [ $? -ne 0 ]; then
+        show_dialog --msgbox "${DESTDIR} is not mounted, please re-run step 1" 0 0
+        return 1
+    fi
+    run_unsquashfs /mnt/cdrom/image.squashfs ${DESTDIR} "Uncompressing base system"
+    if [ $? -ne 0 ]; then
+        show_dialog --msgbox "Failed to install base system" 0 0
+        return 1
+    fi
+
+    for module in $(ls /mnt/cdrom/modules/*.lzm)
+    do
+        run_unsquashfs "${module}" "${DESTDIR}" "Uncompressing ${module%.lzm}"
+        if [ $? -ne 0 ]; then
+            show_dialog --msgbox "Failed to install portage" 0 0
+            return 1
+        fi
+    done
+
+    show_dialog --defaultno --yesno "Would you like to sync unsaved changes to your new install?  All modules are automatically \
+	synced, but saying yes to this question will also sync changes made during this session which have not been saved \
+        with flushchanges or makemo. Say no, and only a small set of essentials will be synced; say yes, and everything will be \
+        synced, but it may take much longer." 0 0 \
+	&& SYNC_ALL=1
+
+    if [ "${SYNC_ALL}" = "1" ]; then
+        rsync -av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run /* ${DESTDIR}/ 2>&1 \
+          | tee ${LOG} \
+          | awk -f /usr/share/pentoo/rsync.awk \
+          | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+          | dialog --title "Rsyncing / to new install" --gauge "Syncing /..." 6 75
+        if [ $? -ne 0 ]; then
+            show_dialog --msgbox "Failed to rsync /. See the log output for more information" 0 0
+            return 1
+        fi
+    else
+        rsync -av --progress /etc/* ${DESTDIR}/etc/ 2>&1 \
+          | tee ${LOG} \
+          | awk -f /usr/share/pentoo/rsync.awk \
+          | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+          | dialog --title "Copying /etc/ folders." --gauge "Copying etc..." 6 75
+        if [ $? -ne 0 ]; then
+            show_dialog --msgbox "Failed to rsync /etc. See the log output for more information" 0 0
+            return 1
+        fi
+
+        rsync -av --progress --exclude=/root/.bashrc /root/* ${DESTDIR}/root/ 2>&1 \
+          | tee ${LOG} \
+          | awk -f /usr/share/pentoo/rsync.awk \
+          | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+          | dialog --title "Copying /root/ folders." --gauge "Copying home..." 6 75
+        if [ $? -ne 0 ]; then
+            show_dialog --msgbox "Failed to rsync the /root. See the log output for more information" 0 0
+            return 1
+        fi
+
+        rsync -av --progress /lib/modules/$(uname -r)/* ${DESTDIR}/lib/modules/$(uname -r)/ 2>&1 \
+          | tee ${LOG} \
+          | awk -f /usr/share/pentoo/rsync.awk \
+          | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+          | dialog --title "Rsyncing kernel modules" --gauge "Rsyncing /lib/modules/$(uname -r)..." 6 75
+        if [ $? -ne 0 ]; then
+            show_dialog --msgbox "Failed to rsync /lib/modules/$(uname -r)/. See the log output for more information" 0 0
+            return 1
+        fi
+    fi
+
+    sed -i '/aufs bindist livecd/d' ${DESTDIR}/etc/portage/make.conf
+    chroot_mount
+    chroot ${DESTDIR} emerge -C app-misc/livecd-tools pentoo/pentoo-livecd
+    chroot_umount
+    mknod -m666 ${DESTDIR}/dev/zero c 1 5
+    mknod -m666 ${DESTDIR}/dev/null c 1 3
+    mknod -m600 ${DESTDIR}/dev/console c 5 1
+    mkdir -m755 ${DESTDIR}/media/{cd,dvd,fl}
+
+    S_SELECT=1
+}
+
+# set_profile
+# allows to choose a new profile in the DESTDIR env
+# parameters: none
+set_profile() {
+    chroot_mount
+    options=()
+    CUR_PROF_TYPE=""
+    CUR_PROF_NUM=""
+    CUR_PROF="`chroot ${DESTDIR} eselect profile show | grep pentoo | awk '{match($1,"pentoo/.*",a)}END{print a[0]}'`"
+
+    if [[ -n "`echo ${CUR_PROF} | grep hardened`" ]]; then
+        CUR_PROF_TYPE="hardened"
+    elif [[ -n "`echo ${CUR_PROF} | grep default`" ]]; then
+        CUR_PROF_TYPE="default"
+    else
+        show_dialog --keep-tite --msgbox "Warning: unable to detect a current Pentoo profile in the ${DESTDIR} directory" 0 0
+    fi
+
+    while read -r line; do
+        #grab all pentoo profiles
+        if [[ ${line} == *pentoo* ]]; then
+            #parse profiles based on the current type
+            if [ "${CUR_PROF_TYPE}" == "hardened" ]; then
+                PROF="`echo ${line} | awk '{match($2,"pentoo/hardened/.*",a)}END{print a[0]}'`"
+            elif [ "${CUR_PROF_TYPE}" == "default" ]; then
+                PROF="`echo ${line} | awk '{match($2,"pentoo/default/.*",a)}END{print a[0]}'`"
+            fi
+            #skip if the type is not current
+            if [[ -z ${PROF} ]]; then
+                continue
+            fi
+            #detect its profile number
+            PROF_NUM="`echo ${line} | awk '{match($1,"[0-9]+",a)}END{print a[0]}'`"
+            #generate options menu
+            options+=(${PROF_NUM} ${PROF})
+            #find current profile number
+            if [[ ${PROF} == ${CUR_PROF} ]]; then
+                CUR_PROF_NUM="${PROF_NUM}"
+            fi
+        fi
+    done < <(chroot ${DESTDIR} eselect profile list)
+
+    cmd=(dialog --keep-tite  --default-item "${CUR_PROF_NUM}" --menu "Select profile:" 22 76 16)
+    NEW_PROF_NUM=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
+
+    chroot ${DESTDIR} eselect profile set ${NEW_PROF_NUM}
+    chroot_umount
+}
+
+# auto_fstab()
+# preprocess fstab file
+# comments out old fields and inserts new ones
+# according to partitioning/formatting stage
+#
+auto_fstab()
+{
+    if [ "${S_MKFS}" = "1" -o "${S_MKFSAUTO}" = "1" ]; then
+        if [ -f /tmp/.fstab ]; then
+            # comment out stray /dev entries
+            sed -i 's/^\/dev/#\/dev/g' ${DESTDIR}/etc/fstab
+            # append entries from new configuration
+            sort /tmp/.fstab >>${DESTDIR}/etc/fstab
+            sed -i -e '/aufs/d' ${DESTDIR}/etc/fstab
+        fi
+    fi
+}
+
+# auto_dmcrypt()
+# copy dmcrypt and keys to partitions
+#
+auto_dmcrypt()
+{
+    chroot_mount
+    if [ -f /tmp/.dmcrypt ]; then
+        cat /tmp/.dmcrypt >> ${DESTDIR}/etc/conf.d/dmcrypt
+        mkdir -p ${DESTDIR}/etc/keys
+        for x in `cat /tmp/.dmcrypt | grep -e 'key=' | sed -e 's/:gpg//' -e's/.$//'`
+        do
+            cp /tmp/`basename ${x}` ${DESTDIR}/etc/keys/
+        done
+        chroot ${DESTDIR} /bin/bash <<EOF
+rc-update add dmcrypt boot
+EOF
+
+    fi
+    if [ ${S_FDE} = 1 ]; then
+        cp /tmp/root.asc ${DESTDIR}/boot/key.gpg
+    fi
+    chroot_umount
+}
+
+# douefigrub()
+# writes kernel to UEFI as new boot option
+# parameters:
+#     kernelpath: path to kernel, relative to partition root
+#     initrdpath: path to initrd
+#     bootparams: other boot params for kernel
+# returns: 1 on failure
+douefigrub() {
+    # check if grub2 is installed
+    grub2-mkimage -? 2>/dev/null 1>&2
+    if [ $? -ne 0 ]; then
+        show_dialog --msgbox "Error: Couldn't find grub2-mkimage.  Is GRUB-2 installed?" 0 0
+        return 1
+    fi
+    local kernelpath="${1}"
+    local initrdpath="${2}"
+    local bootparams="${3}"
+    # uefipart: uefi partition, ex. /dev/sda1
+    show_dialog --menu "Select the partition to use as UEFI boot partition" 21 50 13 NONE - ${PARTS} 2>"${ANSWER}" || return 1
+    local uefipart=$(get_answer)
+    PARTS="$(echo ${PARTS} | sed -e "s#${uefipart}\ _##g")"
+    [ "${uefipart}" = "NONE" ] && return 1
+    # grubpart: grub partition, ex. (hd0,2)
+    show_dialog --inputbox "Verify your GRUB device path" 8 65 "(hd0,2)" 2>"${ANSWER}" || return 1
+    local grubpart=$(get_answer)
+    # uefimount: uefi partition mount point, ex. /boot
+    local uefimount="$(mount | grep "^${uefipart} " | cut -d' ' -f 3)"
+    # mount if not mounted
+    if [ "${uefimount}" = "" ]; then
+        mkdir -p /tmp/efibootpart || return 1
+        mount "${uefipart}" /tmp/efibootpart || return 1
+        uefimount=/tmp/efibootpart
+    fi
+    # safety check for /EFI/BOOT/BOOTX64.EFI (case insensitive for fat)
+    local findefi="$(find "${uefimount}" -iwholename "${uefimount}/efi/boot/bootx64.efi")"
+    if [ "${findefi}" != "" ]; then
+        show_dialog --msgbox "Error: ${findefi} exists, refusing to overwrite!" 0 0
+        return 1
+    fi
+    # safety check for /boot/grub2 (case insensitive for fat)
+    local findgrub2="$(find "${uefimount}" -iwholename "${uefimount}/boot/grub2")"
+    if [ "${findgrub2}" != "" ]; then
+        show_dialog --msgbox "Error: ${findgrub2} exists, refusing to overwrite!" 0 0
+        return 1
+    fi
+    # create grub image
+    mkdir -p "${uefimount}/EFI/BOOT" || return 1
+    grub2-mkimage -p /boot/grub2 -o "${uefimount}/EFI/BOOT/BOOTX64.EFI" -O x86_64-efi part_msdos part_gpt fat normal \
+        || return 1
+    # copy grub modules
+    mkdir -p "${uefimount}/boot/grub2" || return 1
+    cp -ar /usr/lib/grub/x86_64-efi "${uefimount}/boot/grub2/" \
+        || return 1
+    # create a crude grug.cfg
+    mkdir -p "${uefimount}/boot/grub2" || return 1
+    cat >> "${uefimount}/boot/grub2/grub.cfg" <<EOF
+timeout=5
+menuentry 'Pentoo' {
+    insmod efi_gop
+    insmod efi_uga
+    insmod part_msdos
+    insmod part_gpt
+    root=${grubpart}
+    linux ${kernelpath} ${bootparams}
+    initrd ${initrdpath}
+}
+EOF
+    show_dialog --msgbox "UEFI boot image successfully installed. You can now review the GRUB-2 config file." 0 0
+    [ "${EDITOR}" ] || seteditor
+    ${EDITOR} "${uefimount}/boot/grub2/grub.cfg"
+    show_dialog --msgbox "Success: UEFI booting by GRUB-2 installed!" 0 0
+}
+
+# douefi()
+# writes kernel to UEFI as new boot option
+# parameters:
+#     kernelpath: path to kernel, relative to partition root
+#     initrdpath: path to initrd
+#     bootparams: other boot params for kernel
+# returns: 1 on failure
+#
+douefi() {
+    modprobe efivars
+    # check if booted through UEFI
+    efibootmgr -v 2>/dev/null 1>&2
+    if [ $? -ne 0 ]; then
+        show_dialog --msgbox "Error: Couldn't read from UEFI. Did you boot through UEFI?" 0 0
+        return 1
+    fi
+    # kernel path with \\ instead of /
+    local kernelpath=${1//\//\\\\}
+    # initrd path with \ instead of /
+    local initrdpath=${2//\//\\}
+    local bootparams="${3}"
+    # kernelpart: kernel partition, ex. /dev/sda2
+    show_dialog --menu "Select the partition with the kernel (/boot)" 21 50 13 NONE - ${PARTS} 2>"${ANSWER}" || return 1
+    local kernelpart=$(get_answer)
+    PARTS="$(echo ${PARTS} | sed -e "s#${kernelpart}\ _##g")"
+    [ "${kernelpart}" = "NONE" ] && return 1
+    # kernelpart as disk and trailing part-number
+    local kernelpartnu=$(expr match "${kernelpart}" '.*\([1-9][0-9]*\)')
+    local kernelpartdisk=${kernelpart:0: -${#kernelpartnu}}
+    # write to UEFI
+    echo "${bootparams} initrd=${initrdpath}" | \
+        iconv -f ascii -t ucs2 | \
+        efibootmgr --create --gpt \
+            --disk "${kernelpartdisk}" --part "${kernelpartnu}" \
+            --label "Pentoo" \
+            --loader "${kernelpath}" \
+            --append-binary-args -
+    if [ $? -ne 0 ]; then
+        show_dialog --msgbox "Error: Couldn't write to UEFI!" 0 0
+        return 1
+    fi
+    show_dialog --msgbox "Success: Direct UEFI booting installed!" 0 0
+}
+
+# dobootloader()
+# installs boot loader
+# parameters:
+#     bootmode:
+#         - uefigrub: installs GRUB2 UEFI-image plus menu
+#         - uefi: boot kernel direclty by UEFI
+# returns: 1 on failure
+#
+dobootloader() {
+    local bootmode="${1}"
+    local _kernver=$(getkernelversion)
+    local kernelpath="/boot/kernel-genkernel${_kernver}"
+    local initrdpath="/boot/initramfs-genkernel${_kernver}"
+    local bootparams="root=/dev/ram0 real_root=${PART_ROOT}"
+    # select UEFI boot partition
+    PARTS=$(findpartitions _)
+    # compose boot parameters
+    # parse kernel cmdline (only video mode for now)
+    for _var in $(cat /proc/cmdline); do
+        case ${_var} in
+            video=*)
+                eval $(echo ${_var}) ;;
+        esac
+    done
+    bootparams+=" video=${video} console=tty0 usbcore.autosuspend=1 net.ifnames=0 ro"
+    case "${bootmode}" in
+        uefigrub)
+            douefigrub "${kernelpath}" "${initrdpath}" "${bootparams}" \
+                || return 1
+            ;;
+        uefi)
+            douefi "${kernelpath}" "${initrdpath}" "${bootparams}" \
+            || return 1
+            ;;
+    esac
+}
+
+# dogrub()
+# installs grub
+# params: none
+# returns: 1 on failure
+dogrub() {
+    get_grub_map
+    local grubmenu="${DESTDIR}/boot/grub/grub.conf"
+    rm ${DESTDIR}/boot/grub/menu.lst
+    ln -s ./grub.conf ${DESTDIR}/boot/grub/menu.lst
+    if [ ! -f ${grubmenu} ]; then
+        show_dialog --msgbox "Error: Couldn't find ${grubmenu.}  Is GRUB installed?" 0 0
+        return 1
+    fi
+    # try to auto-configure GRUB...
+    if [ "${PART_ROOT}" != "" -a "${S_GRUB}" != "1" ]; then
+        grubdev=$(mapdev ${PART_ROOT})
+        local _rootpart="${PART_ROOT}"
+        # look for a separately-mounted /boot partition
+        bootdev=$(mount | grep ${DESTDIR}/boot | cut -d' ' -f 1)
+        if [ "${grubdev}" != "" -o "${bootdev}" != "" ]; then
+            subdir=
+            if [ "${bootdev}" != "" ]; then
+                grubdev=$(mapdev ${bootdev})
+            else
+                subdir="/boot"
+            fi
+            # keep the file from being completely bogus
+            if [ "${grubdev}" = "_DEVICE NOT FOUND" ]; then
+                show_dialog --msgbox "Your root boot device could not be autodetected by setup.  Ensure you adjust the 'root (hd0,0)' line in your GRUB config accordingly." 0 0
+                grubdev="(hd0,0)"
+            fi
+            # remove default entries
+            sed -i 's/^#splashimage/splashimage/' ${grubmenu}
+            sed -i '/^#/d' ${grubmenu}
+	        # parse kernel cmdline (only video mode for now)
+	        for _var in $(cat /proc/cmdline)
+	        do
+			    case ${_var} in
+				    video=*)
+				    eval $(echo ${_var})
+				    ;;
+			    esac
+		    done
+	        # get kernel version
+	        local _kernver=$(getkernelversion)
+            if [ ${S_FDE} = 1 ]; then
+                cat >>${grubmenu} <<EOF
+
+# (0) Pentoo
+title  Pentoo
+root   ${grubdev}
+kernel ${subdir}/kernel-genkernel${_kernver} root=/dev/ram0 real_root=/dev/mapper/root dogpg crypt_root=${_rootpart} root_key=/key.gpg root_keydev=${bootdev} ${_cmdline} video=${video} console=tty1 net.ifnames=0 ro
+initrd ${subdir}/initramfs-genkernel${_kernver}
+
+# (2) Windows
+#title Windows
+#rootnoverify (hd0,0)
+#makeactive
+#chainloader +1
+EOF
+            else
+                cat >>${grubmenu} <<EOF
+
+# (0) Pentoo
+title  Pentoo
+root   ${grubdev}
+kernel ${subdir}/kernel-genkernel${_kernver} root=/dev/ram0 real_root=${_rootpart} ${_cmdline} video=${video} console=tty1 net.ifnames=0 ro
+initrd ${subdir}/initramfs-genkernel${_kernver}
+
+# (2) Windows
+#title Windows
+#rootnoverify (hd0,0)
+#makeactive
+#chainloader +1
+EOF
+            fi
+        fi
+    fi
+
+    show_dialog --msgbox "Before installing GRUB, you must review the configuration file.  You will now be put into the editor.  After you save your changes and exit the editor, you can install GRUB." 0 0
+    [ "${EDITOR}" ] || seteditor
+    ${EDITOR} ${grubmenu}
+
+    DEVS=$(partition_finddisks _)
+    DEVS="${DEVS} $(findpartitions _)"
+    if [ "${DEVS}" = "" ]; then
+        show_dialog --msgbox "No hard drives were found" 0 0
+        return 1
+    fi
+    show_dialog --menu "Select the boot device where the GRUB bootloader will be installed (usually the MBR and not a partition)." 14 55 7 ${DEVS} 2>"${ANSWER}" || return 1
+    ROOTDEV=$(get_answer)
+    show_dialog --infobox "Installing the GRUB bootloader..." 0 0
+    if [ -d "${DESTDIR}"/usr/lib/grub/i386-pc ]; then
+        cp -a "${DESTDIR}"/usr/lib/grub/i386-pc/* "${DESTDIR}"/boot/grub/
+    fi
+    sync
+    # freeze xfs filesystems to enable grub installation on xfs filesystems
+    if [ -x /usr/sbin/xfs_freeze ]; then
+        mount | grep ${DESTDIR}/boot | grep -q xfs && /usr/sbin/xfs_freeze -f ${DESTDIR}/boot > /dev/null 2>&1
+        mount | grep ${DESTDIR} | grep -q xfs && /usr/sbin/xfs_freeze -f ${DESTDIR}/ > /dev/null 2>&1
+    fi
+    # look for a separately-mounted /boot partition
+    bootpart=$(mount | grep ${DESTDIR}/boot | cut -d' ' -f 1)
+    if [ "${bootpart}" = "" ]; then
+        if [ "${PART_ROOT}" = "" ]; then
+            show_dialog --inputbox "Enter the full path to your root device" 8 65 "/dev/sda3" 2>"${ANSWER}" || return 1
+            bootpart=$(get_answer)
+        else
+            bootpart=${PART_ROOT}
+        fi
+    fi
+    show_dialog --defaultno --yesno "Do you have your system installed on software raid?\nAnswer 'YES' to install grub to another hard disk." 0 0
+    if [ $? -eq 0 ]; then
+        show_dialog --menu "Please select the boot partition device, this cannot be autodetected!\nPlease redo grub installation for all partitions you need it!" 14 55 7 ${DEVS} 2>"${ANSWER}" || return 1
+        bootpart=$(get_answer)
+    fi
+    bootpart=$(mapdev ${bootpart})
+    bootdev=$(mapdev ${ROOTDEV})
+    if [ "${bootpart}" = "" ]; then
+        show_dialog --msgbox "Error: Missing/Invalid root device: ${bootpart}" 0 0
+        return 1
+    fi
+    if [ "${bootpart}" = "_DEVICE NOT FOUND" -o "${bootdev}" = "_DEVICE NOT FOUND" ]; then
+        show_dialog --msgbox "GRUB root and setup devices could not be auto-located.  You will need to manually run the GRUB shell to install a bootloader." 0 0
+        return 1
+    fi
+    /sbin/grub-install --no-floppy --recheck --grub-shell=${DESTDIR}/sbin/grub --root-directory=${DESTDIR} ${ROOTDEV} >/tmp/grub.log 2>&1
+    cat /tmp/grub.log >"${LOG}"
+    # unfreeze xfs filesystems
+    if [ -x /usr/sbin/xfs_freeze ]; then
+        mount | grep ${DESTDIR}/boot | grep -q xfs && /usr/sbin/xfs_freeze -u ${DESTDIR}/boot > /dev/null 2>&1
+        mount | grep ${DESTDIR}/boot | grep -q xfs && /usr/sbin/xfs_freeze -u ${DESTDIR}/ > /dev/null 2>&1
+    fi
+
+    if grep "Error [0-9]*: " /tmp/grub.log >/dev/null; then
+        show_dialog --msgbox "Error installing GRUB. (see ${LOG} for output)" 0 0
+        return 1
+    fi
+    show_dialog --msgbox "GRUB was successfully installed." 0 0
+    S_GRUB=1
+}
+
+configure_system()
+{
+    # must mount chroot so pre/post installs don't fail out
+    chroot_mount
+    chroot ${DESTDIR} /bin/bash <<EOF
+rc-update del autoconfig default
+rc-update del binary-driver-handler
+rc-update del firmware boot
+rc-update del fixinittab default
+rc-update add keymaps default
+rc-update add fcron default
+mv /etc/inittab.old /etc/inittab
+mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh
+EOF
+    # don't need chroot anymore
+
+    # ensure the disk is synced
+    sync
+
+    # automagic time!
+    # any automatic configuration should go here
+    show_dialog --infobox "Writing base configuration..." 6 40
+    auto_fstab
+    auto_dmcrypt
+
+    [ "${EDITOR}" ] || seteditor
+
+    local CURRENT_SELECTION=""
+    while true; do
+        if [ -n "${CURRENT_SELECTION}" ]; then
+            DEFAULT="--default-item ${CURRENT_SELECTION}"
+        else
+            DEFAULT=""
+        fi
+        show_dialog ${DEFAULT} --menu "Configuration" 17 70 10 \
+            "/etc/conf.d/keymaps"        "Keymap" \
+            "/etc/fstab"                "Filesystem Mountpoints" \
+            "/etc/resolv.conf"          "DNS Servers" \
+            "/etc/hosts"                "Network Hosts" \
+            "/etc/locale.gen"           "Glibc Locales" \
+            "Root-Password"             "Set the root password" \
+            "add-user"                  "Add a new user" \
+            "Return"        "Return to Main Menu" 2>"${ANSWER}" || CURRENT_SELECTION="Return"
+        CURRENT_SELECTION="$(get_answer)"
+
+        if [ "${CURRENT_SELECTION}" = "Return" -o -z "${CURRENT_SELECTION}" ]; then       # exit
+            break
+        elif [ "${CURRENT_SELECTION}" = "Root-Password" ]; then            # non-file
+#            while true; do
+#                chroot ${DESTDIR} passwd root && break
+#            done
+		show_dialog ${DEFAULT} --clear --insecure --passwordbox "Enter a password" 17 70 2>"${ANSWER}"
+			_rootpass=$(get_answer)
+			chroot ${DESTDIR} /bin/bash <<EOF
+echo -e "${_rootpass}\n${_rootpass}" | passwd root
+EOF
+			shred ${ANSWER}
+			${_rootpass}=""
+	elif [ "${CURRENT_SELECTION}" = "add-user" ]; then
+		show_dialog ${DEFAULT} --inputbox "Enter a username" 17 70 2>"${ANSWER}"
+			_username=$(get_answer)
+		show_dialog ${DEFAULT} --clear --insecure --passwordbox "Enter a password" 17 70 2>"${ANSWER}"
+			_userpass=$(get_answer)
+#run passwd (the second line) just in case if user exists (as in rc1.9)
+			chroot ${DESTDIR} /bin/bash <<EOF
+useradd -p ${_userpass} -m -G users,wheel,audio,cdrom,video,cdrw,usb,plugdev,wireshark,kismet,android ${_username}
+echo -e "${_userpass}\n${_userpass}" | passwd ${_username}
+EOF
+			shred ${ANSWER}
+			${_userpass}=""
+			rsync -r --exclude=.svn --exclude=.subversion "${DESTDIR}"/root/.[!.]* "${DESTDIR}"/home/"${_username}"/ >"${LOG}"
+			chroot ${DESTDIR} chown -R ${_username}:${_username} /home/${_username} >"${LOG}"
+#		while true; do
+#			chroot ${DESTDIR} passwd ${_username} && break
+#		done
+        else                                                #regular file
+            ${EDITOR} ${DESTDIR}${CURRENT_SELECTION}
+        fi
+    done
+
+    ## POSTPROCESSING ##
+
+    # /etc/locale.gen
+    #
+    chroot ${DESTDIR} locale-gen >"${LOG}"
+    chroot_umount
+    # /etc/localtime
+    cp /etc/localtime ${DESDIR}/etc/localtime >"${LOG}"
+
+    ## END POSTPROCESSING ##
+    sync
+    S_CONFIG=1
+}
+
+install_bootloader()
+{
+    show_dialog --colors --menu "Which bootloader would you like to use?  Grub is the Pentoo default.\n\n" \
+        12 75 4 \
+        "GRUB" "Use the GRUB bootloader (default)" \
+        "UEFI-GRUB" "Use GRUB2 and UEFI (unsupported)" \
+        "UEFI" "Boot kernel directly by UEFI (unsupported)" \
+        "None" "\Zb\Z1Warning\Z0\ZB: you must install your own bootloader!" 2>"${ANSWER}"
+    case $(get_answer) in
+        "GRUB") dogrub ;;
+        "UEFI-GRUB") dobootloader 'uefigrub' ;;
+        "UEFI") dobootloader 'uefi' ;;
+    esac
+}
+
+
+# TODO re-use code below from autoprepare
+
+local _FSTYPE=""
+local _FSTYPE_SPEC=""
+
+# define file system for /
+# TODO move this to mountpoint definition menu
+_FSTYPE=$(partition_getpartitionFS '/') || return $?
+
+local FSSPEC=""
+local FSSPECS=""
+
+# TODO reactivate
+# / required
+# if [ $(echo ${FSSPECS}| grep '/:' | wc -l) -ne 1 ]; then
+	# show_dialog --msgbox "Need exactly one root partition" 0 0
+	# return 1
+# fi
+# validate DEST
+#if [ ! -d "${DESTDIR}" ]; then
+	#show_dialog --msgbox "Destination directory '${DESTDIR}' is not valid" 0 0
+	#return 1
+#fi
+
+#rm -f /tmp/.fstab || return $?
+#rm -f /tmp/.dmcrypt || return $?
+
+
+# setup input var for sfdisk
+# boot partition
+FSSPECS="/boot:${BOOT_PART_SIZE}:ext2:+"
+# swap partition
+FSSPECS="${FSSPECS} swap:${SWAP_PART_SIZE}:swap"
+# root partition
+FSSPECS="${FSSPECS} /::${_FSTYPE}"
+
+
+local _PART=""
+local _MOUNTPOINT=""
+
+# need to mount root first, then do it again for the others
+_PART=1
+for FSSPEC in ${FSSPECS}; do
+	_MOUNTPOINT=$(echo ${FSSPEC}| tr -d ' ' | cut -f1 -d:) || return $?
+	_FSTYPE=$(echo ${FSSPEC}| tr -d ' ' | cut -f3 -d:) || return $?
+	if echo ${_MOUNTPOINT} | tr -d ' ' | grep '^/$' 2>&1 > /dev/null; then
+		partition_mkfs yes ${DISC}${_PART} "${_FSTYPE}" "${DESTDIR}" "${_MOUNTPOINT}" || return $?
+	fi
+	_PART=$((${_PART} + 1)) || return $?
+done
+
+# make other filesystems
+_PART=1
+for FSSPEC in ${FSSPECS}; do
+	_MOUNTPOINT=$(echo ${FSSPEC}| tr -d ' ' | cut -f1 -d:) || return $?
+	_FSTYPE=$(echo ${FSSPEC} | tr -d ' ' | cut -f3 -d:) || return $?
+	if [ $(echo ${_MOUNTPOINT} | tr -d ' ' | grep '^/$' | wc -l) -eq 0 ]; then
+		partition_mkfs yes ${DISC}${_PART} "${_FSTYPE}" "${DESTDIR}" "${_MOUNTPOINT}" || return $?
+	fi
+	_PART=$((${_PART} + 1)) || return $?
+done

@@ -1,0 +1,20 @@
+                                          .
+                                         d$b
+   .d$$$$$$b.   .cd$$b.     .d$$b.   d$$$$$$$$$$$b  .d$$b.      .d$$b.
+  .$$$$$$$$$$ d$$$'`$$$.   d$$$$$$$b Q$$$$$$$P$$$P.$$$$$$$b.  .$$$$$$$b.
+  $$$$(  )$$$d$$$$bd$$P"  d$$$PQ$$$$b.   $$$$.   .$$$P' `$$$ .$$$P' `$$$
+ .$$$$$$$$$$P Q$$$$$$$b  d$$$P   Q$$$$b  $$$$b   $$$$b..d$$$ $$$$b..d$$$
+ d$$$$$$$$$P'  "$$$$$$$$ Q$$$     Q$$$$  $$$$$   `Q$$$$$$$P  `Q$$$$$$$P
+.$$$$P'          `"""""   ""        ""   Q$$$P     "Q$$$P"     "Q$$$P"
+d$Q$$'                                    """
+"Q$$P
+            Welcome to the Pentoo Installation program
+
+  The install process is fairly straightforward, and you should run
+  through the options in the order they are presented. If you are
+  unfamiliar with partitioning/making filesystems, you may want to
+  consult some documentation before continuing.
+
+  You can view all output from commands by switching to tty8:
+  alt-f8/alt-f1 from a console
+  ctrl+alt+f8/ctrl+alt+f7 from a X terminal

@@ -1,0 +1,374 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# FSspec
+# handler for the FSspec format defined below
+# all actions with FSspec should use this
+# params: TODO
+
+# FSspec definition
+#  <device>:<mountpoint>:<filesystem>:<boot-flag>:<encryption>:<format>:<cryptname>
+#  mountpoint of a swap partition must be empty
+#  partition with filesystem=swap cannot have boot-flag=1
+#  all non swap partitions must have a mountpoint
+#  boot-flag and encryption are mutually exclusive, only one can be true
+#  Examples:
+#   /dev/sdc1:/boot:ext2:0:1:0:1
+#   /dev/sdc2::swap:0:0:0:1
+#   /dev/sdc3:/:ext4:1:0:1:1
+
+# writes 3 lines to STDOUT
+# TODO
+
+# writes errors and noise to STDERR
+
+# returns 0 on success
+# anything else is an error
+
+# source partitioning commons
+source common.sh || exit $?
+
+#############################
+## START: utility functions##
+
+# FSspec_create()
+# creates an FSspec string from the input variables and writes it to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  all items of FSspec in defined order
+#
+FSspec_create() {
+	# check input
+	check_num_args "${FUNCNAME}" 7 $# || return $?
+	local _DEVICE="${1}"
+	local _MOUNTPOINT="${2}"
+	local _FILESYSTEM="${3}"
+	local _BOOTFLAG="${4}"
+	local _ENCRYPTION="${5}"
+	local _FORMAT="${6}"
+	local _CRYPTNAME="${7}"
+	local _CONFIG_SEPARATOR=':'
+	# convert boolean values to 0 or 1
+	[ "${_BOOTFLAG}" != '1' ] && _BOOTFLAG=0
+	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
+	[ "${_FORMAT}" != '1' ] && _FORMAT=0
+	# validate
+	if [ -z "${_DEVICE}" ] || [ -z "${_FILESYSTEM}" ]; then
+		echo "error parsing config, device or filesystem missing" 1>&2
+		return 1
+	fi
+	# swap partition
+	# todo handle swap-crypted
+	if [ "${_FILESYSTEM}" = 'swap' ]; then
+		if [ -n "${_MOUNTPOINT}" ]; then
+			echo "error parsing config, swap partition cannot have mountpoint" 1>&2
+			return 1
+		elif [ "${_BOOTFLAG}" = '1' ]; then
+			echo "error parsing config, swap partition cannot have boot-flag" 1>&2
+			return 1
+		fi
+	# non swap partition
+	else
+		if [ -z "${_MOUNTPOINT}" ]; then
+			echo "error parsing config, partition must have mountpoint" 1>&2
+			return 1
+		elif [ "${_BOOTFLAG}" = '1' ] && [ "${_ENCRYPTION}" = '1' ]; then
+			echo "error parsing config, boot-flag and encryption-flag are exclusive" 1>&2
+			return 1
+		fi
+	fi
+	# everything ok, write to STDOUT and return 0
+	echo -n "${_DEVICE}"
+	echo -n "${_CONFIG_SEPARATOR}${_MOUNTPOINT}"
+	echo -n "${_CONFIG_SEPARATOR}${_FILESYSTEM}"
+	echo -n "${_CONFIG_SEPARATOR}${_BOOTFLAG}"
+	echo -n "${_CONFIG_SEPARATOR}${_ENCRYPTION}"
+	echo -n "${_CONFIG_SEPARATOR}${_FORMAT}"
+	echo "${_CONFIG_SEPARATOR}${_CRYPTNAME}"
+	return 0
+}
+
+# FSspec_del_keyvalue()
+# parses a list of FSspec and deletes all elements with key=value
+# all other items from the list are printed to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  key: see defined FSscpec format
+#  value: search for this
+#
+FSspec_del_keyvalue() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _FIRST=1
+	local _ITEM=
+	local _TMPVAL=
+	# loop list and output item if key=value not true
+	for _ITEM in ${1}; do
+		_TMPVAL="$(FSspec_parse "${_ITEM}" "${2}")" || return $? 
+		if [ "${_TMPVAL}" != "${3}" ]; then
+			[ "${_FIRST}" -ne 1 ] && echo -n ' '
+			[ "${_FIRST}" -eq 1 ] && _FIRST=0
+			echo -n "${_ITEM}"
+		fi
+	done
+	return 0
+}
+
+# FSspec_list_haskeyvalue()
+# checks if a list of FSspec has a key=value element
+#
+# returns 0 when found, 1 when not found
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  key: see defined FSscpec format
+#  value: search for this
+#
+FSspec_list_haskeyvalue() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	FSspec_listfind "${@}" 1>/dev/null
+	return $?
+}
+
+# FSspec_listfind()
+# parses a list of FSspec-strings, searches for matching key=value
+# and prints first matching list item to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  varname: one of "device", "mountpoint", "filesystem", "boot-flag", "encryption", "format"
+#  varvalue: the value to search for
+#
+FSspec_listfind() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _CONFIG_LIST="${1}"
+	local _VARNAME="${2}"
+	local _VARVALUE="${3}"
+	local _ITEM=
+	local _TMPVALUE=
+	for _ITEM in ${_CONFIG_LIST}; do
+		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${_VARNAME}")" || return $?
+		if [ "${_TMPVALUE}" = "${_VARVALUE}" ]; then
+			echo "${_ITEM}"
+			return 0
+		fi
+	done
+	echo "Item not found, exiting ungracefully"
+	return 1
+}
+
+# FSspec_merge()
+# merges a list of old config with a list of new ones by their device
+# devices in both lists: new config is used
+# devices which do not exist are removed
+# all other items from both lists are printed to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  list_old_configs: list of FSspec items, see defined FSscpec format
+#  list_new_configs: list of FSspec items, see defined FSscpec format
+#
+FSspec_merge() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local _LIST_OLD="${1}"
+	local _LIST_NEW="${2}"
+	local _LIST_RESULT=
+	local _ITEM_OLD=
+	local _ITEM_NEW=
+	local _DEV_NEW=
+	local _DEV_OLD=
+	local _FOUND=
+	# loop old list and add item if not found in new list
+	for _ITEM_OLD in ${_LIST_OLD}; do
+		_FOUND=0
+		_DEV_OLD="$("${LIBDIR}"/FSspec parse "${_ITEM_OLD}" 'device')" || return $?
+		# loop new list
+		for _ITEM_NEW in ${_LIST_NEW}; do
+			_DEV_NEW="$("${LIBDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
+			if [ "${_DEV_OLD}" = "${_DEV_NEW}" ]; then
+				_FOUND=1
+				echo "INFO: Replacing existing config of ${_DEV_OLD}." 1>&2
+				break
+			fi
+		done
+		if [ "${_FOUND}" -eq 0 ]; then
+			_LIST_NEW="${_LIST_NEW} ${_ITEM_OLD}"
+		fi
+	done
+	# check if all devices exist
+	for _ITEM_NEW in ${_LIST_NEW}; do
+		_DEV_NEW="$("${LIBDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
+		if [ ! -b "${_DEV_NEW}" ]; then
+			echo "INFO: Device ${_DEV_NEW} is not a valid block device. Removing config for it." 1>&2
+		else
+			[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT} "
+			_LIST_RESULT="${_LIST_RESULT}${_ITEM_NEW}"
+		fi
+	done
+	# sort result
+	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort | tr '\n' ' ')" || return $?
+	# write result to STDOUT
+	echo "${_LIST_RESULT}"
+	return 0
+}
+
+# FSspec_parse()
+# parses an input FSspec and writes desired var to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  input: see defined FSscpec format
+#  varname: one of "device", "mountpoint", "filesystem", "boot-flag", "encryption", "format"
+#
+FSspec_parse() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local _INPUT="${1}"
+	local _VARNAME="${2}"
+	local _CONFIG_SEPARATOR=':'
+	local _DEVICE=
+	local _MOUNTPOINT=
+	local _FILESYSTEM=
+	local _BOOTFLAG=
+	local _ENCRYPTION=
+	local _FORMAT=
+	local _CRYPTNAME=
+	local _CHECKSEPS=
+	# check if input has correct number of separators
+	_CHECKSEPS=$(echo -n "${_INPUT//[^${_CONFIG_SEPARATOR}]}" | wc -m) || return false;
+	if [ "${_CHECKSEPS}" -ne 6 ]; then
+		echo "error parsing config, wrong number of separators in '${_INPUT}'" 1>&2
+		return 1
+	fi
+	# parse the item
+	_DEVICE=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $1}') || return $?
+	_MOUNTPOINT=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $2}') || return $?
+	_FILESYSTEM=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $3}') || return $?
+	_BOOTFLAG=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $4}') || return $?
+	_ENCRYPTION=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $5}') || return $?
+	_FORMAT=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $6}') || return $?
+	_CRYPTNAME=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $7}') || return $?
+	# convert boolean values to 0 or 1
+	[ "${_BOOTFLAG}" != '1' ] && _BOOTFLAG=0
+	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
+	# validate
+	FSspec_create \
+		"${_DEVICE}" \
+		"${_MOUNTPOINT}" \
+		"${_FILESYSTEM}" \
+		"${_BOOTFLAG}" \
+		"${_ENCRYPTION}" \
+		"${_FORMAT}" \
+		"${_CRYPTNAME}" \
+		&>/dev/null \
+		|| return $?
+	# print value to STDOUT
+	case "${_VARNAME}" in
+		"device")
+			echo "${_DEVICE}";;
+		"mountpoint")
+			echo "${_MOUNTPOINT}";;
+		"filesystem")
+			echo "${_FILESYSTEM}";;
+		"boot-flag")
+			echo "${_BOOTFLAG}";;
+		"encryption")
+			echo "${_ENCRYPTION}";;
+		"format")
+			echo "${_FORMAT}";;
+		"cryptkey")
+			echo "${_CRYPTNAME}";;
+		*)
+			echo "Unexpected varname in ${FUNCNAME}()" 1>&2
+			return 1
+	esac
+	return 0
+}
+
+# FSspec_sort_reverse()
+# sort a list of FSspec-strings by the values of a key
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  varname: one of "device", "mountpoint", "filesystem", "boot-flag", "encryption", "format"
+#
+FSspec_sort_reverse() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local _CONFIG_LIST="${1}"
+	local _LIST_RESULT=
+	local _VARNAME="${2}"
+	local _CONFIG_SEPARATOR=':'
+	local _ITEM=
+	local _TMPVALUE=
+	for _ITEM in ${_CONFIG_LIST}; do
+		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${_VARNAME}")" || return $?
+		# append space
+		[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT} "
+		# simply prepend the value at start
+		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${_CONFIG_SEPARATOR}${_ITEM}"
+	done
+	# sort the result
+	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort -r | tr '\n' ' ')" || return $?
+	_CONFIG_LIST=
+	for _ITEM in ${_LIST_RESULT}; do
+		echo dump _ITEM = "${_ITEM}" 1>&2
+		# append space
+		[ -n "${_CONFIG_LIST}" ] && _CONFIG_LIST="${_CONFIG_LIST} "
+		_CONFIG_LIST="${_CONFIG_LIST}$(echo "${_ITEM}" | cut -d':' -f2-)" || return $?
+	done
+	# write result to STDOUT
+	echo "${_CONFIG_LIST}"
+	return 0
+}
+
+## END: utility functions##
+#############################
+
+# simpy call function based on mode
+MODE="${1}"
+shift
+case "${MODE}" in
+	'add')
+		"${LIBDIR}"/FSspec_add "${@}" ;;
+	'create')
+		FSspec_create "${@}" ;;
+	'del_keyvalue')
+		FSspec_del_keyvalue "${@}" ;;
+	'edit')
+		"${LIBDIR}"/FSspec_edit "${@}" ;;
+	'listfind')
+		FSspec_listfind "${@}" ;;
+	'list_haskeyvalue')
+		FSspec_list_haskeyvalue "${@}" ;;
+	'merge')
+		FSspec_merge "${@}" ;;
+	'parse')
+		FSspec_parse "${@}" ;;
+	'sort_reverse')
+		FSspec_sort_reverse "${@}" ;;
+	*)
+		echo "Unexpected mode '${MODE}' received, exiting ungracefully" 1>&2
+		exit 1
+esac
