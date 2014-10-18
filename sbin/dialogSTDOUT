@@ -1,0 +1,32 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# dialogSTDOUT
+# an el-cheapo dialog wrapper
+# parameters: see dialog(1) and Xdialog(1
+# STDOUT and STDERR is switched compared to 'dialog' and 'Xdialog'
+# usage: MYVAR=`show_dialog .......`
+# returns:
+# - 0 for Ok, result is written to STDOUT
+# - 64 when user clicks cancel or closes the box
+# - anything else is a real error
+
+readonly ERROR_CANCEL=64
+
+WHICHDIALOG='dialog'
+# let's support Xdialog for the fun of it
+if [ ! $(type "Xdialog" &> /dev/null) ] && [ -n "${DISPLAY}" ]; then
+	WHICHDIALOG='Xdialog'
+fi
+# switch STDOUT and STDERR and execute 'dialog' or Xdialog'
+ANSWER=`"${WHICHDIALOG}" "${@}" 3>&1 1>&2 2>&3`
+DIALOGRETURN=$?
+# check if user clicked cancel or closed the box
+if [ "${DIALOGRETURN}" -eq "1" ] ||  [ "${DIALOGRETURN}" -eq "255" ]; then
+	exit ${ERROR_CANCEL}
+elif [ "${DIALOGRETURN}" -ne "0" ]; then
+	exit "${DIALOGRETURN}"
+fi
+# no error or cancel, echo to STDOUT
+echo -n "${ANSWER}"

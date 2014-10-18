@@ -1,0 +1,105 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# pentoo-installer
+# main menu for the installation
+# sub scripts should write only results to STDOUT
+# menus and noise go to STDERR
+# params: none
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+
+readonly SHAREDIR="/usr/share/pentoo"
+
+# source common variables, functions and error handling
+source common.sh || exit $?
+
+#####################
+## begin execution ##
+
+## start by exiting if the user doesn't have enough RAM for the install to work
+RAMSIZE=$(awk '/MemTotal/ {printf( "%.0f\n", int ( $2 / 1024 ) + 1)}' /proc/meminfo)
+if [ "${RAMSIZE}" -le "1500" ]; then
+	show_dialog --msgbox "The Pentoo Installer requires a minimum of 1.5GB of RAM to run. Failing safe." 0 0
+	exit 1
+fi
+
+# display welcome txt
+show_dialog --textbox "${SHAREDIR}"/welcome.txt 25 75
+
+NEWSELECTION=
+SELECTION='0'
+RETSUB=
+MENU_ITEMS=
+MAXSELECTION="0"
+
+while [ true ]; do
+	# define menu items
+	MENU_ITEMS=("0" "Set Clock")
+	# add only valid menu items
+	# [ ${MAXSELECTION} -ge 1 ] && MENU_ITEMS+=("1" "Prepare Hard Drive")
+	[ ${MAXSELECTION} -ge 0 ] && MENU_ITEMS+=("1" "Prepare Hard Drive")
+	[ "${MAXSELECTION}" -ge 2 ] && MENU_ITEMS+=("2" "Copy the Distribution")
+	[ "${MAXSELECTION}" -ge 3 ] && MENU_ITEMS+=("3" "Select Profile")
+	[ "${MAXSELECTION}" -ge 4 ] && MENU_ITEMS+=("4" "Configure System")
+	[ "${MAXSELECTION}" -ge 5 ] && MENU_ITEMS+=("5" "Install Bootloader")
+	[ "${MAXSELECTION}" -ge 6 ] && MENU_ITEMS+=("6" "Exit Install")
+	# expand menu items array below
+	NEWSELECTION="$(show_dialog --default-item "${SELECTION}" \
+        --menu "Use the UP and DOWN arrows to navigate menus.  Use TAB to switch between buttons and ENTER to select." \
+		0 0 0 "${MENU_ITEMS[@]}")"
+	RETSUB=$?
+	if [ "${RETSUB}" -ne "0" ]; then
+		show_dialog --yesno "Abort installation?" 0 0 && exit "${RETSUB}"
+	fi
+	# call subscript by selected item
+	case "${NEWSELECTION}" in
+		"0")
+			"${LIBDIR}"/settzclock
+			RETSUB=$?
+			;;			
+		"1")
+			"${LIBDIR}"/partition_mainmenu
+			RETSUB=$?
+			;;
+		"2")
+			do_rsync
+			RETSUB=$?
+			;;
+		"3")
+			set_profile
+			RETSUB=$?
+			;;
+		"4")
+			configure_system
+			RETSUB=$?
+			;;
+		"5")
+			install_bootloader
+			RETSUB=$?
+			;;
+		"6")
+			echo ""
+			echo "If the install finished successfully, you can now type 'reboot'"
+			echo "to restart the system."
+			echo ""
+			exit 0 ;;
+		*)
+			echo "ERROR: Unexpected response '${NEWSELECTION}' in $(basename $0)" 1>&2
+			exit 1
+			;;
+	esac
+	# handle errors from sub-script/functions using a common utility function
+	if ! catch_menuerror "$(basename $0)" "${NEWSELECTION}" "${RETSUB}"; then
+		# everything ok, increase selection for next menu item
+		SELECTION="$((NEWSELECTION+1))" || exit $?
+		if [ "${MAXSELECTION}" -lt "${SELECTION}" ]; then
+			MAXSELECTION="${SELECTION}"
+		fi
+	fi
+done

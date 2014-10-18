@@ -1,0 +1,90 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# partition_manual
+# manually partition disk
+# parameters: none
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+
+# source partitioning commons
+source partition_common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+# partition_setpartitionlabel()
+# select and write partition layout
+# writes suggested editor to STDOUT
+# parameters (required)
+#  _DISC: The disk to use
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+partition_setpartitionlabel() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _CPT=
+	local _DISC="$1"
+	local _PT=
+	local _PARTITIONEDITOR=
+	# Read current partition layout
+	local _CPT=$(parted $1 print | sed -nr 's/^Partition Table:\s(.*)/\1/p') || return $?
+	_PT=$(show_dialog --menu "Select a partition table to use" 0 0 3 \
+		"msdos" "msdos (default)" \
+		"gpt" "gpt (unsupported)") || return $?
+	case "$_PT" in
+		"msdos")
+			_PARTITIONEDITOR="cfdisk" ;;
+		"gpt")
+			_PARTITIONEDITOR="cgdisk" ;;
+		*) return 1 ;;
+	esac
+	# Check current partition layout
+	if [ "${_PT}" != "${_CPT}" ]; then
+		show_dialog --defaultno --yesno "${_DISC} will be COMPLETELY ERASED!  Are you absolutely sure?" 0 0 \
+			|| return $?
+		parted -s "${_DISC}" mklabel "${_PT}" || return $?
+	fi
+	# print partition editor to STDOUT
+	echo "${_PARTITIONEDITOR}"
+	return 0
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+DISC=
+MESSAGE=
+PARTITIONEDITOR=
+RET=
+
+# let user select a disc
+DISC=$(partition_selectdisk) || exit $?
+# umount and swapoff all partitions of the disc
+partition_umountall "${DISC}" || exit $?
+# Set partition layout and get partition editor PARTITIONEDITOR
+PARTITIONEDITOR=$(partition_setpartitionlabel "${DISC}") || exit $?
+show_dialog --msgbox "Now you'll be put into the ${PARTITIONEDITOR} program where you can partition your hard drive.\nYou should make a swap partition and as many data partitions as you will need.\nNOTE:\n${PARTITIONEDITOR} may tell you to reboot after creating partitions.\nIf you need to reboot, just re-enter this install program, skip this step and go on to the next step." 0 0
+# switch STDOUT and STDERR
+# Partition disc
+"${PARTITIONEDITOR}" "${DISC}" 3>"${LOG}" 1>&2 2>&3
+RET=$?
+if [ "${RET}" -ne 0 ]; then
+	echo "Partition editor ${PARTITIONEDITOR} failed" 1>&2
+	exit "${RET}"
+else
+	show_dialog --msgbox "Manual partitioning was successful" 0 0
+	exit 0
+fi

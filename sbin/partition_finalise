@@ -1,0 +1,46 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# partition_finalise
+# Creates filesystem, also with encryption, mounts the partitions
+# parameters (required)
+#  CONFIG_LIST: One string items of defined FSspec:
+#    <device>:<mountpoint>:<filesystem>:<boot-flag>:<encryption>
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+
+# source partitioning commons
+source partition_common.sh || exit $?
+
+#####################
+## begin execution ##
+
+# check input
+check_num_args "$(basename $0)" 1 $# || exit $?
+CONFIG_LIST="${1}"
+# reverse sort by mountpoint
+CONFIG_LIST="$("${LIBDIR}"/FSspec sort_reverse "${CONFIG_LIST}" 'mountpoint')" || exit $?
+
+for CONFIG_ITEM in ${CONFIG_LIST}; do
+	DEVICE="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
+	FILESYSTEM="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
+	ENCRYPTION="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+	FORMAT="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
+	# encrypted
+	if [ "${ENCRYPTION}" -eq 1 ]; then
+		# non-swap partition
+		if [ "${FILESYSTEM}" != 'swap' ]; then
+
+		# swap partition
+		else
+			return 255
+			# [ "${FORMAT}" -eq 1 ] && mkswap "${DEVICE}" || return $?
+		fi
+	fi
+done

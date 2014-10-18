@@ -1,0 +1,230 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# FSspec_edit
+# user GUI to edit an FSspec
+#
+# parameters (required):
+#  CONFIG_ITEM: a FSspec
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+#
+# prints result to STDOUT
+#  this is the new FSspec, if it's empty, then the FSspec was deleted
+
+# source common variables, functions and error handling
+source common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+# FSspec_hasluks()
+# return 0 if file system is uspported with luks
+# parameters (required)
+# _CURRENT_FS: Current file system
+#
+# TODO: tell user which FS support luks
+FSspec_hasluks() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	case "${1}" in
+		'ext3'|'ext4'|'reiserfs')
+			return 0 ;;
+	esac
+	return 1
+}
+
+# FSspec_getfilesystem()
+# asks user for filesystem and prints result to STDOUT
+# parameters (required)
+#  _DEVICE: The partition
+# _CURRENT_FS: Current file system
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+FSspec_getfilesystem() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	# define available file systems
+	local _FSOPTS="ext2 ext2 ext3 ext3 ext4 ext4"
+	local _FSTYPE=
+	local _CURRENT_FS="${2}"
+	local _DEVICE="${1}"
+	[ "$(which mkreiserfs 2>/dev/null)" ] && _FSOPTS="${_FSOPTS} reiserfs Reiser3"
+	[ "$(which mkfs.xfs 2>/dev/null)" ]   && _FSOPTS="${_FSOPTS} xfs XFS"
+	[ "$(which mkfs.jfs 2>/dev/null)" ]   && _FSOPTS="${_FSOPTS} jfs JFS"
+	_FSTYPE=`show_dialog --default-item "${_CURRENT_FS}" --menu "Select a filesystem for ${_DEVICE}" \
+		0 0 6 ${_FSOPTS}` || return $?
+	show_dialog --yesno "${_FSTYPE} will be used for ${_DEVICE}. Is this OK?" 0 0 || return $?
+	# everything ok, write to STDOUT and return 0
+	echo "${_FSTYPE}"
+	return 0
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+# check input
+check_num_args "$(basename $0)" 1 $# || exit $?
+CONFIG_ITEM="${1}"
+
+# properties of FSspec
+DEVICE=
+MOUNTPOINT=
+FILESYSTEM=
+BOOTFLAG=
+ENCRYPTION=
+FORMAT=
+# parse the item, also validates
+DEVICE="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
+MOUNTPOINT="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
+FILESYSTEM="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
+BOOTFLAG="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'boot-flag')" || exit $?
+ENCRYPTION="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+FORMAT="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
+CRYPTKEY="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'cryptkey')" || exit $?
+
+SELECTION=
+# array holding menu items
+MENU_ITEMS=()
+NEWVAL=
+MESSAGE=
+RETSUB=
+
+while [ true ]; do
+	# reset array holding menu items
+	MENU_ITEMS=()
+	 # construct menu
+	if [ "${FILESYSTEM}" != 'swap' ]; then
+		MENU_ITEMS+=("mountpoint" "Change mountpoint, now: '${MOUNTPOINT}'") || exit $?
+		MENU_ITEMS+=("filesystem" "Change file system, now: '${FILESYSTEM}'") || exit $?
+		# convert boolean values from 0|1 to no|yes
+		MENU_ITEMS+=("boot-flag" "Change boot-flag, now: '$(get_yesno "${BOOTFLAG}")'") || exit $?
+	fi
+	# convert boolean values from 0|1 to no|yes
+	MENU_ITEMS+=("encryption" "Change encryption, now: '$(get_yesno "${ENCRYPTION}")'") || exit $?
+	MENU_ITEMS+=("format" "Format and create file system, now: '$(get_yesno "${FORMAT}")'") || exit $?
+	# Add other options: DONE
+	MENU_ITEMS+=("DELETE" "Remove configuration, partition will no longer be used") || exit $?
+	MENU_ITEMS+=("DONE" "Save changes") || exit $?
+	# expand menu items array below
+	SELECTION=$(show_dialog --menu "Changing setup of device '${DEVICE}'.\nPlease select a property to change." \
+		0 0 0 "${MENU_ITEMS[@]}") || exit $?
+	# evaluate answer
+	case "${SELECTION}" in
+		'mountpoint')
+			NEWVAL="$(show_dialog --inputbox "Enter the mountpoint for ${DEVICE}. Now: '${MOUNTPOINT}'." 0 0 "${MOUNTPOINT}")"
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ]; then
+				# trim result
+				NEWVAL="$(echo "${NEWVAL}" | awk '{gsub(/^ +| +$/,"")} {print $0}')" || exit $?
+				# validate
+				if [ -z "${NEWVAL}" ]; then
+					show_dialog --msgbox "ERROR: You have entered an empty mountpoint!" 0 0
+				elif [ "${NEWVAL:0:1}" != '/' ]; then
+					show_dialog --msgbox "ERROR: A valid mountpoint begins with '/'!" 0 0
+				else
+					MOUNTPOINT="${NEWVAL}"
+				fi
+			fi
+			;;
+		'filesystem')
+			NEWVAL="$(FSspec_getfilesystem "${DEVICE}" "${FILESYSTEM}")"
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ]; then
+				if [ -z "${NEWVAL}" ]; then
+					# should not be possible
+					exit 1
+				fi
+				# check if encryption might be lost
+				if [ "${ENCRYPTION}" = '1' ] && ! FSspec_hasluks "${NEWVAL}"; then
+					show_dialog --yesno "New file system '${NEWVAL}' does not support encryption.\nDo you want to continue?" 0 0
+					RETSUB=$?
+					[ "${RETSUB}" -eq 0 ] && ENCRYPTION=0
+				fi
+				[ "${RETSUB}" -eq 0 ] && FILESYSTEM="${NEWVAL}"
+			fi
+						;;
+		'boot-flag')
+			# dialog for boolean value
+			MESSAGE="Boot-flag for ${DEVICE} is now '$(get_yesno "${BOOTFLAG}")'.\nDo you want to change it?"
+			# warn about conflict of boot-flag and encryption
+			[ "${ENCRYPTION}" = '1' -a "${BOOTFLAG}" = '0' ] \
+				&& MESSAGE="${MESSAGE}\n\nWarning: This will also disable encryption!"
+            show_dialog --yesno "${MESSAGE}" 0 0
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ] && [ "${BOOTFLAG}" -eq '0' ]; then
+				BOOTFLAG=1
+				ENCRYPTION=0
+			elif [ "${RETSUB}" -eq 0 ]; then
+				BOOTFLAG=0
+			fi
+			;;
+		'encryption')
+			# check if file system supports encryption
+			if [ "${FILESYSTEM}" != 'swap' ] && ! FSspec_hasluks "${FILESYSTEM}"; then
+				show_dialog --msgbox "Current file system '${FILESYSTEM}' does not support encryption.\nPlease select another file system." 0 0
+			else
+				# dialog for boolean value
+				MESSAGE="Enryption for ${DEVICE} is now '$(get_yesno "${ENCRYPTION}")'.\nDo you want to change it?"
+				# warn about conflict of boot-flag and encryption
+				[ "${ENCRYPTION}" = '0' -a "${BOOTFLAG}" = '1' ] \
+					&& MESSAGE="${MESSAGE}\n\nWarning: This will also disable the boot-flag!"
+				show_dialog --yesno "${MESSAGE}" 0 0
+				RETSUB=$?
+				if [ "${RETSUB}" -eq 0 ] && [ "${ENCRYPTION}" -eq '0' ]; then
+					BOOTFLAG=0
+					ENCRYPTION=1
+				elif [ "${RETSUB}" -eq 0 ]; then
+					ENCRYPTION=0
+				fi
+			fi
+			;;
+		'format')
+			# dialog for boolean value
+            show_dialog --yesno "Formatting of ${DEVICE} is now '$(get_yesno "${FORMAT}")'.\nDo you want to change it?" 0 0
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ] && [ "${FORMAT}" -eq '0' ]; then
+				FORMAT=1
+			elif [ "${RETSUB}" -eq 0 ]; then
+				FORMAT=0
+			fi
+			;;
+		'DELETE')
+			# Print empty sting
+			# print result to STDOUT and exit 0
+			echo ''
+			exit 0
+			;;
+		'DONE')
+			# everything ok, create new FSspec string
+			# print result to STDOUT and exit 0
+			CONFIG_ITEM="$("${LIBDIR}"/FSspec create \
+				"${DEVICE}" \
+				"${MOUNTPOINT}" \
+				"${FILESYSTEM}" \
+				"${BOOTFLAG}" \
+				"${ENCRYPTION}" \
+				"${FORMAT}" \
+				"${CRYPTKEY}")" \
+				|| exit $?
+			echo "${CONFIG_ITEM}"
+			exit 0
+			;;
+		*)
+			echo "ERROR: Unexpected response '${SELECTION}' in $(basename $0)" 1>&2
+			exit 1
+			;;
+	esac
+done
