@@ -35,7 +35,7 @@ while [ true ]; do
 		"2" "Define Mount Points"
 		)
 	# check if root partition is defined
-	if "${LIBDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
+	if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
 		MENU_ITEMS+=("3" "Finish partition setup")
 	else
 		[ "${MAXSELECTION}" -ge 3 ] && MAXSELECTION=2	
@@ -48,27 +48,27 @@ while [ true ]; do
 	case "${NEWSELECTION}" in
 		# autoprepare
 		"0")
-			CONFIG_LIST_NEW="$("${LIBDIR}"/partition_autoprepare)"
+			CONFIG_LIST_NEW="$("${SHAREDIR}"/partition_autoprepare)"
 			# capture sub script exit
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
 				# merge old config with new one
-				CONFIG_LIST="$("${LIBDIR}"/FSspec merge "${CONFIG_LIST}" "${CONFIG_LIST_NEW}")" || exit $?
+				CONFIG_LIST="$("${SHAREDIR}"/FSspec merge "${CONFIG_LIST}" "${CONFIG_LIST_NEW}")" || exit $?
 			fi
 			;;
 		# manual setup
 		"1")
-			CONFIG_LIST_NEW="$("${LIBDIR}"/partition_manual)"
+			CONFIG_LIST_NEW="$("${SHAREDIR}"/partition_manual)"
 			# capture sub script exit
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
 				# nothing to merge, but remove inexistent devices
-				CONFIG_LIST="$("${LIBDIR}"/FSspec merge "${CONFIG_LIST}" "${CONFIG_LIST_NEW}")" || exit $?
+				CONFIG_LIST="$("${SHAREDIR}"/FSspec merge "${CONFIG_LIST}" "${CONFIG_LIST_NEW}")" || exit $?
 			fi
 			;;
 		# change configurations (filesystems, mountpoint, encryption, etc.)
 		"2")
-			CONFIG_LIST_NEW="$("${LIBDIR}"/partition_configurations "${CONFIG_LIST}")"
+			CONFIG_LIST_NEW="$("${SHAREDIR}"/partition_configurations "${CONFIG_LIST}")"
 			# capture sub script exit
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
@@ -78,7 +78,7 @@ while [ true ]; do
 			;;
 		# Create filesystems, mount them, then exit this menu
 		"3")
-			"${LIBDIR}"/partition_finalise "${CONFIG_LIST}"
+			"${SHAREDIR}"/partition_finalise "${CONFIG_LIST}"
 			# capture sub script exit
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then

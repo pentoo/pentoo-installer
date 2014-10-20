@@ -73,12 +73,12 @@ while [ true ]; do
 	for TMP_ITEM in ${CONFIG_LIST}; do
 		# parse the item, also validates
 		# add each item to the corresponding array
-		DEVICES+=("$("${LIBDIR}"/FSspec parse "${TMP_ITEM}" 'device')") || exit $?
-		MOUNTPOINTS+=("$("${LIBDIR}"/FSspec parse "${TMP_ITEM}" 'mountpoint')") || exit $?
-		FILESYSTEMS+=("$("${LIBDIR}"/FSspec parse "${TMP_ITEM}" 'filesystem')") || exit $?
-		BOOT_FLAGS+=("$(get_yesno "$("${LIBDIR}"/FSspec parse "${TMP_ITEM}" 'boot-flag')")") || exit $?
-		ENCRYPTIONS+=("$(get_yesno "$("${LIBDIR}"/FSspec parse "${TMP_ITEM}" 'encryption')")") || exit $?
-		FORMATS+=("$(get_yesno "$("${LIBDIR}"/FSspec parse "${TMP_ITEM}" 'format')")") || exit $?
+		DEVICES+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'device')") || exit $?
+		MOUNTPOINTS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'mountpoint')") || exit $?
+		FILESYSTEMS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'filesystem')") || exit $?
+		BOOT_FLAGS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'boot-flag')")") || exit $?
+		ENCRYPTIONS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'encryption')")") || exit $?
+		FORMATS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'format')")") || exit $?
 	done
 	# ### START: UGLY CODE BLOCK ###
 	# ### This just creates formatted/padded labels for the menu options
@@ -142,11 +142,11 @@ while [ true ]; do
 	# evaluate answer
 	case "${SELECTION}" in
 		'ADD')
-			TMP_ITEM="$("${LIBDIR}"/FSspec add "${CONFIG_LIST}")"
+			TMP_ITEM="$("${SHAREDIR}"/FSspec add "${CONFIG_LIST}")"
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
 				# merge/check config list
-				CONFIG_LIST="$("${LIBDIR}"/FSspec merge "${CONFIG_LIST}" "${TMP_ITEM}")" || exit $?
+				CONFIG_LIST="$("${SHAREDIR}"/FSspec merge "${CONFIG_LIST}" "${TMP_ITEM}")" || exit $?
 			fi
 			;;
 		'DONE')
@@ -157,18 +157,18 @@ while [ true ]; do
 			;;
 		*)
 			# find config of selected item
-			TMP_ITEM="$("${LIBDIR}"/FSspec listfind "${CONFIG_LIST}" 'device' "${SELECTION}")" || exit $?
+			TMP_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'device' "${SELECTION}")" || exit $?
 			# open submenu
-			TMP_ITEM="$("${LIBDIR}"/FSspec edit "${TMP_ITEM}")"
+			TMP_ITEM="$("${SHAREDIR}"/FSspec edit "${TMP_ITEM}")"
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
 				# item was removed
 				if [ -z "${TMP_ITEM}" ]; then
 					# delete item from config list
-					CONFIG_LIST="$("${LIBDIR}"/FSspec del_keyvalue "${CONFIG_LIST}" 'device' "${SELECTION}")" || exit $?
+					CONFIG_LIST="$("${SHAREDIR}"/FSspec del_keyvalue "${CONFIG_LIST}" 'device' "${SELECTION}")" || exit $?
 				else
 					# merge/check config list
-					CONFIG_LIST="$("${LIBDIR}"/FSspec merge "${CONFIG_LIST}" "${TMP_ITEM}")" || exit $?
+					CONFIG_LIST="$("${SHAREDIR}"/FSspec merge "${CONFIG_LIST}" "${TMP_ITEM}")" || exit $?
 				fi
 			fi
 			;;

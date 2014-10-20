@@ -87,13 +87,13 @@ BOOTFLAG=
 ENCRYPTION=
 FORMAT=
 # parse the item, also validates
-DEVICE="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
-MOUNTPOINT="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
-FILESYSTEM="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
-BOOTFLAG="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'boot-flag')" || exit $?
-ENCRYPTION="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
-FORMAT="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
-CRYPTKEY="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'cryptkey')" || exit $?
+DEVICE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
+MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
+FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
+BOOTFLAG="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'boot-flag')" || exit $?
+ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
+CRYPTKEY="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'cryptkey')" || exit $?
 
 SELECTION=
 # array holding menu items
@@ -210,7 +210,7 @@ while [ true ]; do
 		'DONE')
 			# everything ok, create new FSspec string
 			# print result to STDOUT and exit 0
-			CONFIG_ITEM="$("${LIBDIR}"/FSspec create \
+			CONFIG_ITEM="$("${SHAREDIR}"/FSspec create \
 				"${DEVICE}" \
 				"${MOUNTPOINT}" \
 				"${FILESYSTEM}" \
