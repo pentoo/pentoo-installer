@@ -11,10 +11,9 @@ readonly DESTDIR="/mnt/gentoo"
 # dialog and Xdialog use 1 for cancel, Xdialog returns 255 upon closing of the box
 readonly ERROR_CANCEL=64
 readonly ISNUMBER='^[0-9]+$'
-# location of other scripts to source
-# TODO: find a better/standard way to do this, for ex. $SHAREDIR
-readonly LIBDIR="${PWD}"
 readonly LOG="/dev/tty8"
+# location of other scripts to source
+readonly SHAREDIR="/usr/share/pentoo-installer"
 readonly TITLE="Pentoo Installation"
 ## END: define constants ##
 ############################
@@ -161,7 +160,7 @@ show_dialog() {
 	if [ ! $(type "Xdialog" &> /dev/null) ] && [ -n "${DISPLAY}" ]; then
 		_WHICHDIALOG='Xdialog'
 	fi
-	# for Xdialog: autosize does not work well with a title, use 50% of max-size
+	# for Xdialog: autosize does not work well with a title, use percentage of max-size
 	if [ "${_WHICHDIALOG}" = 'Xdialog' ]; then
 		# loop arguments and search for the box option
 		while [ "${_INDEX_BOX}" -lt "${#_ARGUMENTS[@]}" ]; do
@@ -177,6 +176,7 @@ show_dialog() {
 		# check if box option was found
 		if [ -z "${_BOXOPTION}" ]; then
 			echo "ERROR: Cannot find box option. Exiting with an error!" 1>&2
+			return 1
 		fi
 		if [ "$((${_INDEX_BOX}+3))" -gt "$#" ]; then
 			echo "ERROR: cannot find height and width for box option '"${_BOXOPTION}"'. Exiting with an error!" 1>&2
@@ -199,8 +199,8 @@ show_dialog() {
 					_HEIGHT=$((${_HEIGHT} * ${_XDIALOG_AUTOSIZE_PERCENTAGE} / 100)) || return $?
 					_WIDTH=$((${_WIDTH} * ${_XDIALOG_AUTOSIZE_PERCENTAGE} / 100)) || return $?
 					# write new values to copy of arguments array
-					_ARGUMENTS[$((_INDEX_BOX+2))]="${_HEIGHT}"
-					_ARGUMENTS[$((_INDEX_BOX+3))]="${_WIDTH}"
+					_ARGUMENTS[$((_INDEX_BOX+2))]="${_HEIGHT}" || return $?
+					_ARGUMENTS[$((_INDEX_BOX+3))]="${_WIDTH}" || return $?
 				fi
 				;;
 			*) ;;

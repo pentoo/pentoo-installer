@@ -14,10 +14,10 @@
 # reason: show_dialog() needs a way to exit "Cancel"
 #
 
-readonly SHAREDIR="/usr/share/pentoo"
+readonly SHAREDIR="/usr/share/pentoo-installer"
 
 # source common variables, functions and error handling
-source common.sh || exit $?
+source "${SHAREDIR}"/common.sh || exit $?
 
 #####################
 ## begin execution ##

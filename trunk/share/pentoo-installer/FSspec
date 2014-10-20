@@ -5,7 +5,6 @@
 # FSspec
 # handler for the FSspec format defined below
 # all actions with FSspec should use this
-# params: TODO
 
 # FSspec definition
 #  <device>:<mountpoint>:<filesystem>:<boot-flag>:<encryption>:<format>:<cryptname>
@@ -14,17 +13,11 @@
 #  all non swap partitions must have a mountpoint
 #  boot-flag and encryption are mutually exclusive, only one can be true
 #  Examples:
-#   /dev/sdc1:/boot:ext2:0:1:0:1
-#   /dev/sdc2::swap:0:0:0:1
-#   /dev/sdc3:/:ext4:1:0:1:1
-
-# writes 3 lines to STDOUT
-# TODO
+#   /dev/sdc1:/boot:ext2:0:1:0:1:
+#   /dev/sdc2::swap:0:0:0:1:
+#   /dev/sdc3:/:ext4:1:0:1:1:root_partition
 
 # writes errors and noise to STDERR
-
-# returns 0 on success
-# anything else is an error
 
 # source partitioning commons
 source common.sh || exit $?
