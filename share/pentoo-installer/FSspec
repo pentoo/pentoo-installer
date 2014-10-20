@@ -190,10 +190,10 @@ FSspec_merge() {
 	# loop old list and add item if not found in new list
 	for _ITEM_OLD in ${_LIST_OLD}; do
 		_FOUND=0
-		_DEV_OLD="$("${LIBDIR}"/FSspec parse "${_ITEM_OLD}" 'device')" || return $?
+		_DEV_OLD="$("${SHAREDIR}"/FSspec parse "${_ITEM_OLD}" 'device')" || return $?
 		# loop new list
 		for _ITEM_NEW in ${_LIST_NEW}; do
-			_DEV_NEW="$("${LIBDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
+			_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
 			if [ "${_DEV_OLD}" = "${_DEV_NEW}" ]; then
 				_FOUND=1
 				echo "INFO: Replacing existing config of ${_DEV_OLD}." 1>&2
@@ -206,7 +206,7 @@ FSspec_merge() {
 	done
 	# check if all devices exist
 	for _ITEM_NEW in ${_LIST_NEW}; do
-		_DEV_NEW="$("${LIBDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
+		_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
 		if [ ! -b "${_DEV_NEW}" ]; then
 			echo "INFO: Device ${_DEV_NEW} is not a valid block device. Removing config for it." 1>&2
 		else
@@ -344,13 +344,13 @@ MODE="${1}"
 shift
 case "${MODE}" in
 	'add')
-		"${LIBDIR}"/FSspec_add "${@}" ;;
+		"${SHAREDIR}"/FSspec_add "${@}" ;;
 	'create')
 		FSspec_create "${@}" ;;
 	'del_keyvalue')
 		FSspec_del_keyvalue "${@}" ;;
 	'edit')
-		"${LIBDIR}"/FSspec_edit "${@}" ;;
+		"${SHAREDIR}"/FSspec_edit "${@}" ;;
 	'listfind')
 		FSspec_listfind "${@}" ;;
 	'list_haskeyvalue')

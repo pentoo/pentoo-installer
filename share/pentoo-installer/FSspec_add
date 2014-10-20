@@ -38,8 +38,8 @@ MOUNTPOINT=
 FILESYSTEM=
 
 # check for root/swap partition
-"${LIBDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/' && HAS_ROOT=1
-"${LIBDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'filesystem' 'swap' && HAS_SWAP=1
+"${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/' && HAS_ROOT=1
+"${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'filesystem' 'swap' && HAS_SWAP=1
 # init root/swap handling
 if [ "${HAS_ROOT}" -ne 1 ]; then
 	show_dialog --msgbox "You can now define the root partition (mountpoint '/')." 0 0
@@ -51,7 +51,7 @@ fi
 DEVICE="$(partition_selectpartition '_')" || exit $?
 echo dump DEVICE = "${DEVICE}" 1>&2
 # check if device is already configured
-if "${LIBDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'device' "${DEVICE}"; then
+if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'device' "${DEVICE}"; then
 	show_dialog --msgbox "ERROR: Partition ${DEVICE} is already configured!" 0 0
 	exit "${ERROR_CANCEL}"
 fi
@@ -80,7 +80,7 @@ if [ "${FILESYSTEM}" != 'swap' ]; then
 			show_dialog --msgbox "ERROR: A valid mountpoint begins with '/'!" 0 0
 			exit "${ERROR_CANCEL}"
 		# check if device is already configured
-		elif "${LIBDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' "${MOUNTPOINT}"; then
+		elif "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' "${MOUNTPOINT}"; then
 			show_dialog --msgbox "ERROR: Mountpoint ${MOUNTPOINT} is already configured!" 0 0
 			exit "${ERROR_CANCEL}"
 		fi
@@ -88,7 +88,7 @@ if [ "${FILESYSTEM}" != 'swap' ]; then
 fi
 # everything ok, create new FSspec string
 # print result to STDOUT and exit 0
-CONFIG_ITEM="$("${LIBDIR}"/FSspec create \
+CONFIG_ITEM="$("${SHAREDIR}"/FSspec create \
 	"${DEVICE}" \
 	"${MOUNTPOINT}" \
 	"${FILESYSTEM}" \

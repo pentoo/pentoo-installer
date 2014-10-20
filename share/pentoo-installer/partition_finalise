@@ -25,13 +25,13 @@ source partition_common.sh || exit $?
 check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 # reverse sort by mountpoint
-CONFIG_LIST="$("${LIBDIR}"/FSspec sort_reverse "${CONFIG_LIST}" 'mountpoint')" || exit $?
+CONFIG_LIST="$("${SHAREDIR}"/FSspec sort_reverse "${CONFIG_LIST}" 'mountpoint')" || exit $?
 
 for CONFIG_ITEM in ${CONFIG_LIST}; do
-	DEVICE="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
-	FILESYSTEM="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
-	ENCRYPTION="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
-	FORMAT="$("${LIBDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
+	DEVICE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
+	FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
+	ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+	FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
 	# encrypted
 	if [ "${ENCRYPTION}" -eq 1 ]; then
 		# non-swap partition
