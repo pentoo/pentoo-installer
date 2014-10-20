@@ -20,7 +20,7 @@
 # writes errors and noise to STDERR
 
 # location of other scripts to source
-readonly SHAREDIR="/usr/share/pentoo-installer"
+readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?

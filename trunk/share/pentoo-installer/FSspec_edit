@@ -19,7 +19,7 @@
 #  this is the new FSspec, if it's empty, then the FSspec was deleted
 
 # location of other scripts to source
-readonly SHAREDIR="/usr/share/pentoo-installer"
+readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
