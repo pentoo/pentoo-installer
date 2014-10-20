@@ -60,11 +60,11 @@ while [ true ]; do
 	# call subscript by selected item
 	case "${NEWSELECTION}" in
 		"0")
-			"${LIBDIR}"/settzclock
+			"${SHAREDIR}"/settzclock
 			RETSUB=$?
 			;;			
 		"1")
-			"${LIBDIR}"/partition_mainmenu
+			"${SHAREDIR}"/partition_mainmenu
 			RETSUB=$?
 			;;
 		"2")
