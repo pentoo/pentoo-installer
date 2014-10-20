@@ -18,8 +18,11 @@
 # prints result to STDOUT
 #  this is the new FSspec, if it's empty, then the FSspec was deleted
 
+# location of other scripts to source
+readonly SHAREDIR="/usr/share/pentoo-installer"
+
 # source common variables, functions and error handling
-source common.sh || exit $?
+source "${SHAREDIR}"/common.sh || exit $?
 
 #########################################
 ## START: dialog functions/definitions ##

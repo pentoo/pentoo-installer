@@ -19,8 +19,11 @@
 #
 # prints result to STDOUT
 
-# source common variables, functions and error handling
-source partition_common.sh || exit $?
+# location of other scripts to source
+readonly SHAREDIR="/usr/share/pentoo-installer"
+
+# source partitioning commons
+source "${SHAREDIR}"/partition_common.sh || exit $?
 
 #####################
 ## begin execution ##

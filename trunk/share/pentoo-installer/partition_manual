@@ -12,8 +12,11 @@
 #
 # writes menus and noise to STDERR
 
+# location of other scripts to source
+readonly SHAREDIR="/usr/share/pentoo-installer"
+
 # source partitioning commons
-source partition_common.sh || exit $?
+source "${SHAREDIR}"/partition_common.sh || exit $?
 
 #########################################
 ## START: dialog functions/definitions ##
