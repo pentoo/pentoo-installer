@@ -4,7 +4,8 @@
 
 # to be sourced by other scripts
 
-source common.sh || exit $?
+# source common variables, functions and error handling
+source "${SHAREDIR}"/common.sh || exit $?
 
 ##############################
 ## START: define constants ##

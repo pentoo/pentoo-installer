@@ -20,9 +20,12 @@
 # anything else is a real error
 # reason: show_dialog() needs a way to exit "Cancel"
 
+# location of other scripts to source
+readonly SHAREDIR="/usr/share/pentoo-installer"
+
 # source common variables, functions and error handling
 # TODO this is not really needed, remove it after debugging
-source common.sh || exit $?
+source "${SHAREDIR}"/common.sh || exit $?
 
 # utc or local?
 HARDWARECLOCK=`show_dialog --menu "Is your hardware clock in UTC or time?" 10 50 2 \

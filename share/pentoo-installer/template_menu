@@ -4,8 +4,11 @@
 
 # template for menus which call sub-scripts
 
+# location of other scripts to source
+readonly SHAREDIR="/usr/share/pentoo-installer"
+
 # source common variables, functions and error handling
-source common.sh || exit $?
+source "${SHAREDIR}"/common.sh || exit $?
 
 #####################
 ## begin execution ##

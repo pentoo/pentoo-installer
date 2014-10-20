@@ -13,7 +13,7 @@ readonly ERROR_CANCEL=64
 readonly ISNUMBER='^[0-9]+$'
 readonly LOG="/dev/tty8"
 # location of other scripts to source
-readonly SHAREDIR="/usr/share/pentoo-installer"
+# readonly SHAREDIR="/usr/share/pentoo-installer"
 readonly TITLE="Pentoo Installation"
 ## END: define constants ##
 ############################
@@ -24,7 +24,7 @@ readonly TITLE="Pentoo Installation"
 ######################################
 
 # source error handling/functions
-source error.sh || exit $?
+source "${SHAREDIR}"/error.sh || exit $?
 
 ##############################
 ## START: utility functions ##
