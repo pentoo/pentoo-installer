@@ -19,7 +19,7 @@
 # prints result to STDOUT
 
 # location of other scripts to source
-readonly SHAREDIR="/usr/share/pentoo-installer"
+readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source partitioning commons
 source "${SHAREDIR}"/partition_common.sh || exit $?

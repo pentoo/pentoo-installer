@@ -12,8 +12,6 @@ readonly DESTDIR="/mnt/gentoo"
 readonly ERROR_CANCEL=64
 readonly ISNUMBER='^[0-9]+$'
 readonly LOG="/dev/tty8"
-# location of other scripts to source
-# readonly SHAREDIR="/usr/share/pentoo-installer"
 readonly TITLE="Pentoo Installation"
 ## END: define constants ##
 ############################

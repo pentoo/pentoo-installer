@@ -21,14 +21,14 @@
 # reason: show_dialog() needs a way to exit "Cancel"
 
 # location of other scripts to source
-readonly SHAREDIR="/usr/share/pentoo-installer"
+readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source common variables, functions and error handling
 # TODO this is not really needed, remove it after debugging
 source "${SHAREDIR}"/common.sh || exit $?
 
 # utc or local?
-HARDWARECLOCK=`show_dialog --menu "Is your hardware clock in UTC or time?" 10 50 2 \
+HARDWARECLOCK=`show_dialog --menu "Is your hardware clock in UTC or time?" 0 0 2 \
 	"utc" "UTC time" \
 	"localtime" "local time"` \
 	|| exit $?
