@@ -247,10 +247,10 @@ FSspec_merge() {
 	# loop old list and add item if not found in new list
 	for _ITEM_OLD in ${_LIST_OLD}; do
 		_FOUND=0
-		_DEV_OLD="$("${SHAREDIR}"/FSspec parse "${_ITEM_OLD}" 'partition')" || return $?
+		_DEV_OLD="$(FSspec_parse "${_ITEM_OLD}" 'partition')" || return $?
 		# loop new list
 		for _ITEM_NEW in ${_LIST_NEW}; do
-			_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'partition')" || return $?
+			_DEV_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
 			if [ "${_DEV_OLD}" = "${_DEV_NEW}" ]; then
 				_FOUND=1
 				echo "INFO: Replacing existing config of ${_DEV_OLD}." 1>&2
@@ -263,7 +263,7 @@ FSspec_merge() {
 	done
 	# check if all partitions exist
 	for _ITEM_NEW in ${_LIST_NEW}; do
-		_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'partition')" || return $?
+		_DEV_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
 		if [ ! -b "${_DEV_NEW}" ]; then
 			echo "INFO: Device ${_DEV_NEW} is not a valid block partition. Removing config for it." 1>&2
 		else
@@ -499,7 +499,7 @@ FSspec_setvalue() {
 		|| return $?
 }
 
-# FSspec_sort_reverse()
+# FSspec_sort()
 # sort a list of FSspec-strings by the values of a key
 #
 # returns 0 on success
@@ -508,16 +508,19 @@ FSspec_setvalue() {
 # parameters (required):
 #  config_list: see defined FSscpec format
 #  varname: an item of the FSspec format
+#  direction: 0 for ascending, 1 for reverse
 #
-FSspec_sort_reverse() {
+FSspec_sort() {
 	# check input
-	check_num_args "${FUNCNAME}" 2 $# || return $?
+	check_num_args "${FUNCNAME}" 3 $# || return $?
 	local _CONFIG_LIST="${1}"
 	local _LIST_RESULT=
 	local _VARNAME="${2}"
 	local _CONFIG_SEPARATOR=':'
 	local _ITEM=
 	local _TMPVALUE=
+	local _DIRECTION=
+	[ "${3}" -eq '1' ] && _DIRECTION='-r'
 	for _ITEM in ${_CONFIG_LIST}; do
 		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${_VARNAME}")" || return $?
 		# append space
@@ -526,7 +529,7 @@ FSspec_sort_reverse() {
 		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${_CONFIG_SEPARATOR}${_ITEM}"
 	done
 	# sort the result
-	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort -r | tr '\n' ' ')" || return $?
+	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort ${_DIRECTION} | tr '\n' ' ')" || return $?
 	_CONFIG_LIST=
 	for _ITEM in ${_LIST_RESULT}; do
 		# append space
@@ -537,6 +540,118 @@ FSspec_sort_reverse() {
 	echo "${_CONFIG_LIST}"
 	return 0
 }
+
+# FSspec_mountall()
+# mounts devices to prepare installation
+# also opens encrypted partitions
+#
+# arguments (required):
+#  _CONFIG_LIST: a list of FSspec after encryption setup and mkfs
+#
+# exits: !=1 is an error
+#
+FSspec_mountall() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _CONFIG_LIST="${1}"
+	local _CONFIG_ITEM=
+	local _PARTITION=
+	local _MOUNTPOINT=
+	local _FILESYSTEM=
+	local _ENCRYPTION=
+	local _CRYPTNAME=
+	local _CRYPTTYPE=
+	local _CRYPTKEY=
+	local _PARTPATH=
+	local _UUID="$(uuidgen)" || return $?
+	# reverse sort by mountpoint
+	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
+	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
+		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
+		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
+		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
+		_ENCRYPTION="$(FSspec_parse "${_CONFIG_ITEM}" 'encryption')" || return $?
+		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
+		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
+		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
+		_PARTPATH="${_PARTITION}"
+		if [ "${_ENCRYPTION}" -eq 1 ]; then
+			# write key to temp file
+			echo "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
+			case "${_CRYPTTYPE}" in
+				swap)
+					cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
+					;;
+				gpg)
+					# key is in base64 format
+					base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
+					gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+					# clean up
+					rm /tmp/"${_UUID}".asc || return $?
+					;;
+				'')
+					cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+					;;
+			esac
+			# clean up
+			rm /tmp/"${_UUID}" || return $?
+			# use /dev/mapper
+			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
+		fi
+		# mount actions
+		if [ "${_FILESYSTEM}" != 'swap' ]; then
+			# create our mount directory
+			mkdir -p "${DESTDIR}${_MOUNTPOINT}" || exit $?
+			# mount the bad boy
+			mount -t "${_FILESYSTEM}" "${_PARTPATH}" "${DESTDIR}${_MOUNTPOINT}" >>"${LOG}" 2>&1
+		else
+			swapon ${_PARTPATH} >>"${LOG}" 2>&1 || exit $?
+		fi
+	done
+}
+
+# FSspec_umountall()
+# umount all items and close cryptsetup
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  _CONFIG_LIST: a list of FSspec after encryption setup and mkfs
+#
+FSspec_umountall() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _CONFIG_LIST="${1}"
+	local _CONFIG_ITEM=
+	local _PARTITION=
+	local _FILESYSTEM=
+	local _ENCRYPTION=
+	local _CRYPTNAME=
+	local _PARTPATH=
+	# sort by mountpoint
+	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
+	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
+		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
+		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
+		_ENCRYPTION="$(FSspec_parse "${_CONFIG_ITEM}" 'encryption')" || return $?
+		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
+		_PARTPATH="${_PARTITION}"
+		[ "${_ENCRYPTION}" -eq 1 ] && _PARTPATH="/dev/mapper/${_CRYPTNAME}"
+		# umount partition
+		if [ "${_FILESYSTEM}" != 'swap' ]; then
+			umount "${_PARTPATH}" || return $?
+		# swapoff
+		else
+			swapoff "${_PARTPATH}" || return $? 
+		fi
+		if [ "${_ENCRYPTION}" -eq 1 ]; then
+			cryptsetup close "${_CRYPTNAME}" || return $?
+		fi
+	done
+	return 0
+}
+
 
 ## END: utility functions##
 #############################
@@ -563,8 +678,12 @@ case "${MODE}" in
 		FSspec_parse "${@}" ;;
 	'setvalue')
 		FSspec_setvalue "${@}" ;;
-	'sort_reverse')
-		FSspec_sort_reverse "${@}" ;;
+	'sort')
+		FSspec_sort "${@}" ;;
+	'mountall')
+		FSspec_mountall "${@}" ;;
+	'umountall')
+		FSspec_umountall "${@}" ;;
 	*)
 		echo "Unexpected mode '${MODE}' received, exiting ungracefully" 1>&2
 		exit 1

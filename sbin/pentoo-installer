@@ -71,7 +71,7 @@ while [ true ]; do
 			RETSUB=$?
 			;;
 		"2")
-			do_rsync
+			"${SHAREDIR}"/copy_distro "${CONFIG_LIST}"
 			RETSUB=$?
 			;;
 		"3")
