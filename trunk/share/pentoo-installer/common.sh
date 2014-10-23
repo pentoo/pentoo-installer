@@ -105,6 +105,8 @@ check_num_args() {
 		echo "Returning error 1" 1>&2
 		return 1
 	fi
+	# debug output
+	# echo "debug-output: ${1}()" 1>&2
 	return 0
 }
 
@@ -140,6 +142,49 @@ get_yesno() {
 		*) echo 'ERROR: Not a boolean value of [0|1].' 1>&2
 			return 1 ;;
 	esac
+	return 0
+}
+
+# mount_umountall()
+# unmounts devices to prepare installation
+# also cleans up luks stuff
+#
+# arguments (required):
+#  disk: the disk to use, for ex.: /dev/sdc
+#
+# exits: !=1 is an error
+#
+mount_umountall() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _DISC=''
+	local _FSTYPE=''
+	local _MOUNTPOINT=''
+	local _PARTITION=''
+	local _RET=''
+	local _UMOUNTLIST=''
+	# umount /mnt/gentoo
+	umount "${DESTDIR}" 2>/dev/null
+	_DISC="${1}"
+	# get list of partitions, etc. below _DISC
+	_UMOUNTLIST=$(lsblk -f -l -o NAME,FSTYPE,MOUNTPOINT -p -n "${_DISC}" | tail -n +2) || return $?
+    show_dialog --infobox "Disabling swapspace, unmounting already mounted disk devices..." 0 0 || return $?
+	# loop over the list , get name and fstype
+	while read _LINE; do
+		_PARTITION=$(echo ${_LINE} | awk '{print $1}')
+		_FSTYPE=$(echo "${_LINE}" | awk '{print $2}')
+		_MOUNTPOINT=$(echo "${_LINE}" | awk '{print $3}')
+		# swap partition
+		if [ "${_FSTYPE}" = 'swap' ]; then
+			swapoff "${_PARTITION}" &>/dev/null
+		elif [ -n "${_MOUNTPOINT}" ]; then
+			umount "${_MOUNTPOINT}" || return $?
+		fi
+		# clean up luks mounts
+		if cryptsetup status "${_PARTITION}" &>/dev/null; then
+			cryptsetup close "${_PARTITION}" || return $?
+		fi
+	done <<<"${_UMOUNTLIST}"
 	return 0
 }
 

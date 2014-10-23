@@ -125,7 +125,7 @@ fi
 show_dialog --defaultno --yesno "${DISC} will be COMPLETELY ERASED!  Are you absolutely sure?" \
 	0 0 || exit "${ERROR_CANCEL}"
 # umount and swapoff all partitions of the disc
-partition_umountall "${DISC}" || exit $?
+mount_umountall "${DISC}" || exit $?
 # prepare sfdisk input
 # boot partition
 SFDISK_INPUT=",${BOOT_PART_SIZE},,*"

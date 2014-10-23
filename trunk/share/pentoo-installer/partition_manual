@@ -76,7 +76,7 @@ RET=
 # let user select a disc
 DISC=$(partition_selectdisk) || exit $?
 # umount and swapoff all partitions of the disc
-partition_umountall "${DISC}" || exit $?
+mount_umountall "${DISC}" || exit $?
 # Set partition layout and get partition editor PARTITIONEDITOR
 PARTITIONEDITOR=$(partition_setpartitionlabel "${DISC}") || exit $?
 show_dialog --msgbox "Now you'll be put into the ${PARTITIONEDITOR} program where you can partition your hard drive.\nYou should make a swap partition and as many data partitions as you will need.\nNOTE:\n${PARTITIONEDITOR} may tell you to reboot after creating partitions.\nIf you need to reboot, just re-enter this install program, skip this step and go on to the next step." 0 0
