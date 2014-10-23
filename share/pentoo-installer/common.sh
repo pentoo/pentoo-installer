@@ -108,6 +108,21 @@ check_num_args() {
 	return 0
 }
 
+# get_supportedFS()
+# prints a list of supported file systems to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+get_supportedFS() {
+	echo -n 'ext2 ext3 ext4'
+	[ "$(which mkreiserfs 2>/dev/null)" ] && echo -n ' reiserfs'
+	[ "$(which mkfs.xfs 2>/dev/null)" ]   && echo -n ' xfs'
+	[ "$(which mkfs.jfs 2>/dev/null)" ]   && echo -n ' jfs'
+	[ "$(which mkfs.vfat 2>/dev/null)" ]   && echo -n ' vfat'
+	return 0
+}
+
 # get_yesno()
 # convert 0|1 to yes|no
 #

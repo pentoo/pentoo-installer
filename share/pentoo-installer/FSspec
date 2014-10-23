@@ -7,15 +7,27 @@
 # all actions with FSspec should use this
 
 # FSspec definition
-#  <device>:<mountpoint>:<filesystem>:<boot-flag>:<encryption>:<format>:<cryptname>
+#  contains the following key-value pairs:
+#   partition
+#   mountpoint
+#   filesystem
+#   boot-flag
+#   encryption
+#   format
+#   cryptname (name used by cryptsetup)
+#   partuuid (PARTUUID, *not* the UUID)
+#	crypttype (one of: '', gpg)
+#	cryptkey
+#
 #  mountpoint of a swap partition must be empty
 #  partition with filesystem=swap cannot have boot-flag=1
 #  all non swap partitions must have a mountpoint
 #  boot-flag and encryption are mutually exclusive, only one can be true
-#  Examples:
-#   /dev/sdc1:/boot:ext2:0:1:0:1:
-#   /dev/sdc2::swap:0:0:0:1:
-#   /dev/sdc3:/:ext4:1:0:1:1:root_partition
+#  values cannot contain white-space or the ":" character!
+#
+#  internal:
+#   the definition is stored as one long string of key:value:key:value:...
+#   order of keys is important!
 
 # writes errors and noise to STDERR
 
@@ -30,31 +42,55 @@ source "${SHAREDIR}"/common.sh || exit $?
 
 # FSspec_create()
 # creates an FSspec string from the input variables and writes it to STDOUT
+# for external use, not all values of an FSspec are required as input
 #
 # returns 0 on success
 # anything else is a real error
 #
 # parameters (required):
-#  all items of FSspec in defined order
+#  these items of an FSspec in this order
+#   partition, mountpoint, filesystem, boot-flag, encryption, format
 #
 FSspec_create() {
 	# check input
-	check_num_args "${FUNCNAME}" 7 $# || return $?
-	local _DEVICE="${1}"
+	check_num_args "${FUNCNAME}" 6 $# || return $?
+	local _PARTUUID=
+	# set partuuid
+	_PARTUUID="$(blkid -s PARTUUID -o value "${1}")" || return $?
+	# simply call the internal create function with empty strings for missing FSspec items
+	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "${6}" "" "${_PARTUUID}" "" ""
+}
+
+# FSspec_createfull()
+# creates an FSspec string from the input variables and writes it to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+# all items of an FSspec in correct order
+#
+FSspec_createfull() {
+	# check input
+	check_num_args "${FUNCNAME}" 10 $# || return $?
+	local _PARTITION="${1}"
 	local _MOUNTPOINT="${2}"
 	local _FILESYSTEM="${3}"
 	local _BOOTFLAG="${4}"
 	local _ENCRYPTION="${5}"
 	local _FORMAT="${6}"
 	local _CRYPTNAME="${7}"
+	local _PARTUUID="${8}"
+	local _CRYPTTYPE="${9}"
+	local _CRYPTKEY="${10}"
 	local _CONFIG_SEPARATOR=':'
 	# convert boolean values to 0 or 1
 	[ "${_BOOTFLAG}" != '1' ] && _BOOTFLAG=0
 	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
 	[ "${_FORMAT}" != '1' ] && _FORMAT=0
 	# validate
-	if [ -z "${_DEVICE}" ] || [ -z "${_FILESYSTEM}" ]; then
-		echo "error parsing config, device or filesystem missing" 1>&2
+	if [ -z "${_PARTITION}" ] || [ -z "${_FILESYSTEM}" ]; then
+		echo "error parsing config, partition or filesystem missing" 1>&2
 		return 1
 	fi
 	# swap partition
@@ -77,14 +113,32 @@ FSspec_create() {
 			return 1
 		fi
 	fi
+	# check partuuid
+	if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
+		echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
+		return 1
+		
+	fi
 	# everything ok, write to STDOUT and return 0
-	echo -n "${_DEVICE}"
-	echo -n "${_CONFIG_SEPARATOR}${_MOUNTPOINT}"
-	echo -n "${_CONFIG_SEPARATOR}${_FILESYSTEM}"
-	echo -n "${_CONFIG_SEPARATOR}${_BOOTFLAG}"
-	echo -n "${_CONFIG_SEPARATOR}${_ENCRYPTION}"
-	echo -n "${_CONFIG_SEPARATOR}${_FORMAT}"
-	echo "${_CONFIG_SEPARATOR}${_CRYPTNAME}"
+	echo -n "partition${_CONFIG_SEPARATOR}${_PARTITION}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "mountpoint${_CONFIG_SEPARATOR}${_MOUNTPOINT}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "filesystem${_CONFIG_SEPARATOR}${_FILESYSTEM}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "boot-flag${_CONFIG_SEPARATOR}${_BOOTFLAG}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "encryption${_CONFIG_SEPARATOR}${_ENCRYPTION}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "format${_CONFIG_SEPARATOR}${_FORMAT}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "cryptname${_CONFIG_SEPARATOR}${_CRYPTNAME}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "partuuid${_CONFIG_SEPARATOR}${_PARTUUID}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "crypttype${_CONFIG_SEPARATOR}${_CRYPTTYPE}"
+	echo -n "${_CONFIG_SEPARATOR}"
+	echo -n "cryptkey${_CONFIG_SEPARATOR}${_CRYPTKEY}"
 	return 0
 }
 
@@ -144,7 +198,7 @@ FSspec_list_haskeyvalue() {
 #
 # parameters (required):
 #  config_list: see defined FSscpec format
-#  varname: one of "device", "mountpoint", "filesystem", "boot-flag", "encryption", "format"
+#  varname: an item of the FSspec format
 #  varvalue: the value to search for
 #
 FSspec_listfind() {
@@ -167,9 +221,9 @@ FSspec_listfind() {
 }
 
 # FSspec_merge()
-# merges a list of old config with a list of new ones by their device
-# devices in both lists: new config is used
-# devices which do not exist are removed
+# merges a list of old config with a list of new ones by their partition
+# partitions in both lists: new config is used
+# partitions which do not exist are removed
 # all other items from both lists are printed to STDOUT
 #
 # returns 0 on success
@@ -193,10 +247,10 @@ FSspec_merge() {
 	# loop old list and add item if not found in new list
 	for _ITEM_OLD in ${_LIST_OLD}; do
 		_FOUND=0
-		_DEV_OLD="$("${SHAREDIR}"/FSspec parse "${_ITEM_OLD}" 'device')" || return $?
+		_DEV_OLD="$("${SHAREDIR}"/FSspec parse "${_ITEM_OLD}" 'partition')" || return $?
 		# loop new list
 		for _ITEM_NEW in ${_LIST_NEW}; do
-			_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
+			_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'partition')" || return $?
 			if [ "${_DEV_OLD}" = "${_DEV_NEW}" ]; then
 				_FOUND=1
 				echo "INFO: Replacing existing config of ${_DEV_OLD}." 1>&2
@@ -207,11 +261,11 @@ FSspec_merge() {
 			_LIST_NEW="${_LIST_NEW} ${_ITEM_OLD}"
 		fi
 	done
-	# check if all devices exist
+	# check if all partitions exist
 	for _ITEM_NEW in ${_LIST_NEW}; do
-		_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'device')" || return $?
+		_DEV_NEW="$("${SHAREDIR}"/FSspec parse "${_ITEM_NEW}" 'partition')" || return $?
 		if [ ! -b "${_DEV_NEW}" ]; then
-			echo "INFO: Device ${_DEV_NEW} is not a valid block device. Removing config for it." 1>&2
+			echo "INFO: Device ${_DEV_NEW} is not a valid block partition. Removing config for it." 1>&2
 		else
 			[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT} "
 			_LIST_RESULT="${_LIST_RESULT}${_ITEM_NEW}"
@@ -232,54 +286,115 @@ FSspec_merge() {
 #
 # parameters (required):
 #  input: see defined FSscpec format
-#  varname: one of "device", "mountpoint", "filesystem", "boot-flag", "encryption", "format"
+#  varname: an item of the FSspec format
 #
 FSspec_parse() {
 	# check input
 	check_num_args "${FUNCNAME}" 2 $# || return $?
-	local _INPUT="${1}"
+	local _ITEM="${1}"
 	local _VARNAME="${2}"
 	local _CONFIG_SEPARATOR=':'
-	local _DEVICE=
+	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
 	local _BOOTFLAG=
 	local _ENCRYPTION=
 	local _FORMAT=
 	local _CRYPTNAME=
+	local _PARTUUID=
+	local _CRYPTTYPE=
+	local _CRYPTKEY=
+	local _CHECKKEY=
 	local _CHECKSEPS=
 	# check if input has correct number of separators
-	_CHECKSEPS=$(echo -n "${_INPUT//[^${_CONFIG_SEPARATOR}]}" | wc -m) || return false;
-	if [ "${_CHECKSEPS}" -ne 6 ]; then
-		echo "error parsing config, wrong number of separators in '${_INPUT}'" 1>&2
+	_CHECKSEPS="$(echo -n "${_ITEM//[^${_CONFIG_SEPARATOR}]}" | wc -m)" || return false;
+	if [ "${_CHECKSEPS}" -ne 19 ]; then
+		echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	# parse the item
-	_DEVICE=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $1}') || return $?
-	_MOUNTPOINT=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $2}') || return $?
-	_FILESYSTEM=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $3}') || return $?
-	_BOOTFLAG=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $4}') || return $?
-	_ENCRYPTION=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $5}') || return $?
-	_FORMAT=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $6}') || return $?
-	_CRYPTNAME=$(echo ${_INPUT} | awk -F "${_CONFIG_SEPARATOR}" '{print $7}') || return $?
+	# parse the item keys
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $1}')" || return $?
+	if [ "${_CHECKKEY}" != 'partition' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $3}')" || return $?
+	if [ "${_CHECKKEY}" != 'mountpoint' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $5}')" || return $?
+	if [ "${_CHECKKEY}" != 'filesystem' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $7}')" || return $?
+	if [ "${_CHECKKEY}" != 'boot-flag' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $9}')" || return $?
+	if [ "${_CHECKKEY}" != 'encryption' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $11}')" || return $?
+	if [ "${_CHECKKEY}" != 'format' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $13}')" || return $?
+	if [ "${_CHECKKEY}" != 'cryptname' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $15}')" || return $?
+	if [ "${_CHECKKEY}" != 'partuuid' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $17}')" || return $?
+	if [ "${_CHECKKEY}" != 'crypttype' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $19}')" || return $?
+	if [ "${_CHECKKEY}" != 'cryptkey' ]; then
+		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+		return 1
+	fi
+	# parse the item values
+	_PARTITION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $2}')" || return $?
+	_MOUNTPOINT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $4}')" || return $?
+	_FILESYSTEM="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $6}')" || return $?
+	_BOOTFLAG="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $8}')" || return $?
+	_ENCRYPTION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $10}')" || return $?
+	_FORMAT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $12}')" || return $?
+	_CRYPTNAME="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $14}')" || return $?
+	_PARTUUID="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $16}')" || return $?
+	_CRYPTTYPE="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $18}')" || return $?
+	_CRYPTKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $20}')" || return $?
 	# convert boolean values to 0 or 1
 	[ "${_BOOTFLAG}" != '1' ] && _BOOTFLAG=0
 	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
 	# validate
-	FSspec_create \
-		"${_DEVICE}" \
+	FSspec_createfull \
+		"${_PARTITION}" \
 		"${_MOUNTPOINT}" \
 		"${_FILESYSTEM}" \
 		"${_BOOTFLAG}" \
 		"${_ENCRYPTION}" \
 		"${_FORMAT}" \
 		"${_CRYPTNAME}" \
+		"${_PARTUUID}" \
+		"${_CRYPTTYPE}" \
+		"${_CRYPTKEY}" \
 		&>/dev/null \
 		|| return $?
 	# print value to STDOUT
 	case "${_VARNAME}" in
-		"device")
-			echo "${_DEVICE}";;
+		"partition")
+			echo "${_PARTITION}";;
 		"mountpoint")
 			echo "${_MOUNTPOINT}";;
 		"filesystem")
@@ -290,13 +405,98 @@ FSspec_parse() {
 			echo "${_ENCRYPTION}";;
 		"format")
 			echo "${_FORMAT}";;
-		"cryptkey")
+		"cryptname")
 			echo "${_CRYPTNAME}";;
+		"partuuid")
+			echo "${_PARTUUID}";;
+		"crypttype")
+			echo "${_CRYPTTYPE}";;
+		"cryptkey")
+			echo "${_CRYPTKEY}";;
 		*)
-			echo "Unexpected varname in ${FUNCNAME}()" 1>&2
-			return 1
+			echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
+			return 1 ;;
 	esac
 	return 0
+}
+
+# FSspec_setvalue()
+# replaces the value of a key
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  input: see defined FSscpec format
+#  varname: an item of the FSspec format
+#  varvalue: the new value
+#
+FSspec_setvalue() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _ITEM="${1}"
+	local _VARNAME="${2}"
+	local _VARVALUE="${3}"
+	local _PARTITION=
+	local _MOUNTPOINT=
+	local _FILESYSTEM=
+	local _BOOTFLAG=
+	local _ENCRYPTION=
+	local _FORMAT=
+	local _CRYPTNAME=
+	local _PARTUUID=
+	local _CRYPTTYPE=
+	local _CRYPTKEY=
+	# parse the item values
+	_PARTITION="$(FSspec_parse "${_ITEM}" 'partition')" || return $?
+	_MOUNTPOINT="$(FSspec_parse "${_ITEM}" 'mountpoint')" || return $?
+	_FILESYSTEM="$(FSspec_parse "${_ITEM}" 'filesystem')" || return $?
+	_BOOTFLAG="$(FSspec_parse "${_ITEM}" 'boot-flag')" || return $?
+	_ENCRYPTION="$(FSspec_parse "${_ITEM}" 'encryption')" || return $?
+	_FORMAT="$(FSspec_parse "${_ITEM}" 'format')" || return $?
+	_CRYPTNAME="$(FSspec_parse "${_ITEM}" 'cryptname')" || return $?
+	_PARTUUID="$(FSspec_parse "${_ITEM}" 'partuuid')" || return $?
+	_CRYPTTYPE="$(FSspec_parse "${_ITEM}" 'crypttype')" || return $?
+	_CRYPTKEY="$(FSspec_parse "${_ITEM}" 'cryptkey')" || return $?
+	# replace desired value
+	case "${_VARNAME}" in
+		"partition")
+			_PARTITION="${_VARVALUE}" ;;
+		"mountpoint")
+			_MOUNTPOINT="${_VARVALUE}" ;;
+		"filesystem")
+			_FILESYSTEM="${_VARVALUE}" ;;
+		"boot-flag")
+			_BOOTFLAG="${_VARVALUE}" ;;
+		"encryption")
+			_ENCRYPTION="${_VARVALUE}" ;;
+		"format")
+			_FORMAT="${_VARVALUE}" ;;
+		"cryptname")
+			_CRYPTNAME="${_VARVALUE}" ;;
+		"partuuid")
+			_PARTUUID="${_VARVALUE}" ;;
+		"crypttype")
+			_CRYPTTYPE="${_VARVALUE}" ;;
+		"cryptkey")
+			_CRYPTKEY="${_VARVALUE}" ;;
+		*)
+			echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
+			return 1 ;;
+	esac
+	# validate and print to STDOUT
+	FSspec_createfull \
+		"${_PARTITION}" \
+		"${_MOUNTPOINT}" \
+		"${_FILESYSTEM}" \
+		"${_BOOTFLAG}" \
+		"${_ENCRYPTION}" \
+		"${_FORMAT}" \
+		"${_CRYPTNAME}" \
+		"${_PARTUUID}" \
+		"${_CRYPTTYPE}" \
+		"${_CRYPTKEY}" \
+		|| return $?
 }
 
 # FSspec_sort_reverse()
@@ -307,7 +507,7 @@ FSspec_parse() {
 #
 # parameters (required):
 #  config_list: see defined FSscpec format
-#  varname: one of "device", "mountpoint", "filesystem", "boot-flag", "encryption", "format"
+#  varname: an item of the FSspec format
 #
 FSspec_sort_reverse() {
 	# check input
@@ -329,7 +529,6 @@ FSspec_sort_reverse() {
 	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort -r | tr '\n' ' ')" || return $?
 	_CONFIG_LIST=
 	for _ITEM in ${_LIST_RESULT}; do
-		echo dump _ITEM = "${_ITEM}" 1>&2
 		# append space
 		[ -n "${_CONFIG_LIST}" ] && _CONFIG_LIST="${_CONFIG_LIST} "
 		_CONFIG_LIST="${_CONFIG_LIST}$(echo "${_ITEM}" | cut -d':' -f2-)" || return $?
@@ -362,6 +561,8 @@ case "${MODE}" in
 		FSspec_merge "${@}" ;;
 	'parse')
 		FSspec_parse "${@}" ;;
+	'setvalue')
+		FSspec_setvalue "${@}" ;;
 	'sort_reverse')
 		FSspec_sort_reverse "${@}" ;;
 	*)

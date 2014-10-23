@@ -6,8 +6,7 @@
 # display configure mountpoints and filesystems
 # lets user add new ones or delete existing ones
 # parameters (required)
-#  CONFIG_LIST: One string with 0 or more items of defined FSspec:
-#    <device>:<mountpoint>:<filesystem>:<boot-flag>:<encryption>
+#  CONFIG_LIST: One string with 0 or more items of defined FSspec
 #
 # returns 0 on success
 # returns $ERROR_CANCEL=64 on user cancel
@@ -55,12 +54,12 @@ check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 RETSUB=
 
-while [ true ]; do
+while true; do
 	# array holding menu items
 	MENU_ITEMS=()
 	MENU_STRING=
 	# arrays of item settings
-	DEVICES=()
+	PARTITIONS=()
 	MOUNTPOINTS=()
 	FILESYSTEMS=()
 	BOOT_FLAGS=()
@@ -76,7 +75,7 @@ while [ true ]; do
 	for TMP_ITEM in ${CONFIG_LIST}; do
 		# parse the item, also validates
 		# add each item to the corresponding array
-		DEVICES+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'device')") || exit $?
+		PARTITIONS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'partition')") || exit $?
 		MOUNTPOINTS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'mountpoint')") || exit $?
 		FILESYSTEMS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'filesystem')") || exit $?
 		BOOT_FLAGS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'boot-flag')")") || exit $?
@@ -89,7 +88,7 @@ while [ true ]; do
 	# ###
 	# loop input/config items, create formatted/padded strings for the menu
 	TMP_ITEM=0
-	while [ "${TMP_ITEM}" -lt "${#DEVICES[@]}" ]; do
+	while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
 		# construct formatted string
 		MENU_STRING=
 		# mountpoint
@@ -127,11 +126,11 @@ while [ true ]; do
 		# append spaces so all items have same length + 4 for padding
 		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
 		MENU_STRING="${MENU_STRING}${TMPSTRING}"
-		# device
-		TMPSTRING="${DEVICES[$TMP_ITEM]}" || exit $?
+		# partition
+		TMPSTRING="${PARTITIONS[$TMP_ITEM]}" || exit $?
 		# add to menu items
 		MENU_ITEMS+=("${TMPSTRING}" "${MENU_STRING}") || exit $?
-		# increment for next device
+		# increment for next partition
 		TMP_ITEM=$((TMP_ITEM+1))
 	done
 	# ###
@@ -160,7 +159,7 @@ while [ true ]; do
 			;;
 		*)
 			# find config of selected item
-			TMP_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'device' "${SELECTION}")" || exit $?
+			TMP_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'partition' "${SELECTION}")" || exit $?
 			# open submenu
 			TMP_ITEM="$("${SHAREDIR}"/FSspec edit "${TMP_ITEM}")"
 			RETSUB=$?
@@ -168,7 +167,7 @@ while [ true ]; do
 				# item was removed
 				if [ -z "${TMP_ITEM}" ]; then
 					# delete item from config list
-					CONFIG_LIST="$("${SHAREDIR}"/FSspec del_keyvalue "${CONFIG_LIST}" 'device' "${SELECTION}")" || exit $?
+					CONFIG_LIST="$("${SHAREDIR}"/FSspec del_keyvalue "${CONFIG_LIST}" 'partition' "${SELECTION}")" || exit $?
 				else
 					# merge/check config list
 					CONFIG_LIST="$("${SHAREDIR}"/FSspec merge "${CONFIG_LIST}" "${TMP_ITEM}")" || exit $?

@@ -27,11 +27,11 @@ RETSUB=
 MENU_ITEMS=
 MAXSELECTION="0"
 
-#  CONFIG_LIST: One string with 0 or more items of defined FSspec:
+# CONFIG_LIST: One string with 0 or more items of defined FSspec:
 CONFIG_LIST=
 CONFIG_LIST_NEW=
 
-while [ true ]; do
+while true; do
 	# define menu items
 	MENU_ITEMS=("0" "Auto-Prepare (erases the ENTIRE hard drive)" \
 		"1" "Manually Partition Hard Drives" \
@@ -79,8 +79,9 @@ while [ true ]; do
 				CONFIG_LIST="${CONFIG_LIST_NEW}"
 			fi
 			;;
-		# Create filesystems, mount them, then exit this menu
+		# Create filesystems, then exit this menu
 		"3")
+			# prints new configs to STDOUT on success
 			"${SHAREDIR}"/partition_finalise "${CONFIG_LIST}"
 			# capture sub script exit
 			RETSUB=$?

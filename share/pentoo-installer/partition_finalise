@@ -5,8 +5,7 @@
 # partition_finalise
 # Creates filesystem, also with encryption, mounts the partitions
 # parameters (required)
-#  CONFIG_LIST: One string items of defined FSspec:
-#    <device>:<mountpoint>:<filesystem>:<boot-flag>:<encryption>
+#  CONFIG_LIST: One string items of defined FSspec
 #
 # returns 0 on success
 # returns $ERROR_CANCEL=64 on user cancel
@@ -21,6 +20,84 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 # source partitioning commons
 source "${SHAREDIR}"/partition_common.sh || exit $?
 
+#########################################
+## START: dialog functions/definitions ##
+
+# partition_encryptswap()
+# sets up an encrypted swap partition
+# 
+# parameters (required)
+#  _PARTITION: The partition to encrypt
+#  _CRYPTNAME: Name used for cryptsetup
+#
+# returns 0 on success
+# anything else is a real error
+#
+partition_encryptswap() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	cryptsetup create -c aes-xts-plain64:sha512 -s 512 -d /dev/urandom "${2}" "${1}" >>"${LOG}" 2>&1 \
+		|| return $?
+}
+
+# partition_luks_setup()
+# Generate a key, optionnaly encrypt it with gpg
+# format a luks partition. Cipher and hash chosen arbitrarily
+# uses cryptsetup
+# writes the key to STDOUT, in base64 form for gpg
+# 
+# parameters (required)
+#  _PARTITION: The partition to encrypt
+#  _CRYPTNAME: name used by cryptsetup
+#  _CRYPTTYPE: gpg or ''
+#
+# return !=0 on failure (including user abort with ERROR_CANCEL=64)
+#
+partition_luks_setup() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _PARTITION="${1}"
+	local _CRYPTNAME="${2}"
+	local _CRYPTTYPE="${3}"
+	# use uuid as temp file name
+	local _UUID="$(uuidgen)" || return $?
+	case "${_CRYPTTYPE}" in
+		gpg)
+			show_dialog --msgbox "We will now generate a GPG-encrypted luks key for ${_PARTITION}" 0 0 || return $?
+			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
+			gpg --symmetric --cipher-algo aes256 --armor /tmp/"${_UUID}" || return $?
+			# TODO, is this needed? Seems not
+			# show_dialog --msgbox "Please enter the GPG key for ${_PARTITION}" 0 0 || return $?
+			gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
+			# TODO, is this needed? Seems not
+			# show_dialog --msgbox "Please enter the GPG key for ${_PARTITION} (last time :-)" 0 0 || return $?
+			gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup luksOpen "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			# print to STDOUT
+			cat /tmp/"${_UUID}".asc | base64 -w0 || return $?
+			# clean up
+			rm /tmp/"${_UUID}".asc || return $?
+			rm /tmp/"${_UUID}" || return $?
+			;;
+		'')
+			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
+			cat /tmp/"${_UUID}" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${2}" || return $?
+			cat /tmp/"${_UUID}" | cryptsetup luksOpen "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			# print to STDOUT
+			cat /tmp/"${_UUID}" || return $?
+			# clean up
+			rm /tmp/"${_UUID}" || return $?
+			;;
+		*)
+			echo "ERROR: Unexpected input '${_CRYPTTYPE}' in '${FUNCNAME}'" 1>&2
+			return 1
+			;;
+    esac
+	return 0
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
 #####################
 ## begin execution ##
 
@@ -29,21 +106,75 @@ check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 # reverse sort by mountpoint
 CONFIG_LIST="$("${SHAREDIR}"/FSspec sort_reverse "${CONFIG_LIST}" 'mountpoint')" || exit $?
+CONFIG_ARRAY=(${CONFIG_LIST}) || exit $?
+CONFIG_INDEX=0
 
-for CONFIG_ITEM in ${CONFIG_LIST}; do
-	DEVICE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
+while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
+	CONFIG_ITEM="${CONFIG_ARRAY[${CONFIG_INDEX}]}" || exit $?
+	PARTITION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+	MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
 	FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
 	ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
 	FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
+	CRYPTNAME=
+	CRYPTTYPE=
+	CRYPTKEY=
+	PARTPATH="${PARTITION}"
 	# encrypted
 	if [ "${ENCRYPTION}" -eq 1 ]; then
-		# non-swap partition
-		if [ "${FILESYSTEM}" != 'swap' ]; then
-
+		# use 'basename $PARTITION' as name in cryptsetup, for ex. sda2
+		CRYPTNAME="$(basename "${PARTITION}")" || exit $?
+		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptname' "${CRYPTNAME}")" || exit $?
 		# swap partition
+		if [ "${FILESYSTEM}" = 'swap' ]; then
+			partition_encryptswap "${PARTITION}" "${CRYPTNAME}" || exit $?
+		# non-swap partition
 		else
-			return 255
-			# [ "${FORMAT}" -eq 1 ] && mkswap "${DEVICE}" || return $?
+			if show_dialog --defaultno --yesno "Do you want to use GPG encrypted key for the partition (${PARTITION}) on (${MOUNTPOINT}) ?" 0 0; then
+				CRYPTTYPE='gpg'
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptname' "${CRYPTTYPE}")" || exit $?
+			fi
+			# create crypt-key and use cryptsetup
+			CRYPTKEY="$(partition_luks_setup "${PARTITION}" "${CRYPTNAME}" "${CRYPTTYPE}")" || exit $?
+			CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptkey' "${CRYPTKEY}")" || exit $?
 		fi
+		PARTPATH="/dev/mapper/${CRYPTNAME}"
 	fi
+	# format partition
+	if [ "${FORMAT}" -eq 1 ]; then
+		case ${FILESYSTEM} in
+			xfs)      mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			jfs)      yes | mkfs.jfs ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			reiserfs) yes | mkreiserfs ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			ext2)     mke2fs "${PARTPATH}" -F >>"${LOG}" 2>&1 || exit $? ;;
+			ext3)     mke2fs -j ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
+			ext4)     mke2fs -t ext4 ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
+			vfat)     mkfs.vfat ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			# swap
+			swap)     mkswap ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			*)
+				echo "ERROR: Unexpected file sytem '${FILESYSTEM}' for '${PARTITION}'" 1>&2
+				exit 1 ;;
+		esac	
+		FORMAT='0'
+		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'format' "${FORMAT}")" || exit $?
+	fi
+	# mount actions
+	# TODO reuse this
+	# if [ "${FILESYSTEM}" != 'swap' ]; then
+        # # create our mount directory
+        # mkdir -p "${DESTDIR}${MOUNTPOINT}" || exit $?
+        # # mount the bad boy
+        # mount -t "${FILESYSTEM}" "${PARTPATH}" "${DESTDIR}${MOUNTPOINT}" >>"${LOG}" 2>&1
+	# else
+        # swapon ${PARTPATH} >>"${LOG}" 2>&1 || exit $?
+	# fi
+	# write FSspec back to array
+	CONFIG_ARRAY[${CONFIG_INDEX}]="${CONFIG_ITEM}" || exit $?
+	# increment array index
+	 CONFIG_INDEX="$((CONFIG_INDEX+1))" || exit $?
 done
+
+# everything ok, write new config to STDOUT
+echo -n "${CONFIG_ARRAY[@]}" || exit $?
+exit 0

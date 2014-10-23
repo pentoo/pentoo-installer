@@ -14,7 +14,7 @@
 # reason: show_dialog() needs a way to exit "Cancel"
 #
 
-readonly SHAREDIR="../share/pentoo-installer/"
+readonly SHAREDIR="$(dirname ${0})/../share/pentoo-installer"
 
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
@@ -30,13 +30,15 @@ if [ "${RAMSIZE}" -le "1500" ]; then
 fi
 
 # display welcome txt
-show_dialog --textbox "${SHAREDIR}"/welcome.txt 25 75
+show_dialog --textbox "${SHAREDIR}"/welcome.txt 25 75 || exit $?
 
 NEWSELECTION=
 SELECTION='0'
 RETSUB=
 MENU_ITEMS=
 MAXSELECTION="0"
+# CONFIG_LIST: One string with 0 or more items of defined FSspec:
+CONFIG_LIST=
 
 while [ true ]; do
 	# define menu items
@@ -64,7 +66,8 @@ while [ true ]; do
 			RETSUB=$?
 			;;			
 		"1")
-			"${SHAREDIR}"/partition_mainmenu
+			# prepares (encrypted) partitions and returns a list of partition configs
+			CONFIG_LIST="$("${SHAREDIR}"/partition_mainmenu)"
 			RETSUB=$?
 			;;
 		"2")
