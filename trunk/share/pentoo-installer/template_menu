@@ -17,7 +17,7 @@ NEWSELECTION=
 SELECTION='0'
 RETSUB=
 
-while [ true ]; do
+while true; do
 
 	NEWSELECTION="$(show_dialog --default-item "${SELECTION}" \
         --menu "Some text" \

@@ -46,7 +46,7 @@ FSspec_hasluks() {
 # FSspec_getfilesystem()
 # asks user for filesystem and prints result to STDOUT
 # parameters (required)
-#  _DEVICE: The partition
+#  _PARTITION: The partition
 # _CURRENT_FS: Current file system
 #
 # returns $ERROR_CANCEL=64 on user cancel
@@ -56,17 +56,15 @@ FSspec_hasluks() {
 FSspec_getfilesystem() {
 	# check input
 	check_num_args "${FUNCNAME}" 2 $# || return $?
-	# define available file systems
-	local _FSOPTS="ext2 ext2 ext3 ext3 ext4 ext4"
-	local _FSTYPE=
+	local _PARTITION="${1}"
 	local _CURRENT_FS="${2}"
-	local _DEVICE="${1}"
-	[ "$(which mkreiserfs 2>/dev/null)" ] && _FSOPTS="${_FSOPTS} reiserfs Reiser3"
-	[ "$(which mkfs.xfs 2>/dev/null)" ]   && _FSOPTS="${_FSOPTS} xfs XFS"
-	[ "$(which mkfs.jfs 2>/dev/null)" ]   && _FSOPTS="${_FSOPTS} jfs JFS"
-	_FSTYPE=`show_dialog --default-item "${_CURRENT_FS}" --menu "Select a filesystem for ${_DEVICE}" \
+	local _FSTYPE=
+	# get available file systems
+	local _FSOPTS="$(get_supportedFS)" || return $?
+	_FSOPTS=$(add_option_label "${_FSOPTS}" '-') || return $?
+	_FSTYPE=`show_dialog --default-item "${_CURRENT_FS}" --menu "Select a filesystem for ${_PARTITION}" \
 		0 0 6 ${_FSOPTS}` || return $?
-	show_dialog --yesno "${_FSTYPE} will be used for ${_DEVICE}. Is this OK?" 0 0 || return $?
+	show_dialog --yesno "${_FSTYPE} will be used for ${_PARTITION}. Is this OK?" 0 0 || return $?
 	# everything ok, write to STDOUT and return 0
 	echo "${_FSTYPE}"
 	return 0
@@ -83,20 +81,12 @@ check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_ITEM="${1}"
 
 # properties of FSspec
-DEVICE=
+PARTITION=
 MOUNTPOINT=
 FILESYSTEM=
 BOOTFLAG=
 ENCRYPTION=
 FORMAT=
-# parse the item, also validates
-DEVICE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'device')" || exit $?
-MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
-FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
-BOOTFLAG="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'boot-flag')" || exit $?
-ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
-FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
-CRYPTKEY="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'cryptkey')" || exit $?
 
 SELECTION=
 # array holding menu items
@@ -105,7 +95,14 @@ NEWVAL=
 MESSAGE=
 RETSUB=
 
-while [ true ]; do
+while true; do
+	# parse the item, also validates
+	PARTITION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+	MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
+	FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
+	BOOTFLAG="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'boot-flag')" || exit $?
+	ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+	FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
 	# reset array holding menu items
 	MENU_ITEMS=()
 	 # construct menu
@@ -122,12 +119,12 @@ while [ true ]; do
 	MENU_ITEMS+=("DELETE" "Remove configuration, partition will no longer be used") || exit $?
 	MENU_ITEMS+=("DONE" "Save changes") || exit $?
 	# expand menu items array below
-	SELECTION=$(show_dialog --menu "Changing setup of device '${DEVICE}'.\nPlease select a property to change." \
+	SELECTION=$(show_dialog --menu "Changing setup of partition '${PARTITION}'.\nPlease select a property to change." \
 		0 0 0 "${MENU_ITEMS[@]}") || exit $?
 	# evaluate answer
 	case "${SELECTION}" in
 		'mountpoint')
-			NEWVAL="$(show_dialog --inputbox "Enter the mountpoint for ${DEVICE}. Now: '${MOUNTPOINT}'." 0 0 "${MOUNTPOINT}")"
+			NEWVAL="$(show_dialog --inputbox "Enter the mountpoint for ${PARTITION}. Now: '${MOUNTPOINT}'." 0 0 "${MOUNTPOINT}")"
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
 				# trim result
@@ -138,12 +135,14 @@ while [ true ]; do
 				elif [ "${NEWVAL:0:1}" != '/' ]; then
 					show_dialog --msgbox "ERROR: A valid mountpoint begins with '/'!" 0 0
 				else
+					# change FSspec string
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'mountpoint' "${NEWVAL}")" || exit $?
 					MOUNTPOINT="${NEWVAL}"
 				fi
 			fi
 			;;
 		'filesystem')
-			NEWVAL="$(FSspec_getfilesystem "${DEVICE}" "${FILESYSTEM}")"
+			NEWVAL="$(FSspec_getfilesystem "${PARTITION}" "${FILESYSTEM}")"
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
 				if [ -z "${NEWVAL}" ]; then
@@ -154,23 +153,35 @@ while [ true ]; do
 				if [ "${ENCRYPTION}" = '1' ] && ! FSspec_hasluks "${NEWVAL}"; then
 					show_dialog --yesno "New file system '${NEWVAL}' does not support encryption.\nDo you want to continue?" 0 0
 					RETSUB=$?
-					[ "${RETSUB}" -eq 0 ] && ENCRYPTION=0
+					if [ "${RETSUB}" -eq 0 ]; then
+						# change FSspec string
+						CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'encryption' '0')" || exit $?
+						ENCRYPTION=0
+					fi
 				fi
-				[ "${RETSUB}" -eq 0 ] && FILESYSTEM="${NEWVAL}"
+				if [ "${RETSUB}" -eq 0 ]; then
+					# change FSspec string
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'filesystem' "${NEWVAL}")" || exit $?
+					FILESYSTEM="${NEWVAL}"
+				fi
 			fi
 						;;
 		'boot-flag')
 			# dialog for boolean value
-			MESSAGE="Boot-flag for ${DEVICE} is now '$(get_yesno "${BOOTFLAG}")'.\nDo you want to change it?"
+			MESSAGE="Boot-flag for ${PARTITION} is now '$(get_yesno "${BOOTFLAG}")'.\nDo you want to change it?"
 			# warn about conflict of boot-flag and encryption
 			[ "${ENCRYPTION}" = '1' -a "${BOOTFLAG}" = '0' ] \
 				&& MESSAGE="${MESSAGE}\n\nWarning: This will also disable encryption!"
             show_dialog --yesno "${MESSAGE}" 0 0
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ] && [ "${BOOTFLAG}" -eq '0' ]; then
-				BOOTFLAG=1
+				# change FSspec string
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'encryption' '0')" || exit $?
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'boot-flag' '1')" || exit $?
 				ENCRYPTION=0
+				BOOTFLAG=1
 			elif [ "${RETSUB}" -eq 0 ]; then
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'boot-flag' '0')" || exit $?
 				BOOTFLAG=0
 			fi
 			;;
@@ -180,27 +191,35 @@ while [ true ]; do
 				show_dialog --msgbox "Current file system '${FILESYSTEM}' does not support encryption.\nPlease select another file system." 0 0
 			else
 				# dialog for boolean value
-				MESSAGE="Enryption for ${DEVICE} is now '$(get_yesno "${ENCRYPTION}")'.\nDo you want to change it?"
+				MESSAGE="Enryption for ${PARTITION} is now '$(get_yesno "${ENCRYPTION}")'.\nDo you want to change it?"
 				# warn about conflict of boot-flag and encryption
 				[ "${ENCRYPTION}" = '0' -a "${BOOTFLAG}" = '1' ] \
 					&& MESSAGE="${MESSAGE}\n\nWarning: This will also disable the boot-flag!"
 				show_dialog --yesno "${MESSAGE}" 0 0
 				RETSUB=$?
 				if [ "${RETSUB}" -eq 0 ] && [ "${ENCRYPTION}" -eq '0' ]; then
+					# change FSspec string
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'boot-flag' '0')" || exit $?
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'encryption' '1')" || exit $?
 					BOOTFLAG=0
 					ENCRYPTION=1
 				elif [ "${RETSUB}" -eq 0 ]; then
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'encryption' '0')" || exit $?
 					ENCRYPTION=0
 				fi
 			fi
 			;;
 		'format')
 			# dialog for boolean value
-            show_dialog --yesno "Formatting of ${DEVICE} is now '$(get_yesno "${FORMAT}")'.\nDo you want to change it?" 0 0
+            show_dialog --yesno "Formatting of ${PARTITION} is now '$(get_yesno "${FORMAT}")'.\nDo you want to change it?" 0 0
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ] && [ "${FORMAT}" -eq '0' ]; then
+				# change FSspec string
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'format' '1')" || exit $?
 				FORMAT=1
 			elif [ "${RETSUB}" -eq 0 ]; then
+				# change FSspec string
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'format' '0')" || exit $?
 				FORMAT=0
 			fi
 			;;
@@ -211,17 +230,7 @@ while [ true ]; do
 			exit 0
 			;;
 		'DONE')
-			# everything ok, create new FSspec string
-			# print result to STDOUT and exit 0
-			CONFIG_ITEM="$("${SHAREDIR}"/FSspec create \
-				"${DEVICE}" \
-				"${MOUNTPOINT}" \
-				"${FILESYSTEM}" \
-				"${BOOTFLAG}" \
-				"${ENCRYPTION}" \
-				"${FORMAT}" \
-				"${CRYPTKEY}")" \
-				|| exit $?
+			# everything ok, print result to STDOUT and exit 0
 			echo "${CONFIG_ITEM}"
 			exit 0
 			;;

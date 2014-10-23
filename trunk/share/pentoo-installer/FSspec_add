@@ -6,9 +6,8 @@
 # user GUI to add a new FSspec
 #
 # parameters (required):
-#  CONFIG_LIST: One string with 0 or more items of defined FSspec:
-#    <device>:<mountpoint>:<filesystem>:<boot-flag>:<encryption>
-#    Already configured devices. Need this to trigger setup of root/swap partition
+#  CONFIG_LIST: One string with 0 or more items of defined FSspec
+#    Already configured partitions Need this to trigger setup of root/swap partition
 #
 # returns 0 on success
 # returns $ERROR_CANCEL=64 on user cancel
@@ -36,7 +35,7 @@ HAS_SWAP=0
 RETSUB=
 
 # properties of FSspec
-DEVICE=
+PARTITION=
 MOUNTPOINT=
 FILESYSTEM=
 
@@ -51,15 +50,15 @@ if [ "${HAS_ROOT}" -ne 1 ]; then
 	FILESYSTEM='ext4'
 fi
 # ask user for partition
-DEVICE="$(partition_selectpartition '_')" || exit $?
-echo dump DEVICE = "${DEVICE}" 1>&2
-# check if device is already configured
-if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'device' "${DEVICE}"; then
-	show_dialog --msgbox "ERROR: Partition ${DEVICE} is already configured!" 0 0
+PARTITION="$(partition_selectpartition '_')" || exit $?
+echo dump PARTITION = "${PARTITION}" 1>&2
+# check if partition is already configured
+if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'partition' "${PARTITION}"; then
+	show_dialog --msgbox "ERROR: Partition ${PARTITION} is already configured!" 0 0
 	exit "${ERROR_CANCEL}"
 fi
 if [ -z "${MOUNTPOINT}" ]; then
-	show_dialog --yesno "Do you want to use ${DEVICE} as swap partition?" 0 0
+	show_dialog --yesno "Do you want to use ${PARTITION} as swap partition?" 0 0
 	RETSUB=$?
 	if [ "${RETSUB}" -eq 0 ]; then
 		FILESYSTEM='swap'
@@ -71,7 +70,7 @@ fi
 if [ "${FILESYSTEM}" != 'swap' ]; then
 	if [ -z "${MOUNTPOINT}" ]; then
 		# ask for mountpoint
-		MOUNTPOINT="$(show_dialog --inputbox "Enter the mountpoint for ${DEVICE}." 0 0 "${MOUNTPOINT}")" || exit $?
+		MOUNTPOINT="$(show_dialog --inputbox "Enter the mountpoint for ${PARTITION}." 0 0 "${MOUNTPOINT}")" || exit $?
 		# trim result
 		MOUNTPOINT="$(echo "${MOUNTPOINT}" | awk '{gsub(/^ +| +$/,"")} {print $0}')" || exit $?
 		echo dump MOUNTPOINT = "'${MOUNTPOINT}'" 1>&2
@@ -82,7 +81,7 @@ if [ "${FILESYSTEM}" != 'swap' ]; then
 		elif [ "${MOUNTPOINT:0:1}" != '/' ]; then
 			show_dialog --msgbox "ERROR: A valid mountpoint begins with '/'!" 0 0
 			exit "${ERROR_CANCEL}"
-		# check if device is already configured
+		# check if mountpoint is already configured
 		elif "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' "${MOUNTPOINT}"; then
 			show_dialog --msgbox "ERROR: Mountpoint ${MOUNTPOINT} is already configured!" 0 0
 			exit "${ERROR_CANCEL}"
@@ -92,12 +91,11 @@ fi
 # everything ok, create new FSspec string
 # print result to STDOUT and exit 0
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec create \
-	"${DEVICE}" \
+	"${PARTITION}" \
 	"${MOUNTPOINT}" \
 	"${FILESYSTEM}" \
 	"0" \
 	"0" \
-	"1" \
-	'')" || exit $?
+	"1")" || exit $?
 echo "${CONFIG_ITEM}"
 exit 0
