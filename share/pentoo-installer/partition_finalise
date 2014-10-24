@@ -102,6 +102,12 @@ CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'mountpoint' 1)" || ex
 CONFIG_ARRAY=(${CONFIG_LIST}) || exit $?
 CONFIG_INDEX=0
 
+# check if mountpoint '/' exists
+if ! "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
+	show_dialog --msgbox "Root partition (with mountpoint '/') not found. Please re-configure the partitions!" 0 0
+	exit "${ERROR_CANCEL}"
+fi
+
 while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	CONFIG_ITEM="${CONFIG_ARRAY[${CONFIG_INDEX}]}" || exit $?
 	PARTITION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
