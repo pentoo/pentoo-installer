@@ -206,14 +206,16 @@ show_dialog() {
 	local _ARGUMENTS=
 	local _HEIGHT=
 	local _WIDTH=
-	local _BOXOPTION=
-	local _INDEX_BOX=0
+	local _BOXOPTION_INDEX=
+	local _INDEX=0
 	local _WHICHDIALOG='dialog'
 	local ANSWER=
 	local _DIALOGRETURN=
 	local _XDIALOG_AUTOSIZE_PERCENTAGE=33
-	# copy aray of arguments so we can write to it
+	# copy array of arguments so we can write to it
+	# also prepend our own arguments
 	_ARGUMENTS=("$@") || return $?
+	_ARGUMENTS=( '--backtitle' "${TITLE}" '--aspect' '15' "$@") || return $?
 	# let's support Xdialog for the fun of it
 	if [ ! $(type "Xdialog" &> /dev/null) ] && [ -n "${DISPLAY}" ]; then
 		_WHICHDIALOG='Xdialog'
@@ -221,30 +223,41 @@ show_dialog() {
 	# for Xdialog: autosize does not work well with a title, use percentage of max-size
 	if [ "${_WHICHDIALOG}" = 'Xdialog' ]; then
 		# loop arguments and search for the box option
-		while [ "${_INDEX_BOX}" -lt "${#_ARGUMENTS[@]}" ]; do
-			case "${_ARGUMENTS[$_INDEX_BOX]}" in
+		# also swap --title and --backtitle
+		while [ "${_INDEX}" -lt "${#_ARGUMENTS[@]}" ]; do
+			case "${_ARGUMENTS[$_INDEX]}" in
 				# all of these have the format: --<boxoption> text height width
 				'--calendar' | '--checklist' | '--dselect' | '--editbox' | '--form' | '--fselect' | '--gauge' | '--infobox' | '--inputbox' | '--inputmenu' | '--menu' | '--mixedform' | '--mixedgauge' | '--msgbox' | '--passwordbox' | '--passwordform' | '--pause' | '--progressbox' | '--radiolist' | '--tailbox' | '--tailboxbg' | '--textbox' | '--timebox' | '--yesno')
-					_BOXOPTION="${_ARGUMENTS[$_INDEX_BOX]}"
-					break ;;
+					# prevent multiple box options
+					[ -n "${_BOXOPTION_INDEX}" ] && return 1
+					_BOXOPTION_INDEX="${_INDEX}"
+					;;
+				# swap title and backtitle for Xdialog
+				'--title')
+					_ARGUMENTS[${_INDEX}]='--backtitle'
+					;;
+				# swap title and backtitle for Xdialog
+				'--backtitle')
+					_ARGUMENTS[${_INDEX}]='--title'
+					;;
 				*) ;;
 			esac
-			_INDEX_BOX="$((_INDEX_BOX+1))" || return $?
+			_INDEX="$((_INDEX+1))" || return $?
 		done
 		# check if box option was found
-		if [ -z "${_BOXOPTION}" ]; then
+		if [ -z "${_BOXOPTION_INDEX}" ]; then
 			echo "ERROR: Cannot find box option. Exiting with an error!" 1>&2
 			return 1
 		fi
-		if [ "$((${_INDEX_BOX}+3))" -gt "$#" ]; then
-			echo "ERROR: cannot find height and width for box option '"${_BOXOPTION}"'. Exiting with an error!" 1>&2
+		if [ "$((${_BOXOPTION_INDEX}+3))" -ge "${#_ARGUMENTS[@]}" ]; then
+			echo "ERROR: cannot find height and width for box option '"${_ARGUMENTS[${_BOXOPTION_INDEX}]}"'. Exiting with an error!" 1>&2
 			return 1
 		fi
 		# only fix width/height for these box options
-		case "${_BOXOPTION}" in
-			'--menu')
-				_HEIGHT="${_ARGUMENTS[$((_INDEX_BOX+2))]}" || return $?
-				_WIDTH="${_ARGUMENTS[$((_INDEX_BOX+3))]}" || return $?
+		case "${_ARGUMENTS[${_BOXOPTION_INDEX}]}" in
+			'--menu' | '--gauge')
+				_HEIGHT="${_ARGUMENTS[$((_BOXOPTION_INDEX+2))]}" || return $?
+				_WIDTH="${_ARGUMENTS[$((_BOXOPTION_INDEX+3))]}" || return $?
 				# check if width/height were found
 				if [ -z "${_HEIGHT}" ] || [ -z "${_WIDTH}" ]; then
 					echo "ERROR: Did not find box option with height/width. Exiting with an error" 1>&2
@@ -257,15 +270,15 @@ show_dialog() {
 					_HEIGHT=$((${_HEIGHT} * ${_XDIALOG_AUTOSIZE_PERCENTAGE} / 100)) || return $?
 					_WIDTH=$((${_WIDTH} * ${_XDIALOG_AUTOSIZE_PERCENTAGE} / 100)) || return $?
 					# write new values to copy of arguments array
-					_ARGUMENTS[$((_INDEX_BOX+2))]="${_HEIGHT}" || return $?
-					_ARGUMENTS[$((_INDEX_BOX+3))]="${_WIDTH}" || return $?
+					_ARGUMENTS[$((_BOXOPTION_INDEX+2))]="${_HEIGHT}" || return $?
+					_ARGUMENTS[$((_BOXOPTION_INDEX+3))]="${_WIDTH}" || return $?
 				fi
 				;;
 			*) ;;
 		esac
 	fi
 	# switch STDOUT and STDERR and execute 'dialog' or Xdialog'
-	_ANSWER=$("${_WHICHDIALOG}" --backtitle "${TITLE}" --aspect 15 "${_ARGUMENTS[@]}" 3>&1 1>&2 2>&3)
+	_ANSWER=$("${_WHICHDIALOG}" "${_ARGUMENTS[@]}" 3>&1 1>&2 2>&3)
 	_DIALOGRETURN=$?
 	# check if user clicked cancel or closed the box
 	if [ "${_DIALOGRETURN}" -eq "1" ] ||  [ "${_DIALOGRETURN}" -eq "255" ]; then
