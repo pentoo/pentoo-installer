@@ -564,6 +564,11 @@ FSspec_mountall() {
 	local _CRYPTKEY=
 	local _PARTPATH=
 	local _UUID="$(uuidgen)" || return $?
+	# check if mountpoint '/' exists
+	if ! FSspec_list_haskeyvalue "${_CONFIG_LIST}" 'mountpoint' '/'; then
+		echo "ERROR: Root partition (with mountpoint '/') not found." 1>&2
+		return 1
+	fi
 	# reverse sort by mountpoint
 	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
