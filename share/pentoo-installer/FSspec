@@ -643,14 +643,15 @@ FSspec_umountall() {
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_PARTPATH="${_PARTITION}"
 		[ "${_ENCRYPTION}" -eq 1 ] && _PARTPATH="/dev/mapper/${_CRYPTNAME}"
+		# ignore error when not mounted or used as swap
 		# umount partition
 		if [ "${_FILESYSTEM}" != 'swap' ]; then
-			umount "${_PARTPATH}" || return $?
+			umount "${_PARTPATH}" 2>/dev/null
 		# swapoff
 		else
-			swapoff "${_PARTPATH}" || return $? 
+			swapoff "${_PARTPATH}" 2>/dev/null
 		fi
-		if [ "${_ENCRYPTION}" -eq 1 ]; then
+		if [ "${_ENCRYPTION}" -eq 1 ] && cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
 			cryptsetup close "${_CRYPTNAME}" || return $?
 		fi
 	done
