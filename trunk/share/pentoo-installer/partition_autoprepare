@@ -40,6 +40,7 @@ printk() {
 
 # partition_getpartitionsize()
 # asks user for size and prints result to STDOUT
+#
 # parameters (required)
 #  _MOUNTPOINT: Mountpoint of the partition
 #  _DISC_SIZE: Remaining space on disc in MiB

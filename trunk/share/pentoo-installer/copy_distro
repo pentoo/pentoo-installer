@@ -1,0 +1,221 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# partition_finalise
+# Creates filesystem, also with encryption, mounts the partitions
+#
+# parameters (required)
+#  CONFIG_LIST: One string items of defined FSspec
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source common variables, functions and error handling
+source "${SHAREDIR}"/common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+# run_unsquashfs()
+# runs unsquashfs on the target system, displays output
+# originally taken from manjaro
+#
+# parameters (required)
+#  $1 : source
+#  $2 : dest
+#  $3 : msg
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+run_unsquashfs() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _SOURCE="${1}"
+	local _DEST="${2}"
+	local _MSG="${3}"
+	local _LINE=
+	local _BLOCKS=
+	local _PERCENT=
+	local _PERCENTTEMP=
+	local _RETGAUGE=
+    # all unsquashfs output goes to /tmp/unsquashfs.log, which we tail
+    # into a dialog
+    touch /tmp/setup-unsquashfs-running
+    #set the return code to failure so if things race we catch the failure
+    echo 1 > /tmp/.unsquashfs-retcode
+    ( \
+        echo "unsquashing $(basename $1) ..." > /tmp/unsquashfs.log; \
+        echo >> /tmp/unsquashfs.log; \
+        unsquashfs -f -d "${_DEST}" "${_SOURCE}" >>/tmp/unsquashfs.log 2>&1
+        echo $? > /tmp/.unsquashfs-retcode
+        echo >> /tmp/unsquashfs.log
+        rm -f /tmp/setup-unsquashfs-running
+    ) &
+	sleep 1
+	( \
+		_PERCENT=0
+		while [ -e /tmp/setup-unsquashfs-running ]; do
+			# sleep 1
+			sleep 0.5
+			_LINE="$(tail -n1 /tmp/unsquashfs.log)" || return $?
+			_PERCENTTEMP="$(echo "${_LINE}" | sed -r 's/^.*[[:space:]]([0-9]+)%$/\1/')" || return $?
+			if [[ ${_PERCENTTEMP} =~ ${ISNUMBER} ]]; then
+				_PERCENT="${_PERCENTTEMP}"
+				_BLOCKS="$(echo "${_LINE}" | sed -r 's#^.*[[:space:]]+([0-9]+)/([0-9]+)[[:space:]]+.*$#\1 of \2 blocks#')" || return $?
+				echo "${_PERCENT}"
+				echo "XXX"
+				echo "${_MSG}"
+				echo " => "
+				echo "${_BLOCKS}"
+				echo "XXX"
+			else
+				echo "XXX"
+				echo "${_MSG}"
+				echo " => "
+				echo "Progress Indicator Frozen at ${_PERCENT} % (but no errors seen)"
+				echo "XXX"
+			fi
+		done
+	) |
+	# prepend dummy values for auto-sizing of dialog
+	show_dialog --gauge "${_MSG} => ......... of ......... blocks" 0 0 0
+	_RETGAUGE=$?
+	if [ "${_RETGAUGE}" -ne 0 ]; then
+		echo "User cancelled unsquashfs by exiting gauge dialog." 1>&2
+        killall unsquashfs
+		return "${_RETGAUGE}"
+	fi
+	# check success
+    while [ -e /tmp/setup-unsquashfs-running ]; do
+        echo "Won the race, night night (This should have been impossible)" 1>&2
+        sleep 1
+    done
+    if ! [ -f /tmp/.unsquashfs-retcode ]; then
+        echo "This shouldn't be possible, /tmp/.unsquashfs-retcode is missing" 1>&2
+    fi
+    # alert the user to fatal errors
+    #make sure we have a retcode
+    if [ -z "$(cat /tmp/.unsquashfs-retcode)" ]; then
+        killall unsquashfs
+        show_dialog --title "Error unsquashing, no return code" --exit-label \
+			"OK" --textbox "/tmp/unsquashfs.log" 18 70
+        return 1
+    fi
+    #make sure the retcode is a number
+    if ! [[ $(cat /tmp/.unsquashfs-retcode) =~ ${ISNUMBER} ]]; then
+        killall unsquashfs
+        show_dialog --title "Error unsquashing, code '$(cat /tmp/.unsquashfs-retcode)'" --exit-label \
+			"OK" --textbox "/tmp/unsquashfs.log" 18 70
+        return 1
+    fi
+    #make sure the retcode is 0
+    if [ $(cat /tmp/.unsquashfs-retcode) -ne 0 ]; then
+        killall unsquashfs
+        show_dialog --title "Error unsquashing, code '$(cat /tmp/.unsquashfs-retcode)'" --exit-label \
+			"OK" --textbox "/tmp/unsquashfs.log" 18 70
+        return 1
+    fi
+    # save unsquashfs.log
+    mv "/tmp/unsquashfs.log" "/tmp/unsquashfs-$(basename "${_SOURCE}").log" || return $?
+	return 0
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+# check input
+check_num_args "$(basename $0)" 1 $# || exit $?
+CONFIG_LIST="${1}"
+RET_SUB=
+MODULE=
+
+echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
+
+# TODO, remove this debugging line
+"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
+
+# mount everything, including cryptsetup
+"${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
+
+# TODO reactivate this
+run_unsquashfs /mnt/cdrom/image.squashfs ${DESTDIR} "Uncompressing base system"
+RET_SUB=$?
+if [ "${RET_SUB}" -ne 0 ]; then
+	show_dialog --msgbox "Failed to install base system" 0 0
+	exit "${RET_SUB}"
+fi
+
+# TODO : this does not just 'install portage' => fix error message
+# TODO reactivate this
+for MODULE in $(ls /mnt/cdrom/modules/*.lzm); do
+	run_unsquashfs "${MODULE}" "${DESTDIR}" "Uncompressing ${MODULE%.lzm}"
+	RET_SUB=$?
+	if [ "${RET_SUB}" -ne 0 ]; then
+		show_dialog --msgbox "Failed to install portage" 0 0
+		exit "${RET_SUB}"
+	fi
+done
+
+show_dialog --defaultno --yesno "Would you like to sync unsaved changes to your new install?\nAll modules are automatically synced, but saying yes to this question\nwill also sync changes made during this session which have not been saved\nwith flushchanges or makemo.\nSay no, and only a small set of essentials will be synced;\nsay yes, and everything will be synced, but it may take much longer." 0 0
+RET_SUB=$?
+
+if [ "${RET_SUB}" = "0" ]; then
+	rsync -av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run /* ${DESTDIR}/ 2>&1 \
+	  | tee ${LOG} \
+	  | awk -f "${SHAREDIR}"/rsync.awk \
+	  | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+	  | show_dialog --title "Rsyncing / to new install" --gauge "Syncing / ..." 0 0
+	RET_SUB=$?
+	if [ "${RET_SUB}" -ne 0 ]; then
+		show_dialog --msgbox "Failed to rsync /. See the log output for more information" 0 0
+		exit "${RET_SUB}"
+	fi
+else
+	rsync -av --progress /etc/* ${DESTDIR}/etc/ 2>&1 \
+	  | tee ${LOG} \
+	  | awk -f "${SHAREDIR}"/rsync.awk \
+	  | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+	  | show_dialog --title "Copying /etc/ folders." --gauge "Copying etc ..." 0 0
+	RET_SUB=$?
+	if [ "${RET_SUB}" -ne 0 ]; then
+		show_dialog --msgbox "Failed to rsync /etc. See the log output for more information" 0 0
+		exit "${RET_SUB}"
+	fi
+	rsync -av --progress --exclude=/root/.bashrc /root/* ${DESTDIR}/root/ 2>&1 \
+	  | tee ${LOG} \
+	  | awk -f "${SHAREDIR}"/rsync.awk \
+	  | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+	  | show_dialog --title "Copying /root/ folders." --gauge "Copying home ..." 0 0
+	RET_SUB=$?
+	if [ "${RET_SUB}" -ne 0 ]; then
+		show_dialog --msgbox "Failed to rsync the /root. See the log output for more information" 0 0
+		exit "${RET_SUB}"
+	fi
+	rsync -av --progress /lib/modules/$(uname -r)/* ${DESTDIR}/lib/modules/$(uname -r)/ 2>&1 \
+	  | tee ${LOG} \
+	  | awk -f "${SHAREDIR}"/rsync.awk \
+	  | sed --unbuffered 's/\([0-9]*\).*/\1/' \
+	  | show_dialog --title "Rsyncing kernel modules" --gauge "Rsyncing /lib/modules/$(uname -r) ..." 0 0
+	RET_SUB=$?
+	if [ "${RET_SUB}" -ne 0 ]; then
+		show_dialog --msgbox "Failed to rsync /lib/modules/$(uname -r)/. See the log output for more information" 0 0
+		exit "${RET_SUB}"
+	fi
+fi
+
+# umount all again and close cryptsetup
+"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
+exit 0
