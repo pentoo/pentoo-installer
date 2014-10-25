@@ -23,30 +23,6 @@ S_FDE=0         # Full disk encryption, need key in /boot
 # main menu selection tracker
 CURRENT_SELECTION=""
 
-# chroot_mount()
-# prepares target system as a chroot
-#
-chroot_mount()
-{
-    [ -e "${DESTDIR}/sys" ] || mkdir "${DESTDIR}/sys"
-    [ -e "${DESTDIR}/proc" ] || mkdir "${DESTDIR}/proc"
-    [ -e "${DESTDIR}/dev" ] || mkdir "${DESTDIR}/dev"
-    mount -t sysfs sysfs "${DESTDIR}/sys"
-    mount -t proc proc "${DESTDIR}/proc"
-    mount -o bind /dev "${DESTDIR}/dev"
-}
-
-# chroot_umount()
-# tears down chroot in target system
-#
-chroot_umount()
-{
-    sleep 1
-    umount ${DESTDIR}/proc
-    umount ${DESTDIR}/sys
-    umount ${DESTDIR}/dev
-}
-
 # getuuid()
 # converts /dev/[hs]d?[0-9] devices to UUIDs
 #
@@ -348,55 +324,6 @@ do_rsync() {
     mkdir -m755 ${DESTDIR}/media/{cd,dvd,fl}
 
     S_SELECT=1
-}
-
-# set_profile
-# allows to choose a new profile in the DESTDIR env
-# parameters: none
-set_profile() {
-    chroot_mount
-    options=()
-    CUR_PROF_TYPE=""
-    CUR_PROF_NUM=""
-    CUR_PROF="`chroot ${DESTDIR} eselect profile show | grep pentoo | awk '{match($1,"pentoo/.*",a)}END{print a[0]}'`"
-
-    if [[ -n "`echo ${CUR_PROF} | grep hardened`" ]]; then
-        CUR_PROF_TYPE="hardened"
-    elif [[ -n "`echo ${CUR_PROF} | grep default`" ]]; then
-        CUR_PROF_TYPE="default"
-    else
-        show_dialog --keep-tite --msgbox "Warning: unable to detect a current Pentoo profile in the ${DESTDIR} directory" 0 0
-    fi
-
-    while read -r line; do
-        #grab all pentoo profiles
-        if [[ ${line} == *pentoo* ]]; then
-            #parse profiles based on the current type
-            if [ "${CUR_PROF_TYPE}" == "hardened" ]; then
-                PROF="`echo ${line} | awk '{match($2,"pentoo/hardened/.*",a)}END{print a[0]}'`"
-            elif [ "${CUR_PROF_TYPE}" == "default" ]; then
-                PROF="`echo ${line} | awk '{match($2,"pentoo/default/.*",a)}END{print a[0]}'`"
-            fi
-            #skip if the type is not current
-            if [[ -z ${PROF} ]]; then
-                continue
-            fi
-            #detect its profile number
-            PROF_NUM="`echo ${line} | awk '{match($1,"[0-9]+",a)}END{print a[0]}'`"
-            #generate options menu
-            options+=(${PROF_NUM} ${PROF})
-            #find current profile number
-            if [[ ${PROF} == ${CUR_PROF} ]]; then
-                CUR_PROF_NUM="${PROF_NUM}"
-            fi
-        fi
-    done < <(chroot ${DESTDIR} eselect profile list)
-
-    cmd=(dialog --keep-tite  --default-item "${CUR_PROF_NUM}" --menu "Select profile:" 22 76 16)
-    NEW_PROF_NUM=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
-
-    chroot ${DESTDIR} eselect profile set ${NEW_PROF_NUM}
-    chroot_umount
 }
 
 # auto_fstab()
