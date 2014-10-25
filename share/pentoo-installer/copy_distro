@@ -2,8 +2,8 @@
 # This script is released under the GNU General Public License 3.0
 # Check the COPYING file included with this distribution
 
-# partition_finalise
-# Creates filesystem, also with encryption, mounts the partitions
+# copy_distro
+# Copies the distro from squashfs plus uses rsync
 #
 # parameters (required)
 #  CONFIG_LIST: One string items of defined FSspec
@@ -150,7 +150,6 @@ echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
-# TODO reactivate this
 run_unsquashfs /mnt/cdrom/image.squashfs ${DESTDIR} "Uncompressing base system"
 RET_SUB=$?
 if [ "${RET_SUB}" -ne 0 ]; then
@@ -159,7 +158,6 @@ if [ "${RET_SUB}" -ne 0 ]; then
 fi
 
 # TODO : this does not just 'install portage' => fix error message
-# TODO reactivate this
 for MODULE in $(ls /mnt/cdrom/modules/*.lzm); do
 	run_unsquashfs "${MODULE}" "${DESTDIR}" "Uncompressing ${MODULE%.lzm}"
 	RET_SUB=$?

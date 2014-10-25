@@ -75,7 +75,7 @@ while [ true ]; do
 			RETSUB=$?
 			;;
 		"3")
-			set_profile
+			"${SHAREDIR}"/setprofile "${CONFIG_LIST}"
 			RETSUB=$?
 			;;
 		"4")
