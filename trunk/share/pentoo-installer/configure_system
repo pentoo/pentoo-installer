@@ -1,0 +1,50 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# copy_distro
+# Copies the distro from squashfs plus uses rsync
+#
+# parameters (required)
+#  CONFIG_LIST: One string items of defined FSspec
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source common variables, functions and error handling
+source "${SHAREDIR}"/common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+# check input
+check_num_args "$(basename $0)" 1 $# || exit $?
+CONFIG_LIST="${1}"
+RET_SUB=
+
+echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
+
+# TODO, remove this debugging line
+"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
+
+# mount everything, including cryptsetup
+"${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
+
+
+
+# umount all again and close cryptsetup
+"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
+exit 0

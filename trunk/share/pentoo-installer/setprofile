@@ -24,48 +24,6 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
 
-#########################################
-## START: dialog functions/definitions ##
-
-# chroot_mount()
-# prepares target system as a chroot
-#
-chroot_mount() {
-    if [ ! -e "${DESTDIR}/sys" ]; then
-		mkdir "${DESTDIR}/sys" || return $?
-	fi
-    if [ ! -e "${DESTDIR}/proc" ]; then
-		mkdir "${DESTDIR}/proc" || return $?
-	fi
-    if [ ! -e "${DESTDIR}/dev" ]; then
-		mkdir "${DESTDIR}/dev" || return $?
-	fi
-    mount -t sysfs sysfs "${DESTDIR}/sys" || return $?
-    mount -t proc proc "${DESTDIR}/proc" || return $?
-    mount -o bind /dev "${DESTDIR}/dev" || return $?
-	return 0
-}
-
-# chroot_umount()
-# tears down chroot in target system
-#
-chroot_umount() {
-	sleep 1
-	if mount | grep -q "${DESTDIR}/proc "; then
-		umount ${DESTDIR}/proc || return $?
-	fi
-	if mount | grep -q "${DESTDIR}/sys "; then
-		umount ${DESTDIR}/sys || return $?
-	fi
-	if mount | grep -q "${DESTDIR}/dev "; then
-		umount ${DESTDIR}/dev || return $?
-	fi
-	return 0
-}
-
-## END: dialog functions/definitions ##
-#######################################
-
 #####################
 ## begin execution ##
 
