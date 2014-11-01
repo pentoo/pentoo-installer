@@ -16,7 +16,7 @@
 #   format
 #   cryptname (name used by cryptsetup)
 #   partuuid (PARTUUID, *not* the UUID)
-#	crypttype (one of: '', gpg)
+#	crypttype (one of: 'swap', '', 'gpg')
 #	cryptkey
 #
 #  mountpoint of a swap partition must be empty

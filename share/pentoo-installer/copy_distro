@@ -6,7 +6,7 @@
 # Copies the distro from squashfs plus uses rsync
 #
 # parameters (required)
-#  CONFIG_LIST: One string items of defined FSspec
+#  CONFIG_LIST: One string with items of defined FSspec
 #
 # returns 0 on success
 # returns $ERROR_CANCEL=64 on user cancel
@@ -23,6 +23,179 @@ source "${SHAREDIR}"/common.sh || exit $?
 
 #########################################
 ## START: dialog functions/definitions ##
+
+# auto_dmcrypt()
+# copy dmcrypt and keys to partitions
+#
+# parameters (required)
+#  CONFIG_LIST: One string with items of defined FSspec
+#
+auto_dmcrypt() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _CONF_LIST="${1}"
+	local _ITEM=
+	# properties of FSspec
+	local _PARTITION=
+	local _MOUNTPOINT=
+	local _ENCRYPTION=
+	local _CRYPTNAME=
+	local _CRYPTTYPE=
+	local _CRYPTKEY=
+	local _FSTAB_ITEM=
+	local _DO_RCUPDATE=0
+	local _RET_SUB=
+	# sort by partition
+	_CONF_LIST="$("${SHAREDIR}"/FSspec sort "${_CONF_LIST}" 'partition' 0)" || return $?
+	# START: write all keys to /etc/keys and only swap partitions to /etc/conf.d/dmcrypt
+	# swap partitions sould come first in /etc/conf.d/dmcrypt
+	for _ITEM in ${_CONF_LIST}; do
+		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
+		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
+		_ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'encryption')" || exit $?
+		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
+		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
+		_CRYPTKEY="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptkey')" || exit $?
+		if [ "${_ENCRYPTION}" -eq '1' ]; then
+			# write all crypt-keys (except root-  and swap-partitions)
+			if [ "${_CRYPTTYPE}" != 'swap' ] && [ "${_MOUNTPOINT}" != '/' ]; then
+				mkdir -p "${DESTDIR}/etc/keys/" || return $?
+				case "${_CRYPTTYPE}" in
+					gpg)
+						# key is in base64 format
+						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
+						;;
+					'')
+						echo "${_CRYPTKEY}" >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
+						;;
+				esac
+			# write key for root-partition
+			elif [ "${_MOUNTPOINT}" = '/' ]; then
+				case "${_CRYPTTYPE}" in
+					gpg)
+						# key is in base64 format
+						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/boot/key.gpg" || return $?
+						;;
+					'')
+						echo "${_CRYPTKEY}" >"${DESTDIR}/boot/key.gpg" || return $?
+						;;
+				esac
+			fi
+			# add to /etc/conf.d/dmcrypt if swap
+			if [ "${_CRYPTTYPE}" = 'swap' ]; then
+				_DO_RCUPDATE=1
+				echo ''>>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+				echo "swap=${_CRYPTNAME}">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+				echo "source='${_PARTITION}'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+			fi
+		fi
+	done
+	# END: write all keys to /etc/keys and only swap partitions to /etc/conf.d/dmcrypt
+	# START: write non-swap partitions to /etc/conf.d/dmcrypt
+	for _ITEM in ${_CONF_LIST}; do
+		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
+		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
+		_ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'encryption')" || exit $?
+		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
+		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
+		if [ "${_ENCRYPTION}" -eq '1' ]; then
+			# add to /etc/conf.d/dmcrypt if non-swap and not root-partition
+			if [ "${_CRYPTTYPE}" != 'swap' ] && [ "${_MOUNTPOINT}" != '/' ]; then
+				_DO_RCUPDATE=1
+				echo ''>>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+				echo "target=${_CRYPTNAME}">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+				echo "source='${_PARTITION}'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+				case "${_CRYPTTYPE}" in
+					gpg)
+						echo "key='/etc/keys/${_CRYPTNAME}:gpg'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+						;;
+					'')
+						echo "key='/etc/keys/${_CRYPTNAME}'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
+						;;
+				esac
+			fi
+		fi
+	done
+	# run rc-update, chroot must be mounted outside this function!
+	if [ "${_DO_RCUPDATE}" -eq 1 ]; then
+        chroot ${DESTDIR} /bin/bash <<EOF
+rc-update add dmcrypt boot || exit $?
+EOF
+		_RET_SUB=$?
+		[ "${_RETSUB}" -ne 0 ] && return "${_RET_SUB}"
+	fi
+	return 0
+}
+
+# auto_fstab()
+# preprocess fstab file
+# comments out old fields and inserts new ones
+# according to partitioning/formatting stage
+#
+# parameters (required)
+#  CONFIG_LIST: One string with items of defined FSspec
+#
+auto_fstab() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _CONF_LIST="${1}"
+	local _ITEM=
+	# properties of FSspec
+	local _PARTITION=
+	local _MOUNTPOINT=
+	local _FILESYSTEM=
+	local _BOOTFLAG=
+	local _ENCRYPTION=
+	local _CRYPTNAME=
+	local _FSTAB_ITEM=
+	local _PARTPATH=
+	# sort by partition
+	_CONF_LIST="$("${SHAREDIR}"/FSspec sort "${_CONF_LIST}" 'partition' 0)" || return $?
+	# comment out stray /dev entries in fstab
+	sed -i 's/^\/dev/#\/dev/g' ${DESTDIR}/etc/fstab || return $?
+	# append entries from new configuration
+	for _ITEM in ${_CONF_LIST}; do
+		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
+		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
+		_FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'filesystem')" || exit $?
+		# TODO: use boot-flag in fstab
+		_BOOTFLAG="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'boot-flag')" || exit $?
+		_ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'encryption')" || exit $?
+		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
+		_PARTPATH="${_PARTITION}"
+		if [ "${_ENCRYPTION}" -eq '1' ]; then
+			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
+		fi
+		# START: fstab setup
+		# start defining fstab item
+		_FSTAB_ITEM="${_PARTPATH}"
+		# add mountpoint
+		if [ "${_FILESYSTEM}" != 'swap' ]; then
+			_FSTAB_ITEM="${_FSTAB_ITEM} ${_MOUNTPOINT}"
+		else
+			_FSTAB_ITEM="${_FSTAB_ITEM} none"
+		fi
+		# add filesystem
+		_FSTAB_ITEM="${_FSTAB_ITEM} ${_FILESYSTEM}"
+		# add options
+		# TODO: should boot partition '/boot' and swap be different?
+		_FSTAB_ITEM="${_FSTAB_ITEM} defaults"
+		# add dump
+		# TODO: should boot partition '/boot' be different?
+		_FSTAB_ITEM="${_FSTAB_ITEM} 0"
+		# add pass
+		# TODO: should boot partition '/boot' and root partition '/' be different?
+		if [ "${_FILESYSTEM}" != 'swap' ]; then
+			_FSTAB_ITEM="${_FSTAB_ITEM} 1"
+		else
+			_FSTAB_ITEM="${_FSTAB_ITEM} 0"
+		fi
+		# add to fstab
+		echo "${_FSTAB_ITEM}" >>${DESTDIR}/etc/fstab || return $?
+		# END: fstab setup
+	done
+	return 0
+}
 
 # run_unsquashfs()
 # runs unsquashfs on the target system, displays output
@@ -213,6 +386,33 @@ else
 		exit "${RET_SUB}"
 	fi
 fi
+
+# pre-configure systems, these steps should happen only once
+# must mount chroot so pre/post installs don't fail out
+chroot_mount || exit $?
+chroot ${DESTDIR} /bin/bash <<EOF
+rc-update del autoconfig default || exit $?
+rc-update del binary-driver-handler || exit $?
+rc-update del firmware boot || exit $?
+rc-update del fixinittab default || exit $?
+rc-update add keymaps default || exit $?
+rc-update add fcron default || exit $?
+mv /etc/inittab.old /etc/inittab || exit $?
+mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh || exit $?
+EOF
+RET_SUB=$?
+[ "${RETSUB}" -ne 0 ] && exit "${RET_SUB}"
+# ensure that the disk is synced
+sync || exit $?
+
+# automagic time!
+# any automatic configuration should go here
+show_dialog --infobox "Writing base configuration..." 6 40
+auto_fstab "${CONFIG_LIST}" || exit $?
+auto_dmcrypt "${CONFIG_LIST}" || exit $?
+
+# don't need chroot anymore
+chroot_umount || exit $?
 
 # umount all again and close cryptsetup
 "${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?

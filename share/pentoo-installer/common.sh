@@ -85,6 +85,44 @@ catch_menuerror() {
 	return 1
 }
 
+# chroot_mount()
+# prepares target system as a chroot
+#
+chroot_mount() {
+	# TODO: check if target is a mountpoint
+    if [ ! -e "${DESTDIR}/sys" ]; then
+		mkdir "${DESTDIR}/sys" || return $?
+	fi
+    if [ ! -e "${DESTDIR}/proc" ]; then
+		mkdir "${DESTDIR}/proc" || return $?
+	fi
+    if [ ! -e "${DESTDIR}/dev" ]; then
+		mkdir "${DESTDIR}/dev" || return $?
+	fi
+    mount -t sysfs sysfs "${DESTDIR}/sys" || return $?
+    mount -t proc proc "${DESTDIR}/proc" || return $?
+    mount -o bind /dev "${DESTDIR}/dev" || return $?
+	return 0
+}
+
+# chroot_umount()
+# tears down chroot in target system
+#
+chroot_umount() {
+	# TODO: check if target is a mountpoint
+	sleep 1
+	if mount | grep -q "${DESTDIR}/proc "; then
+		umount ${DESTDIR}/proc || return $?
+	fi
+	if mount | grep -q "${DESTDIR}/sys "; then
+		umount ${DESTDIR}/sys || return $?
+	fi
+	if mount | grep -q "${DESTDIR}/dev "; then
+		umount ${DESTDIR}/dev || return $?
+	fi
+	return 0
+}
+
 # check_num_args()
 # simple check for required number of input arguments of calling function
 #

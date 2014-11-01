@@ -79,7 +79,7 @@ while [ true ]; do
 			RETSUB=$?
 			;;
 		"4")
-			configure_system
+			"${SHAREDIR}"/configure_system "${CONFIG_LIST}"
 			RETSUB=$?
 			;;
 		"5")

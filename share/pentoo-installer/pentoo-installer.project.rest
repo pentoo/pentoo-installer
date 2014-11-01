@@ -326,24 +326,6 @@ do_rsync() {
     S_SELECT=1
 }
 
-# auto_fstab()
-# preprocess fstab file
-# comments out old fields and inserts new ones
-# according to partitioning/formatting stage
-#
-auto_fstab()
-{
-    if [ "${S_MKFS}" = "1" -o "${S_MKFSAUTO}" = "1" ]; then
-        if [ -f /tmp/.fstab ]; then
-            # comment out stray /dev entries
-            sed -i 's/^\/dev/#\/dev/g' ${DESTDIR}/etc/fstab
-            # append entries from new configuration
-            sort /tmp/.fstab >>${DESTDIR}/etc/fstab
-            sed -i -e '/aufs/d' ${DESTDIR}/etc/fstab
-        fi
-    fi
-}
-
 # auto_dmcrypt()
 # copy dmcrypt and keys to partitions
 #
@@ -666,29 +648,7 @@ EOF
 
 configure_system()
 {
-    # must mount chroot so pre/post installs don't fail out
-    chroot_mount
-    chroot ${DESTDIR} /bin/bash <<EOF
-rc-update del autoconfig default
-rc-update del binary-driver-handler
-rc-update del firmware boot
-rc-update del fixinittab default
-rc-update add keymaps default
-rc-update add fcron default
-mv /etc/inittab.old /etc/inittab
-mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh
-EOF
-    # don't need chroot anymore
-
-    # ensure the disk is synced
-    sync
-
-    # automagic time!
-    # any automatic configuration should go here
-    show_dialog --infobox "Writing base configuration..." 6 40
-    auto_fstab
-    auto_dmcrypt
-
+    
     [ "${EDITOR}" ] || seteditor
 
     local CURRENT_SELECTION=""
