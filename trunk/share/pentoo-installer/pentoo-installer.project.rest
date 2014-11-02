@@ -96,47 +96,6 @@ mapdev() {
     fi
 }
 
-# seteditor()
-# prompts the user to choose an editor
-# sets EDITOR global variable
-#
-seteditor() {
-    chroot_mount
-    show_dialog --menu "Select a Text Editor to Use" 10 35 3 \
-        "1" "nano (easier)" \
-        "2" "vi" \
-        "3" "mcedit" 2>"${ANSWER}"
-    case $(get_answer) in
-        "1") EDITOR="nano"
-             eselect editor set /bin/nano
-             source /etc/profile
-             chroot ${DESTDIR} /bin/bash <<EOF
-eselect editor set /bin/nano
-source /etc/profile
-EOF
-             ;;
-        "2") EDITOR="vi"
-#             sed -i 's#/bin/nano#/usr/bin/vi#' ${DISTDIR}/etc/profile
-             eselect editor set /usr/bin/vi
-             source /etc/profile
-             chroot ${DESTDIR} /bin/bash <<EOF
-eselect editor set /usr/bin/vi
-source /etc/profile
-EOF
-             ;;
-        "3") EDITOR="mcedit"
-             eselect editor set /usr/bin/mcedit
-             source /etc/profile
-             chroot ${DESTDIR} /bin/bash <<EOF
-eselect editor set /usr/bin/mcedit
-source /etc/profile
-EOF
-             ;;
-        *)   EDITOR="nano" ;;
-    esac
-    chroot_umount
-}
-
 mountpoints() {
     if [ "${S_MKFSAUTO}" = "1" ]; then
         show_dialog --msgbox "You have already prepared your filesystems with Auto-prepare" 0 0

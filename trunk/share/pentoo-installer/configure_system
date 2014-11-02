@@ -24,6 +24,96 @@ source "${SHAREDIR}"/common.sh || exit $?
 #########################################
 ## START: dialog functions/definitions ##
 
+# seteditor()
+# sets a system editor in chroot environment
+# chroot must be prepared outside this function!
+#
+# parameters (none)
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+seteditor(){
+	# check input
+	check_num_args "${FUNCNAME}" 0 $# || return $?
+	local _EDITOR=
+	local _MENU_ITEMS=()
+	local _RET_SUB=
+	# parse the output of 'eselect editor list' so it can be used as menu options
+	_MENU_ITEMS=("$(chroot "${DESTDIR}" eselect editor list | tail -n +2 | grep -v '\(free form\)' | sed -r 's/[[:space:]]+\*[[:space:]]*$//' | sed -r -e 's/^[[:space:]]*//g' -e "s/\[([[:digit:]]+)\][[:space:]]+/\1 /" | tr '\n' ' ')") || return $?
+	# ask user for editor
+	_EDITOR="$(show_dialog --menu "Select a text editor to use (nano is easier)" \
+		0 0 0 ${_MENU_ITEMS[@]})" \
+		|| return $?
+	# set new editor
+	chroot ${DESTDIR} /bin/bash <<EOF
+eselect editor set "${_EDITOR}" 1>&2 || exit $?
+source /etc/profile || exit $?
+EOF
+	_RET_SUB=$?
+	[ "${_RET_SUB}" -ne 0 ] && return "${_RET_SUB}"
+	# read new editor
+	_EDITOR="$(chroot "${DESTDIR}" eselect editor show | tail -n +2 | sed -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*$//g')" || return $?
+	# print editor to STDOUT
+	echo "${_EDITOR}"
+	return 0
+}
+
+
+# geteditor()
+# get system editor from chroot, prints to SDTOUT
+# if not set: asks user to choose one
+# chroot must be prepared outside this function!
+#
+# parameters (none)
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+geteditor(){
+	# check input
+	check_num_args "${FUNCNAME}" 0 $# || return $?
+	local _EDITOR=
+	# read current editor
+	_EDITOR="$(chroot "${DESTDIR}" eselect editor show | tail -n +2 | sed -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*$//g' -e 's/[[:space:]]*$//g')" || return $?
+	# check if not set
+	if [ "${_EDITOR}" = '(none)' ]; then
+		_EDITOR="$(seteditor)" || return $?
+	fi
+	# print editor to STDOUT
+	echo "${_EDITOR}"
+	return 0
+}
+
+# setpassword()
+# sets password for a user
+# chroot must be prepared outside this function!
+#
+# parameters (required)
+#  _USERNAME: Name of the user
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+setpassword(){
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _USERNAME="${1}"
+	local _PASSWORD=
+	local _RET_SUB=
+	_PASSWORD="$(show_dialog --clear --insecure --passwordbox "Enter a password for user '${_USERNAME}'" 17 70)" || return $?
+	chroot "${DESTDIR}" /bin/bash <<EOF
+echo -e "${_PASSWORD}\n${_PASSWORD}" | passwd "${_USERNAME}" || exit $?
+EOF
+	_RET_SUB=$?
+	_PASSWORD=
+	[ "${_RET_SUB}" -ne 0 ] && return "${_RET_SUB}"
+	return 0
+}
+
 ## END: dialog functions/definitions ##
 #######################################
 
@@ -33,9 +123,16 @@ source "${SHAREDIR}"/common.sh || exit $?
 # check input
 check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
-RET_SUB=
+EDITOR=
+MENU_ITEMS=
+NEWSELECTION=
+USERNAME=
+RETSUB=
 
 echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
+
+# TODO, remove this debugging line
+chroot_umount || exit $?
 
 # TODO, remove this debugging line
 "${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
@@ -43,7 +140,73 @@ echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
+chroot_mount || exit $?
 
+# set system editor (if not already defined)
+EDITOR="$(geteditor)" || exit $?
+
+# define menu items
+MENU_ITEMS=("Editor"       				"System Editor" \
+			"/etc/conf.d/keymaps"       "Keymap" \
+            "/etc/fstab"                "Filesystem Mountpoints" \
+            "/etc/resolv.conf"          "DNS Servers" \
+            "/etc/hosts"                "Network Hosts" \
+            "/etc/locale.gen"           "Glibc Locales" \
+            "Root-Password"             "Set the root password" \
+            "add-user"                  "Add a new user" \
+			"DONE"						"Return to Main Menu" )
+
+while true; do
+	# expand menu items array below
+	NEWSELECTION="$(show_dialog --menu "Configuration" \
+		0 0 0 "${MENU_ITEMS[@]}")" || exit $?
+	# call subscript by selected item
+	case "${NEWSELECTION}" in
+		# Return to main menu
+		"DONE")
+			exit 0 ;;
+		# System Editor
+		"Editor")
+			EDITOR="$(seteditor)"
+			# capture sub script exit
+			RETSUB=$?
+			;;
+		# root password
+		"Root-Password")
+			setpassword 'root'
+			# capture sub script exit
+			RETSUB=$?
+			;;
+		# add user
+		"add-user")
+			# 1. ask for user name
+			# 2. set up user
+			# 3. set password for user
+			# 4. copy root profile
+			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
+				&& chroot ${DESTDIR} useradd -m -G users,wheel,audio,cdrom,video,cdrw,usb,plugdev,wireshark,kismet,android ${USERNAME} \
+				&& setpassword "${USERNAME}" \
+				&& rsync -r --exclude=.svn --exclude=.subversion "${DESTDIR}"/root/.[!.]* "${DESTDIR}"/home/"${USERNAME}"/ >>"${LOG}" \
+				&& chroot "${DESTDIR}" chown -R "${USERNAME}":"${USERNAME}" "/home/${USERNAME}" >>"${LOG}"
+			RETSUB=$?
+			;;
+		# locales
+		"/etc/locale.gen")
+			chroot "${DESTDIR}" "${EDITOR}" "${NEWSELECTION}" \
+				&& chroot "${DESTDIR}" locale-gen 1>&2
+			RETSUB=$?
+			;;
+		#regular file
+		*)
+			chroot "${DESTDIR}" "${EDITOR}" "${NEWSELECTION}"
+			RETSUB=$?
+			;;
+	esac
+	# handle errors from sub-script/functions using a common utility function
+	catch_menuerror "$(basename $0)" "${NEWSELECTION}" "${RETSUB}"
+done
+
+chroot_umount || exit $?
 
 # umount all again and close cryptsetup
 "${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
