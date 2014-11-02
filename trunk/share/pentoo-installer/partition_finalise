@@ -97,8 +97,8 @@ partition_crypt_setup() {
 # check input
 check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
-# reverse sort by mountpoint
-CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'mountpoint' 1)" || exit $?
+# sort by mountpoint
+CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'mountpoint' 0)" || exit $?
 CONFIG_ARRAY=(${CONFIG_LIST}) || exit $?
 CONFIG_INDEX=0
 
@@ -177,13 +177,6 @@ done
 CONFIG_LIST="${CONFIG_ARRAY[@]}"
 # umount all again and close cryptsetup
 "${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-
-# TODO this is just a test
-# echo dump start mount 1>&2
-# "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
-# echo dump start umount 1>&2
-# "${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-# echo dump mount/umount done 1>&2
 
 # default sort by partition again
 CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'partition' 0)" || exit $?

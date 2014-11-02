@@ -569,8 +569,8 @@ FSspec_mountall() {
 		echo "ERROR: Root partition (with mountpoint '/') not found." 1>&2
 		return 1
 	fi
-	# reverse sort by mountpoint
-	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
+	# sort by mountpoint
+	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
 		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
@@ -580,6 +580,8 @@ FSspec_mountall() {
 		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
 		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
 		_PARTPATH="${_PARTITION}"
+		echo dump mount _PARTITION = "${_PARTITION}" 1>&2
+		echo dump mount _MOUNTPOINT = "${_MOUNTPOINT}" 1>&2
 		if [ "${_ENCRYPTION}" -eq 1 ]; then
 			# write key to temp file
 			echo "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
@@ -634,14 +636,18 @@ FSspec_umountall() {
 	local _ENCRYPTION=
 	local _CRYPTNAME=
 	local _PARTPATH=
-	# sort by mountpoint
-	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
+	# reverse sort by mountpoint
+	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
 		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
 		_ENCRYPTION="$(FSspec_parse "${_CONFIG_ITEM}" 'encryption')" || return $?
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_PARTPATH="${_PARTITION}"
+		echo dump umount _PARTITION = "${_PARTITION}" 1>&2
+		local _MOUNTPOINT=
+		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
+		echo dump umount _MOUNTPOINT = "${_MOUNTPOINT}" 1>&2
 		[ "${_ENCRYPTION}" -eq 1 ] && _PARTPATH="/dev/mapper/${_CRYPTNAME}"
 		# ignore error when not mounted or used as swap
 		# umount partition
@@ -650,6 +656,9 @@ FSspec_umountall() {
 		# swapoff
 		else
 			swapoff "${_PARTPATH}" 2>/dev/null
+			# sleep 1 to avoid error message from cryptsetup close
+			# Example: device-mapper: remove ioctl on sda10 failed: Device or resource busy
+			sleep 1
 		fi
 		if [ "${_ENCRYPTION}" -eq 1 ] && cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
 			cryptsetup close "${_CRYPTNAME}" || return $?
