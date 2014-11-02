@@ -73,7 +73,7 @@ partition_crypt_setup() {
 			;;
 		'')
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
-			cat /tmp/"${_UUID}" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${2}" || return $?
+			cat /tmp/"${_UUID}" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
 			cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}" || return $?
@@ -129,7 +129,9 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 			CRYPTTYPE='swap'
 		# non-swap partition
 		else
-			if show_dialog --defaultno --yesno "Do you want to use GPG encrypted key for the partition (${PARTITION}) on (${MOUNTPOINT}) ?" 0 0; then
+			if [ "${MOUNTPOINT}" = '/' ]; then
+				CRYPTTYPE='gpg'
+			elif show_dialog --defaultno --yesno "Do you want to use GPG encrypted key for the partition (${PARTITION}) on (${MOUNTPOINT}) ?" 0 0; then
 				CRYPTTYPE='gpg'
 			fi
 		fi
