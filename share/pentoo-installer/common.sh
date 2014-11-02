@@ -11,6 +11,7 @@ readonly DESTDIR="/mnt/gentoo"
 # dialog and Xdialog use 1 for cancel, Xdialog returns 255 upon closing of the box
 readonly ERROR_CANCEL=64
 readonly ISNUMBER='^[0-9]+$'
+# use the first VT not dedicated to a running console
 readonly LOG="/dev/tty8"
 readonly TITLE="Pentoo Installation"
 ## END: define constants ##
@@ -202,21 +203,25 @@ mount_umountall() {
 	local _RET=''
 	local _UMOUNTLIST=''
 	# umount /mnt/gentoo
-	umount "${DESTDIR}" 2>/dev/null
+	umount -R "${DESTDIR}" 2>/dev/null
 	_DISC="${1}"
-	# get list of partitions, etc. below _DISC
-	_UMOUNTLIST=$(lsblk -f -l -o NAME,FSTYPE,MOUNTPOINT -p -n "${_DISC}" | tail -n +2) || return $?
     show_dialog --infobox "Disabling swapspace, unmounting already mounted disk devices..." 0 0 || return $?
+	# get sorted list of mountpoints
+	_UMOUNTLIST=$(lsblk -f -l -o MOUNTPOINT -p -n /dev/sda | grep -v -e '^[[:space:]]*$' -e '\[SWAP\]' | sort) || return $?
+	# loop and umount
+	while read _MOUNTPOINT; do
+		umount "${_MOUNTPOINT}" || return $?
+	done <<<"${_UMOUNTLIST}"
+	# get list of partitions, etc. below _DISC
+	_UMOUNTLIST=$(lsblk -f -l -o NAME,FSTYPE -p -n "${_DISC}" | tail -n +2) || return $?
 	# loop over the list , get name and fstype
 	while read _LINE; do
 		_PARTITION=$(echo ${_LINE} | awk '{print $1}')
 		_FSTYPE=$(echo "${_LINE}" | awk '{print $2}')
-		_MOUNTPOINT=$(echo "${_LINE}" | awk '{print $3}')
 		# swap partition
 		if [ "${_FSTYPE}" = 'swap' ]; then
 			swapoff "${_PARTITION}" &>/dev/null
-		elif [ -n "${_MOUNTPOINT}" ]; then
-			umount "${_MOUNTPOINT}" || return $?
+			sleep 1
 		fi
 		# clean up luks mounts
 		if cryptsetup status "${_PARTITION}" &>/dev/null; then
