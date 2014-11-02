@@ -60,8 +60,8 @@ partition_getpartitionsize() {
 	local _SUGGESTED_SIZE="$4"
 	local _PART_SIZE=
 	while true; do
-		_PART_SIZE=`show_dialog --inputbox "Enter the size (MiB) of your ${_MOUNTPOINT} partition.  Minimum value is ${_MIN_SIZE} MiB\n\nDisk space left: ${_DISC_SIZE} MiB" \
-			0 0 "${_SUGGESTED_SIZE}"` || return $?
+		_PART_SIZE="$(show_dialog --inputbox "Enter the size (MiB) of your ${_MOUNTPOINT} partition.  Minimum value is ${_MIN_SIZE} MiB\n\nDisk space left: ${_DISC_SIZE} MiB" \
+			0 0 "${_SUGGESTED_SIZE}")" || return $?
 		if ! [[ ${_PART_SIZE} =~ ${ISNUMBER} ]]; then
 			show_dialog --msgbox "ERROR: You have entered an invalid size, please enter again." 0 0
 		elif [ "${_PART_SIZE}" -ge "${_DISC_SIZE}" -o "${_PART_SIZE}" -eq "${_DISC_SIZE}" ]; then

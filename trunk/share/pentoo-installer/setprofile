@@ -34,6 +34,7 @@ RET_SUB=
 
 echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
 
+# TODO, remove this debugging line
 chroot_umount || exit $?
 
 # TODO, remove this debugging line
@@ -43,6 +44,7 @@ chroot_umount || exit $?
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
 chroot_mount || exit $?
+
 OPTIONS=()
 CUR_PROF_TYPE=""
 CUR_PROF_NUM=""
@@ -94,6 +96,7 @@ NEW_PROF_NUM="$(show_dialog --keep-tite --default-item "${CUR_PROF_NUM}" --menu 
 
 # set new profile
 chroot "${DESTDIR}" eselect profile set "${NEW_PROF_NUM}" || exit $?
+
 chroot_umount || exit $?
 
 # umount all again and close cryptsetup

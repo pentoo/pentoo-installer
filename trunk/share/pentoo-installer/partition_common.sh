@@ -167,8 +167,8 @@ partition_selectdisk() {
 	_DISCS=$(add_option_label "${_DISCS}" '-') || return $?
     _DISCS="${_DISCS} OTHER -"
 	show_dialog --msgbox "Available Disks:\n\n${_DISCS_AVAILABLE}\n" 0 0
-	_DISC=`show_dialog --menu "Select the disk you want to use" \
-			0 0 7 ${_DISCS}` \
+	_DISC="$(show_dialog --menu "Select the disk you want to use" \
+			0 0 7 ${_DISCS})" \
 			|| return $?
 	if [ "${_DISC}" = "OTHER" ]; then
 		_DISC="$(show_dialog --inputbox "Enter the full path to the device you wish to use" \

@@ -45,7 +45,7 @@ while true; do
 	fi
 
 	# expand menu items array below
-	NEWSELECTION="$(show_dialog  --default-item "${SELECTION}" --menu "Prepare Hard Drive" \
+	NEWSELECTION="$(show_dialog --default-item "${SELECTION}" --menu "Prepare Hard Drive" \
 		0 0 0 "${MENU_ITEMS[@]}")" || exit $?
 	# call subscript by selected item
 	case "${NEWSELECTION}" in

@@ -231,7 +231,7 @@ mount_umountall() {
 # an el-cheapo dialog wrapper
 # parameters: see dialog(1) and Xdialog(1
 # STDOUT and STDERR is switched compared to 'dialog' and 'Xdialog'
-# usage: MYVAR=`show_dialog .......`
+# usage: MYVAR="$(show_dialog .......)"
 # returns:
 # - 0 for Ok, result is written to STDOUT
 # - 64 when user clicks cancel or closes the box
