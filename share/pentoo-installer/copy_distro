@@ -390,7 +390,17 @@ fi
 # pre-configure systems, these steps should happen only once
 # must mount chroot so pre/post installs don't fail out
 chroot_mount || exit $?
-chroot ${DESTDIR} /bin/bash <<EOF
+
+# remove livecd stuff
+sed -i '/aufs bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
+chroot "${DESTDIR}" emerge -C app-misc/livecd-tools pentoo/pentoo-livecd
+
+mknod -m666 "${DESTDIR}"/dev/zero c 1 5
+mknod -m666 "${DESTDIR}"/dev/null c 1 3
+mknod -m600 "${DESTDIR}"/dev/console c 5 1
+mkdir -m755 "${DESTDIR}"/media/{cd,dvd,fl}
+
+chroot "${DESTDIR}" /bin/bash <<EOF
 rc-update del autoconfig default || exit $?
 rc-update del binary-driver-handler || exit $?
 rc-update del firmware boot || exit $?
