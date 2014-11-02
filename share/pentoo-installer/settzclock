@@ -28,9 +28,9 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 source "${SHAREDIR}"/common.sh || exit $?
 
 # utc or local?
-HARDWARECLOCK=`show_dialog --menu "Is your hardware clock in UTC or time?" 0 0 2 \
+HARDWARECLOCK="$(show_dialog --menu "Is your hardware clock in UTC or time?" 0 0 2 \
 	"utc" "UTC time" \
-	"localtime" "local time"` \
+	"localtime" "local time")" \
 	|| exit $?
 
 # write to STDERR
@@ -50,8 +50,8 @@ if [ "${TIMEZONE}" != "" -a -e "/usr/share/zoneinfo/${TIMEZONE}" ]; then
 fi
 
 # display and ask to set date/time
-DATE=`show_dialog --calendar "Set the date.\nUse <TAB> to navigate and arrow keys to change values." 0 0 0 0 0` || exit $?
-TIME=`show_dialog --timebox "Set the time.\nUse <TAB> to navigate and up/down to change values." 0 0` || exit $?
+DATE="$(show_dialog --calendar "Set the date.\nUse <TAB> to navigate and arrow keys to change values." 0 0 0 0 0)" || exit $?
+TIME="$(show_dialog --timebox "Set the time.\nUse <TAB> to navigate and up/down to change values." 0 0)" || exit $?
 
 # write to STDERR
 echo "date: ${DATE} time: ${TIME}" 1>&2

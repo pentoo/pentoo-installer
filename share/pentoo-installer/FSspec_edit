@@ -61,9 +61,9 @@ FSspec_getfilesystem() {
 	local _FSTYPE=
 	# get available file systems
 	local _FSOPTS="$(get_supportedFS)" || return $?
-	_FSOPTS=$(add_option_label "${_FSOPTS}" '-') || return $?
-	_FSTYPE=`show_dialog --default-item "${_CURRENT_FS}" --menu "Select a filesystem for ${_PARTITION}" \
-		0 0 6 ${_FSOPTS}` || return $?
+	_FSOPTS="$(add_option_label "${_FSOPTS}" '-')" || return $?
+	_FSTYPE="$(show_dialog --default-item "${_CURRENT_FS}" --menu "Select a filesystem for ${_PARTITION}" \
+		0 0 6 ${_FSOPTS})" || return $?
 	show_dialog --yesno "${_FSTYPE} will be used for ${_PARTITION}. Is this OK?" 0 0 || return $?
 	# everything ok, write to STDOUT and return 0
 	echo "${_FSTYPE}"
@@ -119,8 +119,8 @@ while true; do
 	MENU_ITEMS+=("DELETE" "Remove configuration, partition will no longer be used") || exit $?
 	MENU_ITEMS+=("DONE" "Save changes") || exit $?
 	# expand menu items array below
-	SELECTION=$(show_dialog --menu "Changing setup of partition '${PARTITION}'.\nPlease select a property to change." \
-		0 0 0 "${MENU_ITEMS[@]}") || exit $?
+	SELECTION="$(show_dialog --menu "Changing setup of partition '${PARTITION}'.\nPlease select a property to change." \
+		0 0 0 "${MENU_ITEMS[@]}")" || exit $?
 	# evaluate answer
 	case "${SELECTION}" in
 		'mountpoint')
