@@ -216,7 +216,7 @@ FSspec_listfind() {
 			return 0
 		fi
 	done
-	echo "Item not found, exiting ungracefully"
+	echo "Item not found, exiting ungracefully" 1>&2
 	return 1
 }
 

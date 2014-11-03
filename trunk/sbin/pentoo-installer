@@ -36,7 +36,7 @@ NEWSELECTION=
 SELECTION='0'
 RETSUB=
 MENU_ITEMS=
-MAXSELECTION="0"
+MAXSELECTION="1"
 # CONFIG_LIST: One string with 0 or more items of defined FSspec:
 CONFIG_LIST=
 
@@ -44,13 +44,12 @@ while [ true ]; do
 	# define menu items
 	MENU_ITEMS=("0" "Set Clock")
 	# add only valid menu items
-	# [ ${MAXSELECTION} -ge 1 ] && MENU_ITEMS+=("1" "Prepare Hard Drive")
-	[ ${MAXSELECTION} -ge 0 ] && MENU_ITEMS+=("1" "Prepare Hard Drive")
-	[ "${MAXSELECTION}" -ge 2 ] && MENU_ITEMS+=("2" "Copy the Distribution")
-	[ "${MAXSELECTION}" -ge 3 ] && MENU_ITEMS+=("3" "Select Profile")
-	[ "${MAXSELECTION}" -ge 4 ] && MENU_ITEMS+=("4" "Configure System")
-	[ "${MAXSELECTION}" -ge 5 ] && MENU_ITEMS+=("5" "Install Bootloader")
-	[ "${MAXSELECTION}" -ge 6 ] && MENU_ITEMS+=("6" "Exit Install")
+	[ "${MAXSELECTION}" -eq 1 ] && MENU_ITEMS+=("1" "Prepare Hard Drive")
+	[ "${MAXSELECTION}" -eq 2 ] && MENU_ITEMS+=("2" "Copy the Distribution")
+	[ "${MAXSELECTION}" -eq 3 ] && MENU_ITEMS+=("3" "Select Profile")
+	[ "${MAXSELECTION}" -eq 4 ] && MENU_ITEMS+=("4" "Configure System")
+	[ "${MAXSELECTION}" -eq 5 ] && MENU_ITEMS+=("5" "Install Bootloader")
+	[ "${MAXSELECTION}" -eq 6 ] && MENU_ITEMS+=("6" "Exit Install")
 	# expand menu items array below
 	NEWSELECTION="$(show_dialog --default-item "${SELECTION}" \
         --menu "Use the UP and DOWN arrows to navigate menus.  Use TAB to switch between buttons and ENTER to select." \
@@ -83,7 +82,7 @@ while [ true ]; do
 			RETSUB=$?
 			;;
 		"5")
-			install_bootloader
+			"${SHAREDIR}"/install_bootloader "${CONFIG_LIST}"
 			RETSUB=$?
 			;;
 		"6")

@@ -26,7 +26,11 @@ source "${SHAREDIR}"/common.sh || exit $?
 #   /dev/sda: 625000 MiB (610 GiB)
 #   /dev/sdb: 476940 MiB (465 GiB)
 #
+# parameters: none
+#
 partition_getavaildisks() {
+	# check input
+	check_num_args "${FUNCNAME}" 0 $# || return $?
 	local _DISC=""
 	local _DISC_LIST=""
 	local _DISC_SIZE=""

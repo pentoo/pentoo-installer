@@ -2,8 +2,8 @@
 # This script is released under the GNU General Public License 3.0
 # Check the COPYING file included with this distribution
 
-# copy_distro
-# Copies the distro from squashfs plus uses rsync
+# configure_system
+# gives user choices to further edit target system
 #
 # parameters (required)
 #  CONFIG_LIST: One string items of defined FSspec
@@ -23,69 +23,6 @@ source "${SHAREDIR}"/common.sh || exit $?
 
 #########################################
 ## START: dialog functions/definitions ##
-
-# seteditor()
-# sets a system editor in chroot environment
-# chroot must be prepared outside this function!
-#
-# parameters (none)
-#
-# returns $ERROR_CANCEL=64 on user cancel
-# anything else is a real error
-# reason: show_dialog() needs a way to exit "Cancel"
-#
-seteditor(){
-	# check input
-	check_num_args "${FUNCNAME}" 0 $# || return $?
-	local _EDITOR=
-	local _MENU_ITEMS=()
-	local _RET_SUB=
-	# parse the output of 'eselect editor list' so it can be used as menu options
-	_MENU_ITEMS=("$(chroot "${DESTDIR}" eselect editor list | tail -n +2 | grep -v '\(free form\)' | sed -r 's/[[:space:]]+\*[[:space:]]*$//' | sed -r -e 's/^[[:space:]]*//g' -e "s/\[([[:digit:]]+)\][[:space:]]+/\1 /" | tr '\n' ' ')") || return $?
-	# ask user for editor
-	_EDITOR="$(show_dialog --menu "Select a text editor to use (nano is easier)" \
-		0 0 0 ${_MENU_ITEMS[@]})" \
-		|| return $?
-	# set new editor
-	chroot ${DESTDIR} /bin/bash <<EOF
-eselect editor set "${_EDITOR}" 1>&2 || exit $?
-source /etc/profile || exit $?
-EOF
-	_RET_SUB=$?
-	[ "${_RET_SUB}" -ne 0 ] && return "${_RET_SUB}"
-	# read new editor
-	_EDITOR="$(chroot "${DESTDIR}" eselect editor show | tail -n +2 | sed -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*$//g')" || return $?
-	# print editor to STDOUT
-	echo "${_EDITOR}"
-	return 0
-}
-
-
-# geteditor()
-# get system editor from chroot, prints to SDTOUT
-# if not set: asks user to choose one
-# chroot must be prepared outside this function!
-#
-# parameters (none)
-#
-# returns $ERROR_CANCEL=64 on user cancel
-# anything else is a real error
-# reason: show_dialog() needs a way to exit "Cancel"
-#
-geteditor(){
-	# check input
-	check_num_args "${FUNCNAME}" 0 $# || return $?
-	local _EDITOR=
-	# read current editor
-	_EDITOR="$(chroot "${DESTDIR}" eselect editor show | tail -n +2 | sed -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*$//g' -e 's/[[:space:]]*$//g')" || return $?
-	# check if not set
-	if [ "${_EDITOR}" = '(none)' ]; then
-		_EDITOR="$(seteditor)" || return $?
-	fi
-	# print editor to STDOUT
-	echo "${_EDITOR}"
-	return 0
-}
 
 # setpassword()
 # sets password for a user
