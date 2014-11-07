@@ -18,7 +18,11 @@
 # location of other scripts to source
 readonly SHAREDIR="$(dirname ${0})" || exit $?
 
+# source bootloader commons
+source "${SHAREDIR}"/install_bootloader_common.sh || exit $?
+
 # source partitioning commons
+# needed for partition_finddisks(), ...
 source "${SHAREDIR}"/partition_common.sh || exit $?
 
 #########################################
@@ -37,20 +41,6 @@ get_grub_map() {
     ${DESTDIR}/sbin/grub --no-floppy --device-map /tmp/.dev.map >/tmp/grub.log 2>&1 <<EOF
 quit
 EOF
-}
-
-# getkernelversion()
-# outputs the kernel version
-#
-# parameters: none
-# outputs:    kernel version on success
-#             nothing on failure
-# returns:    0 on success
-#             1 on failure
-getkernelversion() {
-    local _KERNVER=$(ls "${DESTDIR}"/boot/kernel-genkernel-* | sed -e "s|kernel-genkernel||g" -e "s|${DESTDIR}/boot/||") \
-        || return 1
-    echo "${_KERNVER}"
 }
 
 # mapdev()
@@ -106,23 +96,6 @@ mapdev() {
 	return 0
 }
 
-# parse_kernel_cmdline()
-# parse kernel cmdline (only video mode for now)
-# prints a string to STDOUT like 'video=whatever'
-parse_kernel_cmdline() {
-	local _VAR=
-	local _FIRST=0
-	for _VAR in $(cat /proc/cmdline); do
-		case "${_VAR}" in
-			video=*)
-				[ "${_FIRST}" -ne 0 ] && echo -n ' '
-				echo -n "${_VAR}"
-				_FIRST=1
-			;;
-		esac
-	done
-}
-
 ## END: dialog functions/definitions ##
 #######################################
 
@@ -151,6 +124,9 @@ fi
 # get root partition
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
 PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+# root partition encrypted?
+ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+
 GRUBDEV=$(mapdev ${PART_ROOT})
 GRUBDEV_FOUND=$?
 ROOTPART="${PART_ROOT}"
@@ -160,10 +136,10 @@ BOOTDEV=$(mount | grep ${DESTDIR}/boot | cut -d' ' -f 1)
 SUBDIR=
 KERNEL_PARAMS=
 
-# parse kernel cmdline (only video mode for now)
-KERNEL_PARAMS="$(parse_kernel_cmdline)" || exit $?
 # get kernel version
 KERNVER=$(getkernelversion) || exit $?
+# get kernel params
+KERNEL_PARAMS="$(getkernelparams "${ROOTPART}" "${BOOTDEV}" "${ENCRYPTION}")" || exit $?
 
 if [ "${GRUBDEV}" != "" -o "${BOOTDEV}" != "" ]; then
 	if [ "${BOOTDEV}" != "" ]; then
@@ -181,13 +157,12 @@ if [ "${GRUBDEV}" != "" -o "${BOOTDEV}" != "" ]; then
 	sed -i 's/^#splashimage/splashimage/' ${GRUBMENU} || exit $?
 	sed -i '/^#/d' ${GRUBMENU} || exit $?
 
-	if [ ${S_FDE} = 1 ]; then
-		cat >>${GRUBMENU} <<EOF
+	cat >>${GRUBMENU} <<EOF
 
 # (0) Pentoo
 title  Pentoo
 root   ${GRUBDEV}
-kernel ${SUBDIR}/kernel-genkernel${KERNVER} root=/dev/ram0 real_root=/dev/mapper/root dogpg crypt_root=${ROOTPART} root_key=/key.gpg root_keydev=${BOOTDEV} ${KERNEL_PARAMS} console=tty1 net.ifnames=0 ro
+kernel ${SUBDIR}/kernel-genkernel${KERNVER} ${KERNEL_PARAMS}
 initrd ${SUBDIR}/initramfs-genkernel${KERNVER}
 
 # (2) Windows
@@ -196,26 +171,8 @@ initrd ${SUBDIR}/initramfs-genkernel${KERNVER}
 #makeactive
 #chainloader +1
 EOF
-		RET_SUB=$?
-		[ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
-	else
-		cat >>${GRUBMENU} <<EOF
-
-# (0) Pentoo
-title  Pentoo
-root   ${GRUBDEV}
-kernel ${SUBDIR}/kernel-genkernel${KERNVER} root=/dev/ram0 real_root=${ROOTPART} ${KERNEL_PARAMS} console=tty1 net.ifnames=0 ro
-initrd ${SUBDIR}/initramfs-genkernel${KERNVER}
-
-# (2) Windows
-#title Windows
-#rootnoverify (hd0,0)
-#makeactive
-#chainloader +1
-EOF
-		RET_SUB=$?
-		[ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
-	fi
+	RET_SUB=$?
+	[ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
 fi
 
 show_dialog --msgbox "Before installing GRUB, you must review the configuration file.  You will now be put into the editor.  After you save your changes and exit the editor, you can install GRUB." 0 0

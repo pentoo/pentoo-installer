@@ -101,7 +101,7 @@ while true; do
 	case "${NEWSELECTION}" in
 		# Return to main menu
 		"DONE")
-			exit 0 ;;
+			break ;;
 		# System Editor
 		"Editor")
 			EDITOR="$(seteditor)"
