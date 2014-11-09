@@ -153,13 +153,13 @@ printk on
 show_dialog --msgbox "Auto-prepare was successful" 0 0
 # construct FSspec for each used device and print result to STDOUT
 # boot partition
-FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}1" "/boot" "ext2" "0" "1")" || exit $?
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}1" "/boot" "ext2" "" "1")" || exit $?
 echo -n "${FSSPEC}"
 echo -n ' '
 # swap partition
-FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}2" "" "swap" "0" "1")" || exit $?
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}2" "" "swap" "" "1")" || exit $?
 echo -n "${FSSPEC}"
 echo -n ' '
 # root partition
-FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}3" "/" "ext4" "0" "1")" || exit $?
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}3" "/" "ext4" "" "1")" || exit $?
 echo "${FSSPEC}"

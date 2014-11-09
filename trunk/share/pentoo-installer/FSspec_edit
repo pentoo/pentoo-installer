@@ -75,9 +75,11 @@ FSspec_getcrypttype() {
 			_MENU_ITEMS+=("luks" "LUKS") || return $?
 		fi
 	fi
-	_MENU_ITEMS+=("" "No encryption") || return $?
+	_MENU_ITEMS+=("None" "No encryption") || return $?
+	# expand menu items array below
 	_CRYPTTYPE="$(show_dialog --default-item "${_CURRENT_CRYPTTYPE}" --menu "Select the encryption type for ${_PARTITION} on ${_MOUNTPOINT}" \
-		0 0 3 ${_MENU_ITEMS})" || return $?
+		0 0 3 "${_MENU_ITEMS[@]}")" || return $?
+	[ "${_CRYPTTYPE}" = 'None' ] && _CRYPTTYPE=''
 	# everything ok, write to STDOUT and return 0
 	echo "${_CRYPTTYPE}"
 	return 0
@@ -171,6 +173,8 @@ while true; do
 					show_dialog --msgbox "ERROR: You have entered an empty mountpoint!" 0 0
 				elif [ "${NEWVAL:0:1}" != '/' ]; then
 					show_dialog --msgbox "ERROR: A valid mountpoint begins with '/'!" 0 0
+				elif [ "${NEWVAL}" = '/boot' ] && [ "${CRYPTTYPE}" != '' ]; then
+					show_dialog --msgbox "ERROR: Mountpoint '/boot' cannot be encrypted!" 0 0
 				else
 					# change FSspec string
 					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'mountpoint' "${NEWVAL}")" || exit $?
@@ -207,10 +211,10 @@ while true; do
 		'encryption')
 			# check if file system supports encryption
 			if [ "${FILESYSTEM}" != 'swap' ] && ! FSspec_hasluks "${FILESYSTEM}"; then
-				show_dialog --msgbox "Current file system '${FILESYSTEM}' does not support encryption.\nPlease select another file system." 0 0
+				show_dialog --msgbox "Error: Current file system '${FILESYSTEM}' does not support encryption.\nPlease select another file system." 0 0
 			# for root partition, check if there is a separate /boot
 			elif [ "${MOUNTPOINT}" = '/' ] && ! "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
-				show_dialog --msgbox "You must define a separate partition for mountpoint '/boot' to encrypt the root partition.\nPlease do this first!" 0 0
+				show_dialog --msgbox "Error: You must define a separate partition for mountpoint '/boot' to encrypt the root partition.\nPlease do this first!" 0 0
 			# everything ok, let user edit the value
 			else
 				# show dialog for encryption types
