@@ -7,6 +7,7 @@
 #
 # parameters (required):
 #  CONFIG_ITEM: a FSspec
+#  CONFIG_LIST: the list of all config items
 #
 # returns 0 on success
 # returns $ERROR_CANCEL=64 on user cancel
@@ -77,8 +78,9 @@ FSspec_getfilesystem() {
 ## begin execution ##
 
 # check input
-check_num_args "$(basename $0)" 1 $# || exit $?
+check_num_args "$(basename $0)" 2 $# || exit $?
 CONFIG_ITEM="${1}"
+CONFIG_LIST="${2}"
 
 # properties of FSspec
 PARTITION=
@@ -166,6 +168,10 @@ while true; do
 			# check if file system supports encryption
 			if [ "${FILESYSTEM}" != 'swap' ] && ! FSspec_hasluks "${FILESYSTEM}"; then
 				show_dialog --msgbox "Current file system '${FILESYSTEM}' does not support encryption.\nPlease select another file system." 0 0
+			# for root partition, check if there is a separate /boot
+			elif [ "${MOUNTPOINT}" = '/' ] && ! "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
+				show_dialog --msgbox "You must define a separate partition for mountpoint '/boot' to encrypt the root partition.\nPlease do this first!" 0 0
+			# everything ok, let user edit the value
 			else
 				# dialog for boolean value
 				MESSAGE="Enryption for ${PARTITION} is now '$(get_yesno "${ENCRYPTION}")'.\nDo you want to change it?"
