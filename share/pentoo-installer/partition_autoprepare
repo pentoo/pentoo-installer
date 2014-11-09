@@ -145,7 +145,7 @@ sfdisk ${DISC} -uM >>"${LOG}" 2>&1 <<EOF
 ${SFDISK_INPUT}
 EOF
 if [ $? -gt 0 ]; then
-	show_dialog --msgbox "Error partitioning ${DISC}(see ${LOG}for details)" 0 0
+	show_dialog --msgbox "Error partitioning ${DISC} (see ${LOG} for details)" 0 0
 	printk on || exit $?
 	exit 1
 fi
