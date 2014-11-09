@@ -11,11 +11,10 @@
 #   partition
 #   mountpoint
 #   filesystem
-#   encryption
+#	crypttype (one of: 'swap', 'luks', 'luks-gpg', '')
 #   format
 #   cryptname (name used by cryptsetup)
 #   partuuid (PARTUUID, *not* the UUID)
-#	crypttype (one of: 'swap', '', 'gpg')
 #	cryptkey
 #
 #  mountpoint of a swap partition must be empty
@@ -47,7 +46,7 @@ source "${SHAREDIR}"/common.sh || exit $?
 #
 # parameters (required):
 #  these items of an FSspec in this order
-#   partition, mountpoint, filesystem, encryption, format
+#   partition, mountpoint, filesystem, crypttype, format
 #
 FSspec_create() {
 	# check input
@@ -56,7 +55,7 @@ FSspec_create() {
 	# set partuuid
 	_PARTUUID="$(blkid -s PARTUUID -o value "${1}")" || return $?
 	# simply call the internal create function with empty strings for missing FSspec items
-	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "" "${_PARTUUID}" "" ""
+	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "" "${_PARTUUID}" ""
 }
 
 # FSspec_createfull()
@@ -74,15 +73,13 @@ FSspec_createfull() {
 	local _PARTITION="${1}"
 	local _MOUNTPOINT="${2}"
 	local _FILESYSTEM="${3}"
-	local _ENCRYPTION="${4}"
+	local _CRYPTTYPE="${4}"
 	local _FORMAT="${5}"
 	local _CRYPTNAME="${6}"
 	local _PARTUUID="${7}"
-	local _CRYPTTYPE="${8}"
-	local _CRYPTKEY="${9}"
+	local _CRYPTKEY="${8}"
 	local _CONFIG_SEPARATOR=':'
 	# convert boolean values to 0 or 1
-	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
 	[ "${_FORMAT}" != '1' ] && _FORMAT=0
 	# validate
 	if [ -z "${_PARTITION}" ] || [ -z "${_FILESYSTEM}" ]; then
@@ -101,7 +98,7 @@ FSspec_createfull() {
 		if [ -z "${_MOUNTPOINT}" ]; then
 			echo "error parsing config, partition must have mountpoint" 1>&2
 			return 1
-		elif [ "${_MOUNTPOINT}" = '/boot' ] && [ "${_ENCRYPTION}" = '1' ]; then
+		elif [ "${_MOUNTPOINT}" = '/boot' ] && [ "${_CRYPTTYPE}" != '' ]; then
 			echo "error parsing config, partition on mountpoint '/boot' cannot be encrypted" 1>&2
 			return 1
 		fi
@@ -119,15 +116,13 @@ FSspec_createfull() {
 	echo -n "${_CONFIG_SEPARATOR}"
 	echo -n "filesystem${_CONFIG_SEPARATOR}${_FILESYSTEM}"
 	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "encryption${_CONFIG_SEPARATOR}${_ENCRYPTION}"
+	echo -n "crypttype${_CONFIG_SEPARATOR}${_CRYPTTYPE}"
 	echo -n "${_CONFIG_SEPARATOR}"
 	echo -n "format${_CONFIG_SEPARATOR}${_FORMAT}"
 	echo -n "${_CONFIG_SEPARATOR}"
 	echo -n "cryptname${_CONFIG_SEPARATOR}${_CRYPTNAME}"
 	echo -n "${_CONFIG_SEPARATOR}"
 	echo -n "partuuid${_CONFIG_SEPARATOR}${_PARTUUID}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "crypttype${_CONFIG_SEPARATOR}${_CRYPTTYPE}"
 	echo -n "${_CONFIG_SEPARATOR}"
 	echo -n "cryptkey${_CONFIG_SEPARATOR}${_CRYPTKEY}"
 	return 0
@@ -288,11 +283,10 @@ FSspec_parse() {
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
-	local _ENCRYPTION=
+	local _CRYPTTYPE=
 	local _FORMAT=
 	local _CRYPTNAME=
 	local _PARTUUID=
-	local _CRYPTTYPE=
 	local _CRYPTKEY=
 	local _CHECKKEY=
 	local _CHECKSEPS=
@@ -319,7 +313,7 @@ FSspec_parse() {
 		return 1
 	fi
 	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $7}')" || return $?
-	if [ "${_CHECKKEY}" != 'encryption' ]; then
+	if [ "${_CHECKKEY}" != 'crypttype' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
@@ -338,11 +332,6 @@ FSspec_parse() {
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $15}')" || return $?
-	if [ "${_CHECKKEY}" != 'crypttype' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
 	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $17}')" || return $?
 	if [ "${_CHECKKEY}" != 'cryptkey' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
@@ -352,24 +341,22 @@ FSspec_parse() {
 	_PARTITION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $2}')" || return $?
 	_MOUNTPOINT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $4}')" || return $?
 	_FILESYSTEM="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $6}')" || return $?
-	_ENCRYPTION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $8}')" || return $?
+	_CRYPTTYPE="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $8}')" || return $?
 	_FORMAT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $10}')" || return $?
 	_CRYPTNAME="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $12}')" || return $?
 	_PARTUUID="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $14}')" || return $?
-	_CRYPTTYPE="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $16}')" || return $?
-	_CRYPTKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $18}')" || return $?
+	_CRYPTKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $16}')" || return $?
 	# convert boolean values to 0 or 1
-	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
+	[ "${_FORMAT}" != '1' ] && _FORMAT=0
 	# validate
 	FSspec_createfull \
 		"${_PARTITION}" \
 		"${_MOUNTPOINT}" \
 		"${_FILESYSTEM}" \
-		"${_ENCRYPTION}" \
+		"${_CRYPTTYPE}" \
 		"${_FORMAT}" \
 		"${_CRYPTNAME}" \
 		"${_PARTUUID}" \
-		"${_CRYPTTYPE}" \
 		"${_CRYPTKEY}" \
 		&>/dev/null \
 		|| return $?
@@ -381,16 +368,14 @@ FSspec_parse() {
 			echo "${_MOUNTPOINT}";;
 		"filesystem")
 			echo "${_FILESYSTEM}";;
-		"encryption")
-			echo "${_ENCRYPTION}";;
+		"crypttype")
+			echo "${_CRYPTTYPE}";;
 		"format")
 			echo "${_FORMAT}";;
 		"cryptname")
 			echo "${_CRYPTNAME}";;
 		"partuuid")
 			echo "${_PARTUUID}";;
-		"crypttype")
-			echo "${_CRYPTTYPE}";;
 		"cryptkey")
 			echo "${_CRYPTKEY}";;
 		*)
@@ -420,21 +405,19 @@ FSspec_setvalue() {
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
-	local _ENCRYPTION=
+	local _CRYPTTYPE=
 	local _FORMAT=
 	local _CRYPTNAME=
 	local _PARTUUID=
-	local _CRYPTTYPE=
 	local _CRYPTKEY=
 	# parse the item values
 	_PARTITION="$(FSspec_parse "${_ITEM}" 'partition')" || return $?
 	_MOUNTPOINT="$(FSspec_parse "${_ITEM}" 'mountpoint')" || return $?
 	_FILESYSTEM="$(FSspec_parse "${_ITEM}" 'filesystem')" || return $?
-	_ENCRYPTION="$(FSspec_parse "${_ITEM}" 'encryption')" || return $?
+	_CRYPTTYPE="$(FSspec_parse "${_ITEM}" 'crypttype')" || return $?
 	_FORMAT="$(FSspec_parse "${_ITEM}" 'format')" || return $?
 	_CRYPTNAME="$(FSspec_parse "${_ITEM}" 'cryptname')" || return $?
 	_PARTUUID="$(FSspec_parse "${_ITEM}" 'partuuid')" || return $?
-	_CRYPTTYPE="$(FSspec_parse "${_ITEM}" 'crypttype')" || return $?
 	_CRYPTKEY="$(FSspec_parse "${_ITEM}" 'cryptkey')" || return $?
 	# replace desired value
 	case "${_VARNAME}" in
@@ -444,16 +427,14 @@ FSspec_setvalue() {
 			_MOUNTPOINT="${_VARVALUE}" ;;
 		"filesystem")
 			_FILESYSTEM="${_VARVALUE}" ;;
-		"encryption")
-			_ENCRYPTION="${_VARVALUE}" ;;
+		"crypttype")
+			_CRYPTTYPE="${_VARVALUE}" ;;
 		"format")
 			_FORMAT="${_VARVALUE}" ;;
 		"cryptname")
 			_CRYPTNAME="${_VARVALUE}" ;;
 		"partuuid")
 			_PARTUUID="${_VARVALUE}" ;;
-		"crypttype")
-			_CRYPTTYPE="${_VARVALUE}" ;;
 		"cryptkey")
 			_CRYPTKEY="${_VARVALUE}" ;;
 		*)
@@ -465,11 +446,10 @@ FSspec_setvalue() {
 		"${_PARTITION}" \
 		"${_MOUNTPOINT}" \
 		"${_FILESYSTEM}" \
-		"${_ENCRYPTION}" \
+		"${_CRYPTTYPE}" \
 		"${_FORMAT}" \
 		"${_CRYPTNAME}" \
 		"${_PARTUUID}" \
-		"${_CRYPTTYPE}" \
 		"${_CRYPTKEY}" \
 		|| return $?
 }
@@ -533,12 +513,12 @@ FSspec_mountall() {
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
-	local _ENCRYPTION=
-	local _CRYPTNAME=
 	local _CRYPTTYPE=
+	local _CRYPTNAME=
 	local _CRYPTKEY=
 	local _PARTPATH=
-	local _UUID="$(uuidgen)" || return $?
+	local _UUID=
+	_UUID="$(uuidgen)" || return $?
 	# check if mountpoint '/' exists
 	if ! FSspec_list_haskeyvalue "${_CONFIG_LIST}" 'mountpoint' '/'; then
 		echo "ERROR: Root partition (with mountpoint '/') not found." 1>&2
@@ -550,28 +530,27 @@ FSspec_mountall() {
 		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
 		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
-		_ENCRYPTION="$(FSspec_parse "${_CONFIG_ITEM}" 'encryption')" || return $?
-		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
+		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
 		_PARTPATH="${_PARTITION}"
 		echo dump mount _PARTITION = "${_PARTITION}" 1>&2
 		echo dump mount _MOUNTPOINT = "${_MOUNTPOINT}" 1>&2
-		if [ "${_ENCRYPTION}" -eq 1 ]; then
+		if [ "${_CRYPTTYPE}" != '' ]; then
 			# write key to temp file
 			echo "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
 			case "${_CRYPTTYPE}" in
-				swap)
+				'swap')
 					cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
 					;;
-				gpg)
+				'luks-gpg')
 					# key is in base64 format
 					base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
 					gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
 					# clean up
 					rm /tmp/"${_UUID}".asc || return $?
 					;;
-				'')
+				'luks')
 					cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
 					;;
 			esac
@@ -608,7 +587,7 @@ FSspec_umountall() {
 	local _CONFIG_ITEM=
 	local _PARTITION=
 	local _FILESYSTEM=
-	local _ENCRYPTION=
+	local _CRYPTTYPE=
 	local _CRYPTNAME=
 	local _PARTPATH=
 	# reverse sort by mountpoint
@@ -616,14 +595,14 @@ FSspec_umountall() {
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
 		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
-		_ENCRYPTION="$(FSspec_parse "${_CONFIG_ITEM}" 'encryption')" || return $?
+		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_PARTPATH="${_PARTITION}"
 		echo dump umount _PARTITION = "${_PARTITION}" 1>&2
 		local _MOUNTPOINT=
 		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
 		echo dump umount _MOUNTPOINT = "${_MOUNTPOINT}" 1>&2
-		[ "${_ENCRYPTION}" -eq 1 ] && _PARTPATH="/dev/mapper/${_CRYPTNAME}"
+		[ "${_CRYPTTYPE}" != '' ] && _PARTPATH="/dev/mapper/${_CRYPTNAME}"
 		# ignore error when not mounted or used as swap
 		# umount partition
 		if [ "${_FILESYSTEM}" != 'swap' ]; then
@@ -635,7 +614,7 @@ FSspec_umountall() {
 			# Example: device-mapper: remove ioctl on sda10 failed: Device or resource busy
 			sleep 1
 		fi
-		if [ "${_ENCRYPTION}" -eq 1 ] && cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
+		if [ "${_CRYPTTYPE}" != '' ] && cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
 			cryptsetup close "${_CRYPTNAME}" || return $?
 		fi
 	done

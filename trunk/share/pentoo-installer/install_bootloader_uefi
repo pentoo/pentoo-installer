@@ -52,7 +52,7 @@ fi
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
 PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
 # root partition encrypted?
-ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
 
 # get kernel version
 KERNVER=$(getkernelversion) || exit $?
@@ -68,7 +68,7 @@ KERNELPATH=${KERNELPATH//\//\\\\}
 INITRDPATH=${INITRDPATH//\//\\}
 
 # get kernel params
-KERNEL_PARAMS="$(getkernelparams "${ROOTPART}" "${BOOTDEV}" "${ENCRYPTION}")" || exit $?
+KERNEL_PARAMS="$(getkernelparams "${ROOTPART}" "${BOOTDEV}" "${CRYPTTYPE}")" || exit $?
 
 kernelpart=
 # kernelpart: kernel partition, ex. /dev/sda2

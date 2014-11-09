@@ -38,9 +38,8 @@ auto_dmcrypt() {
 	# properties of FSspec
 	local _PARTITION=
 	local _MOUNTPOINT=
-	local _ENCRYPTION=
-	local _CRYPTNAME=
 	local _CRYPTTYPE=
+	local _CRYPTNAME=
 	local _CRYPTKEY=
 	local _FSTAB_ITEM=
 	local _DO_RCUPDATE=0
@@ -52,31 +51,31 @@ auto_dmcrypt() {
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
-		_ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'encryption')" || exit $?
-		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
+		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_CRYPTKEY="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptkey')" || exit $?
-		if [ "${_ENCRYPTION}" -eq '1' ]; then
+		if [ "${_CRYPTTYPE}" != '' ]; then
 			# write all crypt-keys (except root-  and swap-partitions)
 			if [ "${_CRYPTTYPE}" != 'swap' ] && [ "${_MOUNTPOINT}" != '/' ]; then
 				mkdir -p "${DESTDIR}/etc/keys/" || return $?
 				case "${_CRYPTTYPE}" in
-					gpg)
+					'luks-gpg')
 						# key is in base64 format
 						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
 						;;
-					'')
+					'luks')
 						echo "${_CRYPTKEY}" >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
 						;;
 				esac
 			# write key for root-partition
 			elif [ "${_MOUNTPOINT}" = '/' ]; then
 				case "${_CRYPTTYPE}" in
-					gpg)
+					'luks-gpg')
 						# key is in base64 format
 						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/boot/key.gpg" || return $?
 						;;
-					'')
+					'luks')
+						# TODO: this should not be possible for root partition and actually is disabled in the menu
 						echo "${_CRYPTKEY}" >"${DESTDIR}/boot/key.gpg" || return $?
 						;;
 				esac
@@ -95,10 +94,9 @@ auto_dmcrypt() {
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
-		_ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'encryption')" || exit $?
-		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
-		if [ "${_ENCRYPTION}" -eq '1' ]; then
+		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
+		if [ "${_CRYPTTYPE}" != '' ]; then
 			# add to /etc/conf.d/dmcrypt if non-swap and not root-partition
 			if [ "${_CRYPTTYPE}" != 'swap' ] && [ "${_MOUNTPOINT}" != '/' ]; then
 				_DO_RCUPDATE=1
@@ -106,10 +104,10 @@ auto_dmcrypt() {
 				echo "target=${_CRYPTNAME}">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 				echo "source='${_PARTITION}'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 				case "${_CRYPTTYPE}" in
-					gpg)
+					'luks-gpg')
 						echo "key='/etc/keys/${_CRYPTNAME}:gpg'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 						;;
-					'')
+					'luks')
 						echo "key='/etc/keys/${_CRYPTNAME}'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 						;;
 				esac
@@ -144,7 +142,7 @@ auto_fstab() {
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
-	local _ENCRYPTION=
+	local _CRYPTTYPE=
 	local _CRYPTNAME=
 	local _FSTAB_ITEM=
 	local _PARTPATH=
@@ -157,10 +155,10 @@ auto_fstab() {
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
 		_FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'filesystem')" || exit $?
-		_ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'encryption')" || exit $?
+		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_PARTPATH="${_PARTITION}"
-		if [ "${_ENCRYPTION}" -eq '1' ]; then
+		if [ "${_CRYPTTYPE}" != '' ]; then
 			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
 		fi
 		# START: fstab setup
