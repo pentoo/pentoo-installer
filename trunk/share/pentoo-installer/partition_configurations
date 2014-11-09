@@ -153,7 +153,7 @@ while true; do
 			# find config of selected item
 			TMP_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'partition' "${SELECTION}")" || exit $?
 			# open submenu
-			TMP_ITEM="$("${SHAREDIR}"/FSspec edit "${TMP_ITEM}")"
+			TMP_ITEM="$("${SHAREDIR}"/FSspec edit "${TMP_ITEM}" "${CONFIG_LIST}")"
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then
 				# item was removed
