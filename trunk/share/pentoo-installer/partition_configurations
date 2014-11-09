@@ -62,7 +62,6 @@ while true; do
 	PARTITIONS=()
 	MOUNTPOINTS=()
 	FILESYSTEMS=()
-	BOOT_FLAGS=()
 	ENCRYPTIONS=()
 	FORMATS=()
 	# other vars
@@ -78,7 +77,6 @@ while true; do
 		PARTITIONS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'partition')") || exit $?
 		MOUNTPOINTS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'mountpoint')") || exit $?
 		FILESYSTEMS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'filesystem')") || exit $?
-		BOOT_FLAGS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'boot-flag')")") || exit $?
 		ENCRYPTIONS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'encryption')")") || exit $?
 		FORMATS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'format')")") || exit $?
 	done
@@ -91,6 +89,7 @@ while true; do
 	while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
 		# construct formatted string
 		MENU_STRING=
+
 		# mountpoint
 		MENU_STRING="${MENU_STRING}mountpoint="
 		MAXLEN=$(partition_getlistmaxlength "$(echo ${MOUNTPOINTS[@]})") || exit $?
@@ -102,13 +101,6 @@ while true; do
 		MENU_STRING="${MENU_STRING}filesystem="
 		MAXLEN=$(partition_getlistmaxlength "$(echo ${FILESYSTEMS[@]})") || exit $?
 		TMPSTRING="${FILESYSTEMS[$TMP_ITEM]}" || exit $?
-		# append spaces so all items have same length + 4 for padding
-		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
-		MENU_STRING="${MENU_STRING}${TMPSTRING}"
-		# boot-flags
-		MENU_STRING="${MENU_STRING}boot-flag="
-		MAXLEN=$(partition_getlistmaxlength "$(echo ${BOOT_FLAGS[@]})") || exit $?
-		TMPSTRING="${BOOT_FLAGS[$TMP_ITEM]}" || exit $?
 		# append spaces so all items have same length + 4 for padding
 		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
 		MENU_STRING="${MENU_STRING}${TMPSTRING}"

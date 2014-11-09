@@ -144,7 +144,6 @@ auto_fstab() {
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
-	local _BOOTFLAG=
 	local _ENCRYPTION=
 	local _CRYPTNAME=
 	local _FSTAB_ITEM=
@@ -158,8 +157,6 @@ auto_fstab() {
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
 		_FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'filesystem')" || exit $?
-		# TODO: use boot-flag in fstab
-		_BOOTFLAG="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'boot-flag')" || exit $?
 		_ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'encryption')" || exit $?
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_PARTPATH="${_PARTITION}"

@@ -11,7 +11,6 @@
 #   partition
 #   mountpoint
 #   filesystem
-#   boot-flag
 #   encryption
 #   format
 #   cryptname (name used by cryptsetup)
@@ -20,9 +19,8 @@
 #	cryptkey
 #
 #  mountpoint of a swap partition must be empty
-#  partition with filesystem=swap cannot have boot-flag=1
 #  all non swap partitions must have a mountpoint
-#  boot-flag and encryption are mutually exclusive, only one can be true
+#  root partition can only be encrypted when /boot is on another partition
 #  values cannot contain white-space or the ":" character!
 #
 #  internal:
@@ -49,16 +47,16 @@ source "${SHAREDIR}"/common.sh || exit $?
 #
 # parameters (required):
 #  these items of an FSspec in this order
-#   partition, mountpoint, filesystem, boot-flag, encryption, format
+#   partition, mountpoint, filesystem, encryption, format
 #
 FSspec_create() {
 	# check input
-	check_num_args "${FUNCNAME}" 6 $# || return $?
+	check_num_args "${FUNCNAME}" 5 $# || return $?
 	local _PARTUUID=
 	# set partuuid
 	_PARTUUID="$(blkid -s PARTUUID -o value "${1}")" || return $?
 	# simply call the internal create function with empty strings for missing FSspec items
-	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "${6}" "" "${_PARTUUID}" "" ""
+	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "" "${_PARTUUID}" "" ""
 }
 
 # FSspec_createfull()
@@ -72,20 +70,18 @@ FSspec_create() {
 #
 FSspec_createfull() {
 	# check input
-	check_num_args "${FUNCNAME}" 10 $# || return $?
+	check_num_args "${FUNCNAME}" 9 $# || return $?
 	local _PARTITION="${1}"
 	local _MOUNTPOINT="${2}"
 	local _FILESYSTEM="${3}"
-	local _BOOTFLAG="${4}"
-	local _ENCRYPTION="${5}"
-	local _FORMAT="${6}"
-	local _CRYPTNAME="${7}"
-	local _PARTUUID="${8}"
-	local _CRYPTTYPE="${9}"
-	local _CRYPTKEY="${10}"
+	local _ENCRYPTION="${4}"
+	local _FORMAT="${5}"
+	local _CRYPTNAME="${6}"
+	local _PARTUUID="${7}"
+	local _CRYPTTYPE="${8}"
+	local _CRYPTKEY="${9}"
 	local _CONFIG_SEPARATOR=':'
 	# convert boolean values to 0 or 1
-	[ "${_BOOTFLAG}" != '1' ] && _BOOTFLAG=0
 	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
 	[ "${_FORMAT}" != '1' ] && _FORMAT=0
 	# validate
@@ -99,17 +95,14 @@ FSspec_createfull() {
 		if [ -n "${_MOUNTPOINT}" ]; then
 			echo "error parsing config, swap partition cannot have mountpoint" 1>&2
 			return 1
-		elif [ "${_BOOTFLAG}" = '1' ]; then
-			echo "error parsing config, swap partition cannot have boot-flag" 1>&2
-			return 1
 		fi
 	# non swap partition
 	else
 		if [ -z "${_MOUNTPOINT}" ]; then
 			echo "error parsing config, partition must have mountpoint" 1>&2
 			return 1
-		elif [ "${_BOOTFLAG}" = '1' ] && [ "${_ENCRYPTION}" = '1' ]; then
-			echo "error parsing config, boot-flag and encryption-flag are exclusive" 1>&2
+		elif [ "${_MOUNTPOINT}" = '/boot' ] && [ "${_ENCRYPTION}" = '1' ]; then
+			echo "error parsing config, partition on mountpoint '/boot' cannot be encrypted" 1>&2
 			return 1
 		fi
 	fi
@@ -125,8 +118,6 @@ FSspec_createfull() {
 	echo -n "mountpoint${_CONFIG_SEPARATOR}${_MOUNTPOINT}"
 	echo -n "${_CONFIG_SEPARATOR}"
 	echo -n "filesystem${_CONFIG_SEPARATOR}${_FILESYSTEM}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "boot-flag${_CONFIG_SEPARATOR}${_BOOTFLAG}"
 	echo -n "${_CONFIG_SEPARATOR}"
 	echo -n "encryption${_CONFIG_SEPARATOR}${_ENCRYPTION}"
 	echo -n "${_CONFIG_SEPARATOR}"
@@ -297,7 +288,6 @@ FSspec_parse() {
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
-	local _BOOTFLAG=
 	local _ENCRYPTION=
 	local _FORMAT=
 	local _CRYPTNAME=
@@ -329,36 +319,31 @@ FSspec_parse() {
 		return 1
 	fi
 	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $7}')" || return $?
-	if [ "${_CHECKKEY}" != 'boot-flag' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $9}')" || return $?
 	if [ "${_CHECKKEY}" != 'encryption' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $11}')" || return $?
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $9}')" || return $?
 	if [ "${_CHECKKEY}" != 'format' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $13}')" || return $?
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $11}')" || return $?
 	if [ "${_CHECKKEY}" != 'cryptname' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $15}')" || return $?
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $13}')" || return $?
 	if [ "${_CHECKKEY}" != 'partuuid' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $17}')" || return $?
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $15}')" || return $?
 	if [ "${_CHECKKEY}" != 'crypttype' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $19}')" || return $?
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $17}')" || return $?
 	if [ "${_CHECKKEY}" != 'cryptkey' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
@@ -367,22 +352,19 @@ FSspec_parse() {
 	_PARTITION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $2}')" || return $?
 	_MOUNTPOINT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $4}')" || return $?
 	_FILESYSTEM="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $6}')" || return $?
-	_BOOTFLAG="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $8}')" || return $?
-	_ENCRYPTION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $10}')" || return $?
-	_FORMAT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $12}')" || return $?
-	_CRYPTNAME="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $14}')" || return $?
-	_PARTUUID="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $16}')" || return $?
-	_CRYPTTYPE="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $18}')" || return $?
-	_CRYPTKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $20}')" || return $?
+	_ENCRYPTION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $8}')" || return $?
+	_FORMAT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $10}')" || return $?
+	_CRYPTNAME="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $12}')" || return $?
+	_PARTUUID="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $14}')" || return $?
+	_CRYPTTYPE="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $16}')" || return $?
+	_CRYPTKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $18}')" || return $?
 	# convert boolean values to 0 or 1
-	[ "${_BOOTFLAG}" != '1' ] && _BOOTFLAG=0
 	[ "${_ENCRYPTION}" != '1' ] && _ENCRYPTION=0
 	# validate
 	FSspec_createfull \
 		"${_PARTITION}" \
 		"${_MOUNTPOINT}" \
 		"${_FILESYSTEM}" \
-		"${_BOOTFLAG}" \
 		"${_ENCRYPTION}" \
 		"${_FORMAT}" \
 		"${_CRYPTNAME}" \
@@ -399,8 +381,6 @@ FSspec_parse() {
 			echo "${_MOUNTPOINT}";;
 		"filesystem")
 			echo "${_FILESYSTEM}";;
-		"boot-flag")
-			echo "${_BOOTFLAG}";;
 		"encryption")
 			echo "${_ENCRYPTION}";;
 		"format")
@@ -440,7 +420,6 @@ FSspec_setvalue() {
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
-	local _BOOTFLAG=
 	local _ENCRYPTION=
 	local _FORMAT=
 	local _CRYPTNAME=
@@ -451,7 +430,6 @@ FSspec_setvalue() {
 	_PARTITION="$(FSspec_parse "${_ITEM}" 'partition')" || return $?
 	_MOUNTPOINT="$(FSspec_parse "${_ITEM}" 'mountpoint')" || return $?
 	_FILESYSTEM="$(FSspec_parse "${_ITEM}" 'filesystem')" || return $?
-	_BOOTFLAG="$(FSspec_parse "${_ITEM}" 'boot-flag')" || return $?
 	_ENCRYPTION="$(FSspec_parse "${_ITEM}" 'encryption')" || return $?
 	_FORMAT="$(FSspec_parse "${_ITEM}" 'format')" || return $?
 	_CRYPTNAME="$(FSspec_parse "${_ITEM}" 'cryptname')" || return $?
@@ -466,8 +444,6 @@ FSspec_setvalue() {
 			_MOUNTPOINT="${_VARVALUE}" ;;
 		"filesystem")
 			_FILESYSTEM="${_VARVALUE}" ;;
-		"boot-flag")
-			_BOOTFLAG="${_VARVALUE}" ;;
 		"encryption")
 			_ENCRYPTION="${_VARVALUE}" ;;
 		"format")
@@ -489,7 +465,6 @@ FSspec_setvalue() {
 		"${_PARTITION}" \
 		"${_MOUNTPOINT}" \
 		"${_FILESYSTEM}" \
-		"${_BOOTFLAG}" \
 		"${_ENCRYPTION}" \
 		"${_FORMAT}" \
 		"${_CRYPTNAME}" \
