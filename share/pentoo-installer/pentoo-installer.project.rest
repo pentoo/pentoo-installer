@@ -119,7 +119,8 @@ EOF
 #
 dobootloader() {
     local bootmode="${1}"
-    local _kernver=$(getkernelversion)
+    local _kernver=
+    _kernver=$(getkernelversion)
     local kernelpath="/boot/kernel-genkernel${_kernver}"
     local initrdpath="/boot/initramfs-genkernel${_kernver}"
     local bootparams="root=/dev/ram0 real_root=${PART_ROOT}"

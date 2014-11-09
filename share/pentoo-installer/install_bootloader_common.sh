@@ -26,7 +26,7 @@ source "${SHAREDIR}"/common.sh || exit $?
 # parameters (required)
 #  _ROOTPART: root partition
 #  _BOOTPART: boot partition
-#  _ROOTPART_ENCRYPTED: is the root partition encrypted
+#  _CRYPTTYPE: encryption-type (should be '' or 'luks-gpg')
 #
 # returns 0 on success
 # anything else is a real error
@@ -36,11 +36,11 @@ getkernelparams() {
 	check_num_args "${FUNCNAME}" 3 $# || return $?
 	local _ROOTPART="$1"
 	local _BOOTPART="$2"
-	local _ROOTPART_ENCRYPTED="$3"
+	local _CRYPTTYPE="$3"
 	local _KERNEL_PARAMS=
 	_KERNEL_PARAMS="$(parse_kernel_cmdline)" || return $?
 	# encrypted root partition
-	if [ "${_ENCRYPTION}" -eq 1 ]; then
+	if [ "${_CRYPTTYPE}" != '' ]; then
 		_KERNEL_PARAMS="root=/dev/ram0 real_root=/dev/mapper/root dogpg crypt_root=${_ROOTPART} root_key=/key.gpg root_keydev=${_BOOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
 	else
 		_KERNEL_PARAMS="root=/dev/ram0 real_root=${_ROOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
@@ -59,7 +59,8 @@ getkernelparams() {
 # returns:    0 on success
 #             1 on failure
 getkernelversion() {
-    local _KERNVER=$(ls "${DESTDIR}"/boot/kernel-genkernel-* | sed -e "s|kernel-genkernel||g" -e "s|${DESTDIR}/boot/||") \
+    local _KERNVER=
+    _KERNVER=$(ls "${DESTDIR}"/boot/kernel-genkernel-* | sed -e "s|kernel-genkernel||g" -e "s|${DESTDIR}/boot/||") \
         || return 1
     echo "${_KERNVER}"
 }

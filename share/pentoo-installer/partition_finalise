@@ -32,7 +32,7 @@ source "${SHAREDIR}"/partition_common.sh || exit $?
 # parameters (required)
 #  _PARTITION: The partition to encrypt
 #  _CRYPTNAME: name used by cryptsetup
-#  _CRYPTTYPE: swap, gpg or ''
+#  _CRYPTTYPE: one of: 'swap', 'luks', 'luks-gpg'
 #
 # return !=0 on failure (including user abort with ERROR_CANCEL=64)
 #
@@ -42,10 +42,11 @@ partition_crypt_setup() {
 	local _PARTITION="${1}"
 	local _CRYPTNAME="${2}"
 	local _CRYPTTYPE="${3}"
+	local _UUID=
 	# use uuid as temp file name
-	local _UUID="$(uuidgen)" || return $?
+	_UUID="$(uuidgen)" || return $?
 	case "${_CRYPTTYPE}" in
-		swap)
+		'swap')
 			# TODO swap key is shorter then before with -d /dev/urandom and
 			# Maximum keyfile size: 8192kB
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
@@ -55,7 +56,7 @@ partition_crypt_setup() {
 			# clean up
 			rm /tmp/"${_UUID}" || return $?
 			;;
-		gpg)
+		'luks-gpg')
 			show_dialog --msgbox "We will now generate a GPG-encrypted luks key for ${_PARTITION}" 0 0 || return $?
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
 			gpg --symmetric --cipher-algo aes256 --armor /tmp/"${_UUID}" || return $?
@@ -71,7 +72,7 @@ partition_crypt_setup() {
 			rm /tmp/"${_UUID}".asc || return $?
 			rm /tmp/"${_UUID}" || return $?
 			;;
-		'')
+		'luks')
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
 			cat /tmp/"${_UUID}" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
 			cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
@@ -113,29 +114,16 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	PARTITION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
 	MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
 	FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
-	ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+	CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
 	FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
 	CRYPTNAME=
-	CRYPTTYPE=
 	CRYPTKEY=
 	PARTPATH="${PARTITION}"
 	# encrypted
-	if [ "${ENCRYPTION}" -eq 1 ]; then
+	if [ "${CRYPTTYPE}" != '' ]; then
 		# use 'basename $PARTITION' as name in cryptsetup, for ex. sda2
 		CRYPTNAME="$(basename "${PARTITION}")" || exit $?
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptname' "${CRYPTNAME}")" || exit $?
-		# swap partition
-		if [ "${FILESYSTEM}" = 'swap' ]; then
-			CRYPTTYPE='swap'
-		# non-swap partition
-		else
-			if [ "${MOUNTPOINT}" = '/' ]; then
-				CRYPTTYPE='gpg'
-			elif show_dialog --defaultno --yesno "Do you want to use GPG encrypted key for the partition (${PARTITION}) on (${MOUNTPOINT}) ?" 0 0; then
-				CRYPTTYPE='gpg'
-			fi
-		fi
-		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'crypttype' "${CRYPTTYPE}")" || exit $?
 		# create crypt-key and use cryptsetup
 		CRYPTKEY="$(partition_crypt_setup "${PARTITION}" "${CRYPTNAME}" "${CRYPTTYPE}")" || exit $?
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptkey' "${CRYPTKEY}")" || exit $?

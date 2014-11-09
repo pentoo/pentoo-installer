@@ -125,7 +125,7 @@ fi
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
 PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
 # root partition encrypted?
-ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
+CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
 
 GRUBDEV=$(mapdev ${PART_ROOT})
 GRUBDEV_FOUND=$?
@@ -139,7 +139,7 @@ KERNEL_PARAMS=
 # get kernel version
 KERNVER=$(getkernelversion) || exit $?
 # get kernel params
-KERNEL_PARAMS="$(getkernelparams "${ROOTPART}" "${BOOTDEV}" "${ENCRYPTION}")" || exit $?
+KERNEL_PARAMS="$(getkernelparams "${ROOTPART}" "${BOOTDEV}" "${CRYPTTYPE}")" || exit $?
 
 if [ "${GRUBDEV}" != "" -o "${BOOTDEV}" != "" ]; then
 	if [ "${BOOTDEV}" != "" ]; then

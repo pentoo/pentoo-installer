@@ -62,7 +62,7 @@ while true; do
 	PARTITIONS=()
 	MOUNTPOINTS=()
 	FILESYSTEMS=()
-	ENCRYPTIONS=()
+	CRYPTTYPES=()
 	FORMATS=()
 	# other vars
 	TMP_ITEM=
@@ -77,7 +77,7 @@ while true; do
 		PARTITIONS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'partition')") || exit $?
 		MOUNTPOINTS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'mountpoint')") || exit $?
 		FILESYSTEMS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'filesystem')") || exit $?
-		ENCRYPTIONS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'encryption')")") || exit $?
+		CRYPTTYPES+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'crypttype')")") || exit $?
 		FORMATS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'format')")") || exit $?
 	done
 	# ### START: UGLY CODE BLOCK ###
@@ -104,10 +104,10 @@ while true; do
 		# append spaces so all items have same length + 4 for padding
 		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
 		MENU_STRING="${MENU_STRING}${TMPSTRING}"
-		# encryptions
+		# crypttypes
 		MENU_STRING="${MENU_STRING}encryption="
-		MAXLEN=$(partition_getlistmaxlength "$(echo ${ENCRYPTIONS[@]})") || exit $?
-		TMPSTRING="${ENCRYPTIONS[$TMP_ITEM]}" || exit $?
+		MAXLEN=$(partition_getlistmaxlength "$(echo ${CRYPTTYPES[@]})") || exit $?
+		TMPSTRING="${CRYPTTYPES[$TMP_ITEM]}" || exit $?
 		# append spaces so all items have same length + 4 for padding
 		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
 		MENU_STRING="${MENU_STRING}${TMPSTRING}"
