@@ -86,6 +86,8 @@ if [ "${FILESYSTEM}" != 'swap' ]; then
 			show_dialog --msgbox "ERROR: Mountpoint ${MOUNTPOINT} is already configured!" 0 0
 			exit "${ERROR_CANCEL}"
 		fi
+		# set ext2 for /boot
+		[ "${MOUNTPOINT}" = '/boot' ] && FILESYSTEM='ext2'
 	fi
 fi
 # everything ok, create new FSspec string
@@ -94,8 +96,7 @@ CONFIG_ITEM="$("${SHAREDIR}"/FSspec create \
 	"${PARTITION}" \
 	"${MOUNTPOINT}" \
 	"${FILESYSTEM}" \
-	"0" \
-	"0" \
+	"" \
 	"1")" || exit $?
 echo "${CONFIG_ITEM}"
 exit 0
