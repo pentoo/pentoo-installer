@@ -87,9 +87,11 @@ FSspec_createfull() {
 		return 1
 	fi
 	# swap partition cannot have mountpoint
-	if [ "${_FILESYSTEM}" = 'swap' ] && [ -n "${_MOUNTPOINT}" ]; then
-		echo "error parsing config, swap partition cannot have mountpoint" 1>&2
-		return 1
+	if [ "${_FILESYSTEM}" = 'swap' ]; then
+		if [ -n "${_MOUNTPOINT}" ]; then
+			echo "error parsing config, swap partition cannot have mountpoint" 1>&2
+			return 1
+		fi
 	# non swap partition, must have mountpoint
 	elif [ -z "${_MOUNTPOINT}" ]; then
 		echo "error parsing config, partition must have mountpoint" 1>&2
@@ -99,26 +101,29 @@ FSspec_createfull() {
 	if [ "${_CRYPTTYPE}" != '' ]; then
 		# check crypttype
 		# swap must have swap as type
-		if [ "${_FILESYSTEM}" = 'swap' ] && [ "${_CRYPTTYPE}" != 'swap' ]; then
-			echo "error parsing config, wrong crypttype for swap partition" 1>&2
-			return 1
-		elif [ "${_MOUNTPOINT}" = '/boot' ]; then
-			echo "error parsing config, partition on mountpoint '/boot' cannot be encrypted" 1>&2
-			return 1
-		# root partition, check for /boot
-		elif [ "${_MOUNTPOINT}" = '/' ]; then
-			if ! FSspec_list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
-				echo "error parsing config, encrypted root partition requires a separate, non-encrypted partition for /boot." 1>&2
-				return 1
-			# check crypttype
-			elif [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
-				echo "error parsing config, wrong crypttype for root partition" 1>&2
+		if [ "${_FILESYSTEM}" = 'swap' ]; then
+			if [ "${_CRYPTTYPE}" != 'swap' ]; then
+				echo "error parsing config, wrong crypttype for swap partition" 1>&2
 				return 1
 			fi
-		# non-root partition, check crypttype
-		elif [ "${_CRYPTTYPE}" != 'gpg' ] && [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
-			echo "error parsing config, unexpected crypttype" 1>&2
-			return 1
+		# non-swap
+		else
+			# /boot
+			if [ "${_MOUNTPOINT}" = '/boot' ]; then
+				echo "error parsing config, partition on mountpoint '/boot' cannot be encrypted" 1>&2
+				return 1
+			# root partition
+			elif [ "${_MOUNTPOINT}" = '/' ]; then
+				# check crypttype
+				if [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+					echo "error parsing config, wrong crypttype for root partition" 1>&2
+					return 1
+				fi
+			# non-root partition, check crypttype
+			elif [ "${_CRYPTTYPE}" != 'luks' ] && [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+				echo "error parsing config, unexpected crypttype '${_CRYPTTYPE}'" 1>&2
+				return 1
+			fi
 		fi
 	fi
 

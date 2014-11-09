@@ -65,7 +65,7 @@ FSspec_getcrypttype() {
 	local _CURRENT_CRYPTTYPE="${4}"
 	local _CRYPTTYPE=
 	local _MENU_ITEMS=()
-	 # construct menu
+	# construct menu
 	if [ "${_FILESYSTEM}" = 'swap' ]; then
 		_MENU_ITEMS+=("swap" "Encrypted swap partition") || return $?
 	elif [ "${_MOUNTPOINT}" != '/boot' ]; then
@@ -76,6 +76,7 @@ FSspec_getcrypttype() {
 		fi
 	fi
 	_MENU_ITEMS+=("None" "No encryption") || return $?
+	[ "${_CURRENT_CRYPTTYPE}" = '' ] && _CURRENT_CRYPTTYPE='None'
 	# expand menu items array below
 	_CRYPTTYPE="$(show_dialog --default-item "${_CURRENT_CRYPTTYPE}" --menu "Select the encryption type for ${_PARTITION} on ${_MOUNTPOINT}" \
 		0 0 3 "${_MENU_ITEMS[@]}")" || return $?
