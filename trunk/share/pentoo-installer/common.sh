@@ -144,8 +144,6 @@ check_num_args() {
 		echo "Returning error 1" 1>&2
 		return 1
 	fi
-	# debug output
-	# echo "debug-output: ${1}()" 1>&2
 	return 0
 }
 

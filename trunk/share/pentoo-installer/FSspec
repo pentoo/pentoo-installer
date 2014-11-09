@@ -34,6 +34,10 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
 
+readonly FSspec_DEFINITION=(partition mountpoint filesystem crypttype format cryptname partuuid cryptkey) || exit $?
+readonly CONFIG_SEPARATOR=':' || exit $?
+
+
 #############################
 ## START: utility functions##
 
@@ -78,7 +82,14 @@ FSspec_createfull() {
 	local _CRYPTNAME="${6}"
 	local _PARTUUID="${7}"
 	local _CRYPTKEY="${8}"
-	local _CONFIG_SEPARATOR=':'
+	# check values for spaces or delimiter char
+	while (( "$#" )); do
+		if echo "${1}" | grep -q "[[:space:]${CONFIG_SEPARATOR}]"; then
+			echo "Error: value cannot contain spaces or the '${CONFIG_SEPARATOR}' character" 1>&2
+			return 1
+		fi
+		shift
+	done
 	# convert boolean values to 0 or 1
 	[ "${_FORMAT}" != '1' ] && _FORMAT=0
 	# validate
@@ -126,30 +137,27 @@ FSspec_createfull() {
 			fi
 		fi
 	fi
-
-
 	# check partuuid
 	if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
 		echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
 		return 1
-		
 	fi
 	# everything ok, write to STDOUT and return 0
-	echo -n "partition${_CONFIG_SEPARATOR}${_PARTITION}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "mountpoint${_CONFIG_SEPARATOR}${_MOUNTPOINT}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "filesystem${_CONFIG_SEPARATOR}${_FILESYSTEM}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "crypttype${_CONFIG_SEPARATOR}${_CRYPTTYPE}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "format${_CONFIG_SEPARATOR}${_FORMAT}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "cryptname${_CONFIG_SEPARATOR}${_CRYPTNAME}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "partuuid${_CONFIG_SEPARATOR}${_PARTUUID}"
-	echo -n "${_CONFIG_SEPARATOR}"
-	echo -n "cryptkey${_CONFIG_SEPARATOR}${_CRYPTKEY}"
+	echo -n "partition${CONFIG_SEPARATOR}${_PARTITION}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "mountpoint${CONFIG_SEPARATOR}${_MOUNTPOINT}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "filesystem${CONFIG_SEPARATOR}${_FILESYSTEM}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "crypttype${CONFIG_SEPARATOR}${_CRYPTTYPE}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "format${CONFIG_SEPARATOR}${_FORMAT}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "cryptname${CONFIG_SEPARATOR}${_CRYPTNAME}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "partuuid${CONFIG_SEPARATOR}${_PARTUUID}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "cryptkey${CONFIG_SEPARATOR}${_CRYPTKEY}"
 	return 0
 }
 
@@ -304,7 +312,6 @@ FSspec_parse() {
 	check_num_args "${FUNCNAME}" 2 $# || return $?
 	local _ITEM="${1}"
 	local _VARNAME="${2}"
-	local _CONFIG_SEPARATOR=':'
 	local _PARTITION=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
@@ -314,63 +321,31 @@ FSspec_parse() {
 	local _PARTUUID=
 	local _CRYPTKEY=
 	local _CHECKKEY=
-	local _CHECKSEPS=
+	local _COUNT=
 	# check if input has correct number of separators
-	_CHECKSEPS="$(echo -n "${_ITEM//[^${_CONFIG_SEPARATOR}]}" | wc -m)" || return false;
-	if [ "${_CHECKSEPS}" -ne 15 ]; then
+	_COUNT="$(echo -n "${_ITEM//[^${CONFIG_SEPARATOR}]}" | wc -m)" || return false;
+	if [ "${_COUNT}" -ne 15 ]; then
 		echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
 		return 1
 	fi
 	# parse the item keys
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $1}')" || return $?
-	if [ "${_CHECKKEY}" != 'partition' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $3}')" || return $?
-	if [ "${_CHECKKEY}" != 'mountpoint' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $5}')" || return $?
-	if [ "${_CHECKKEY}" != 'filesystem' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $7}')" || return $?
-	if [ "${_CHECKKEY}" != 'crypttype' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $9}')" || return $?
-	if [ "${_CHECKKEY}" != 'format' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $11}')" || return $?
-	if [ "${_CHECKKEY}" != 'cryptname' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $13}')" || return $?
-	if [ "${_CHECKKEY}" != 'partuuid' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $15}')" || return $?
-	if [ "${_CHECKKEY}" != 'cryptkey' ]; then
-		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
-		return 1
-	fi
+	_COUNT=0
+	for _CHECKKEY in "${FSspec_DEFINITION[@]}"; do
+		if [ "$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f"$((_COUNT * 2 + 1))")" != "${_CHECKKEY}" ]; then
+			echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+			return 1
+		fi
+		_COUNT="$((_COUNT+1))"
+	done
 	# parse the item values
-	_PARTITION="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $2}')" || return $?
-	_MOUNTPOINT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $4}')" || return $?
-	_FILESYSTEM="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $6}')" || return $?
-	_CRYPTTYPE="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $8}')" || return $?
-	_FORMAT="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $10}')" || return $?
-	_CRYPTNAME="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $12}')" || return $?
-	_PARTUUID="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $14}')" || return $?
-	_CRYPTKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $16}')" || return $?
+	_PARTITION="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f2)" || return $?
+	_MOUNTPOINT="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f4)" || return $?
+	_FILESYSTEM="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f6)" || return $?
+	_CRYPTTYPE="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f8)" || return $?
+	_FORMAT="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f10)" || return $?
+	_CRYPTNAME="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f12)" || return $?
+	_PARTUUID="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f14)" || return $?
+	_CRYPTKEY="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f16)" || return $?
 	# convert boolean values to 0 or 1
 	[ "${_FORMAT}" != '1' ] && _FORMAT=0
 	# validate
@@ -496,7 +471,6 @@ FSspec_sort() {
 	local _CONFIG_LIST="${1}"
 	local _LIST_RESULT=
 	local _VARNAME="${2}"
-	local _CONFIG_SEPARATOR=':'
 	local _ITEM=
 	local _TMPVALUE=
 	local _DIRECTION=
@@ -506,7 +480,7 @@ FSspec_sort() {
 		# append space
 		[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT} "
 		# simply prepend the value at start
-		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${_CONFIG_SEPARATOR}${_ITEM}"
+		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${CONFIG_SEPARATOR}${_ITEM}"
 	done
 	# sort the result
 	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort ${_DIRECTION} | tr '\n' ' ')" || return $?
