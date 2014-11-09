@@ -84,7 +84,6 @@ CONFIG_ITEM="${1}"
 PARTITION=
 MOUNTPOINT=
 FILESYSTEM=
-BOOTFLAG=
 ENCRYPTION=
 FORMAT=
 
@@ -100,7 +99,6 @@ while true; do
 	PARTITION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
 	MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
 	FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
-	BOOTFLAG="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'boot-flag')" || exit $?
 	ENCRYPTION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'encryption')" || exit $?
 	FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
 	# reset array holding menu items
@@ -109,8 +107,6 @@ while true; do
 	if [ "${FILESYSTEM}" != 'swap' ]; then
 		MENU_ITEMS+=("mountpoint" "Change mountpoint, now: '${MOUNTPOINT}'") || exit $?
 		MENU_ITEMS+=("filesystem" "Change file system, now: '${FILESYSTEM}'") || exit $?
-		# convert boolean values from 0|1 to no|yes
-		MENU_ITEMS+=("boot-flag" "Change boot-flag, now: '$(get_yesno "${BOOTFLAG}")'") || exit $?
 	fi
 	# convert boolean values from 0|1 to no|yes
 	MENU_ITEMS+=("encryption" "Change encryption, now: '$(get_yesno "${ENCRYPTION}")'") || exit $?
@@ -165,25 +161,6 @@ while true; do
 					FILESYSTEM="${NEWVAL}"
 				fi
 			fi
-						;;
-		'boot-flag')
-			# dialog for boolean value
-			MESSAGE="Boot-flag for ${PARTITION} is now '$(get_yesno "${BOOTFLAG}")'.\nDo you want to change it?"
-			# warn about conflict of boot-flag and encryption
-			[ "${ENCRYPTION}" = '1' -a "${BOOTFLAG}" = '0' ] \
-				&& MESSAGE="${MESSAGE}\n\nWarning: This will also disable encryption!"
-            show_dialog --yesno "${MESSAGE}" 0 0
-			RETSUB=$?
-			if [ "${RETSUB}" -eq 0 ] && [ "${BOOTFLAG}" -eq '0' ]; then
-				# change FSspec string
-				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'encryption' '0')" || exit $?
-				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'boot-flag' '1')" || exit $?
-				ENCRYPTION=0
-				BOOTFLAG=1
-			elif [ "${RETSUB}" -eq 0 ]; then
-				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'boot-flag' '0')" || exit $?
-				BOOTFLAG=0
-			fi
 			;;
 		'encryption')
 			# check if file system supports encryption
@@ -192,16 +169,11 @@ while true; do
 			else
 				# dialog for boolean value
 				MESSAGE="Enryption for ${PARTITION} is now '$(get_yesno "${ENCRYPTION}")'.\nDo you want to change it?"
-				# warn about conflict of boot-flag and encryption
-				[ "${ENCRYPTION}" = '0' -a "${BOOTFLAG}" = '1' ] \
-					&& MESSAGE="${MESSAGE}\n\nWarning: This will also disable the boot-flag!"
 				show_dialog --yesno "${MESSAGE}" 0 0
 				RETSUB=$?
 				if [ "${RETSUB}" -eq 0 ] && [ "${ENCRYPTION}" -eq '0' ]; then
 					# change FSspec string
-					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'boot-flag' '0')" || exit $?
 					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'encryption' '1')" || exit $?
-					BOOTFLAG=0
 					ENCRYPTION=1
 				elif [ "${RETSUB}" -eq 0 ]; then
 					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'encryption' '0')" || exit $?
