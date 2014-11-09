@@ -207,27 +207,31 @@ mount_umountall() {
 	_DISC="${1}"
     show_dialog --infobox "Disabling swapspace, unmounting already mounted disk devices..." 0 0 || return $?
 	# get sorted list of mountpoints
-	_UMOUNTLIST=$(lsblk -f -l -o MOUNTPOINT -p -n /dev/sda | grep -v -e '^[[:space:]]*$' -e '\[SWAP\]' | sort) || return $?
+	_UMOUNTLIST=$(lsblk -f -l -o MOUNTPOINT -p -n "${_DISC}" | sed -r -e '/^[[:space:]]*$/d' -e '/\[SWAP\]/d' | sort) || return $?
 	# loop and umount
-	while read _MOUNTPOINT; do
-		umount "${_MOUNTPOINT}" || return $?
-	done <<<"${_UMOUNTLIST}"
+	if [ -n "${_UMOUNTLIST}" ]; then
+		while read _MOUNTPOINT; do
+			umount "${_MOUNTPOINT}" || return $?
+		done <<<"${_UMOUNTLIST}"
+	fi
 	# get list of partitions, etc. below _DISC
 	_UMOUNTLIST=$(lsblk -f -l -o NAME,FSTYPE -p -n "${_DISC}" | tail -n +2) || return $?
 	# loop over the list , get name and fstype
-	while read _LINE; do
-		_PARTITION=$(echo ${_LINE} | awk '{print $1}')
-		_FSTYPE=$(echo "${_LINE}" | awk '{print $2}')
-		# swap partition
-		if [ "${_FSTYPE}" = 'swap' ]; then
-			swapoff "${_PARTITION}" &>/dev/null
-			sleep 1
-		fi
-		# clean up luks mounts
-		if cryptsetup status "${_PARTITION}" &>/dev/null; then
-			cryptsetup close "${_PARTITION}" || return $?
-		fi
-	done <<<"${_UMOUNTLIST}"
+	if [ -n "${_UMOUNTLIST}" ]; then
+		while read _LINE; do
+			_PARTITION=$(echo ${_LINE} | awk '{print $1}')
+			_FSTYPE=$(echo "${_LINE}" | awk '{print $2}')
+			# swap partition
+			if [ "${_FSTYPE}" = 'swap' ]; then
+				swapoff "${_PARTITION}" &>/dev/null
+				sleep 1
+			fi
+			# clean up luks mounts
+			if cryptsetup status "${_PARTITION}" &>/dev/null; then
+				cryptsetup close "${_PARTITION}" || return $?
+			fi
+		done <<<"${_UMOUNTLIST}"
+	fi
 	return 0
 }
 

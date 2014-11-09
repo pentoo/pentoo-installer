@@ -298,7 +298,7 @@ FSspec_parse() {
 	local _CHECKSEPS=
 	# check if input has correct number of separators
 	_CHECKSEPS="$(echo -n "${_ITEM//[^${_CONFIG_SEPARATOR}]}" | wc -m)" || return false;
-	if [ "${_CHECKSEPS}" -ne 19 ]; then
+	if [ "${_CHECKSEPS}" -ne 17 ]; then
 		echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
 		return 1
 	fi

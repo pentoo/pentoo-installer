@@ -217,7 +217,7 @@ partition_selectpartition() {
 			|| return $?
 	if [ "${_PART}" = "OTHER" ]; then
 		_PART="$(show_dialog --inputbox "Enter the full path to the device you wish to use" \
-		0 0 "/dev/sda")" || return $?
+		0 0 "/dev/sda1")" || return $?
 		# validate _PART
 		if [ ! -b "${_PART}" ] \
 			|| ! lsblk -dn -o TYPE "${_PART}" | grep -q part; then
