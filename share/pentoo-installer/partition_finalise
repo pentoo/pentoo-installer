@@ -103,10 +103,29 @@ CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'mountpoint' 0)" || ex
 CONFIG_ARRAY=(${CONFIG_LIST}) || exit $?
 CONFIG_INDEX=0
 
+# validate config
 # check if mountpoint '/' exists
 if ! "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
-	show_dialog --msgbox "Root partition (with mountpoint '/') not found. Please re-configure the partitions!" 0 0
+	show_dialog --msgbox "Error: Root partition (with mountpoint '/') not found.\nPlease re-configure the partitions!" 0 0
 	exit "${ERROR_CANCEL}"
+fi
+# validate root partition
+CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
+CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
+# root partition encrypted, requires /boot
+# check if mountpoint '/boot' exists
+if [ "${CRYPTTYPE}" != '' ] && ! "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
+	show_dialog --msgbox "Error: Encrypted root partition requires a separate, non-encrypted partition for /boot.\nPlease re-configure the partitions!" 0 0
+	exit "${ERROR_CANCEL}"
+fi
+# check if mountpoint '/boot' is not encrypted
+if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
+	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
+	CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
+	if [ "${CRYPTTYPE}" != '' ]; then
+		show_dialog --msgbox "Error: /boot cannot be encrypted.\nPlease re-configure the partitions!" 0 0
+		exit "${ERROR_CANCEL}"
+	fi
 fi
 
 while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do

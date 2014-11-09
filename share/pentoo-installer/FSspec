@@ -69,7 +69,7 @@ FSspec_create() {
 #
 FSspec_createfull() {
 	# check input
-	check_num_args "${FUNCNAME}" 9 $# || return $?
+	check_num_args "${FUNCNAME}" 8 $# || return $?
 	local _PARTITION="${1}"
 	local _MOUNTPOINT="${2}"
 	local _FILESYSTEM="${3}"
@@ -86,23 +86,43 @@ FSspec_createfull() {
 		echo "error parsing config, partition or filesystem missing" 1>&2
 		return 1
 	fi
-	# swap partition
-	# todo handle swap-crypted
-	if [ "${_FILESYSTEM}" = 'swap' ]; then
-		if [ -n "${_MOUNTPOINT}" ]; then
-			echo "error parsing config, swap partition cannot have mountpoint" 1>&2
+	# swap partition cannot have mountpoint
+	if [ "${_FILESYSTEM}" = 'swap' ] && [ -n "${_MOUNTPOINT}" ]; then
+		echo "error parsing config, swap partition cannot have mountpoint" 1>&2
+		return 1
+	# non swap partition, must have mountpoint
+	elif [ -z "${_MOUNTPOINT}" ]; then
+		echo "error parsing config, partition must have mountpoint" 1>&2
+		return 1
+	fi
+	# validate crypttype
+	if [ "${_CRYPTTYPE}" != '' ]; then
+		# check crypttype
+		# swap must have swap as type
+		if [ "${_FILESYSTEM}" = 'swap' ] && [ "${_CRYPTTYPE}" != 'swap' ]; then
+			echo "error parsing config, wrong crypttype for swap partition" 1>&2
 			return 1
-		fi
-	# non swap partition
-	else
-		if [ -z "${_MOUNTPOINT}" ]; then
-			echo "error parsing config, partition must have mountpoint" 1>&2
-			return 1
-		elif [ "${_MOUNTPOINT}" = '/boot' ] && [ "${_CRYPTTYPE}" != '' ]; then
+		elif [ "${_MOUNTPOINT}" = '/boot' ]; then
 			echo "error parsing config, partition on mountpoint '/boot' cannot be encrypted" 1>&2
+			return 1
+		# root partition, check for /boot
+		elif [ "${_MOUNTPOINT}" = '/' ]; then
+			if ! FSspec_list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
+				echo "error parsing config, encrypted root partition requires a separate, non-encrypted partition for /boot." 1>&2
+				return 1
+			# check crypttype
+			elif [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+				echo "error parsing config, wrong crypttype for root partition" 1>&2
+				return 1
+			fi
+		# non-root partition, check crypttype
+		elif [ "${_CRYPTTYPE}" != 'gpg' ] && [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+			echo "error parsing config, unexpected crypttype" 1>&2
 			return 1
 		fi
 	fi
+
+
 	# check partuuid
 	if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
 		echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
@@ -292,7 +312,7 @@ FSspec_parse() {
 	local _CHECKSEPS=
 	# check if input has correct number of separators
 	_CHECKSEPS="$(echo -n "${_ITEM//[^${_CONFIG_SEPARATOR}]}" | wc -m)" || return false;
-	if [ "${_CHECKSEPS}" -ne 17 ]; then
+	if [ "${_CHECKSEPS}" -ne 15 ]; then
 		echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
 		return 1
 	fi
@@ -332,7 +352,7 @@ FSspec_parse() {
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
 	fi
-	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $17}')" || return $?
+	_CHECKKEY="$(echo ${_ITEM} | awk -F "${_CONFIG_SEPARATOR}" '{print $15}')" || return $?
 	if [ "${_CHECKKEY}" != 'cryptkey' ]; then
 		echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
 		return 1
