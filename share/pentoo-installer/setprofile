@@ -32,14 +32,6 @@ check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 RET_SUB=
 
-echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
-
-# TODO, remove this debugging line
-chroot_umount || exit $?
-
-# TODO, remove this debugging line
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
@@ -99,6 +91,4 @@ chroot "${DESTDIR}" eselect profile set "${NEW_PROF_NUM}" || exit $?
 
 chroot_umount || exit $?
 
-# umount all again and close cryptsetup
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
 exit 0

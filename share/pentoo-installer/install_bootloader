@@ -36,11 +36,6 @@ CONFIG_LIST="${1}"
 SELECTION=
 RETSUB=
 
-echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
-
-# TODO, remove this debugging line
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
@@ -63,10 +58,10 @@ case "${SELECTION}" in
 		;;
 	"None")
 		# TODO: Give user info about kernel params and such
-		exit 0
 		;;
 esac
 
+# everything ok
 # umount all again and close cryptsetup
 "${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
 exit 0

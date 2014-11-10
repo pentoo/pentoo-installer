@@ -175,7 +175,7 @@ auto_fstab() {
 		# add options
 		# TODO: should boot partition '/boot' and swap be different?
 		_FSTAB_ITEM="${_FSTAB_ITEM} defaults"
-		# add dump
+		# add dump flag
 		# TODO: should boot partition '/boot' be different?
 		_FSTAB_ITEM="${_FSTAB_ITEM} 0"
 		# add pass
@@ -310,11 +310,6 @@ CONFIG_LIST="${1}"
 RET_SUB=
 MODULE=
 
-echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
-
-# TODO, remove this debugging line
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
@@ -419,6 +414,4 @@ auto_dmcrypt "${CONFIG_LIST}" || exit $?
 # don't need chroot anymore
 chroot_umount || exit $?
 
-# umount all again and close cryptsetup
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
 exit 0

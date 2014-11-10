@@ -94,6 +94,8 @@ catch_menuerror() {
 # prepares target system as a chroot
 #
 chroot_mount() {
+	# do a clean chroot-umount
+	chroot_umount || return $?
 	# TODO: check if target is a mountpoint
     if [ ! -e "${DESTDIR}/sys" ]; then
 		mkdir "${DESTDIR}/sys" || return $?
