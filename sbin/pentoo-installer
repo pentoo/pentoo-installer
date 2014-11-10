@@ -32,13 +32,42 @@ fi
 # display welcome txt
 show_dialog --textbox "${SHAREDIR}"/welcome.txt 25 75 || exit $?
 
-NEWSELECTION=
-SELECTION='0'
-RETSUB=
-MENU_ITEMS=
-MAXSELECTION=0
+# 'controller' vars
 # CONFIG_LIST: One string with 0 or more items of defined FSspec:
 CONFIG_LIST=
+MAXSELECTION=0
+SELECTION=0
+
+# other vars
+NEWSELECTION=
+RETSUB=
+MENU_ITEMS=
+
+# check for settings from previous installation attempt
+if settings_check; then
+	# ask if old settings should be loaded
+	NEWSELECTION="$(show_dialog \
+        --menu "Settings from previously aborted installation detected.\nDo you want to load them?" \
+		0 0 0 \
+		'No' 'Start from scratch' \
+		'Yes' 'Load settings (you might have to enter passwords)')"
+	RETSUB=$?
+	if [ "${RETSUB}" -eq 0 ] && [ "${NEWSELECTION}" = 'Yes' ]; then
+		# extra check, pass menu-index of 'Prepare hard drive'
+		if ! settings_checkmount 1; then
+			show_dialog --msgbox "ERROR: Unable to load old settings." 0 0
+			settings_shred || exit $?
+		# load 'controller' vars'
+		else
+			SELECTION="$(settings_read 1)" || exit $?
+			MAXSELECTION="$(settings_read 2)" || exit $?
+			CONFIG_LIST="$(settings_read 3)" || exit $?
+		fi
+	else
+		# remove old files
+		settings_shred || exit $?
+	fi
+fi
 
 while [ true ]; do
 	# define menu items
@@ -104,5 +133,7 @@ while [ true ]; do
 		if [ "${MAXSELECTION}" -lt "${SELECTION}" ]; then
 			MAXSELECTION="${SELECTION}"
 		fi
+		# write settings to temp file
+		settings_write "${SELECTION}" "${MAXSELECTION}" "${CONFIG_LIST}" || exit $?
 	fi
 done
