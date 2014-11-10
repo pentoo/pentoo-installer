@@ -533,39 +533,47 @@ FSspec_mountall() {
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
 		_PARTPATH="${_PARTITION}"
-		echo dump mount _PARTITION = "${_PARTITION}" 1>&2
-		echo dump mount _MOUNTPOINT = "${_MOUNTPOINT}" 1>&2
 		if [ "${_CRYPTTYPE}" != '' ]; then
-			# write key to temp file
-			echo "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
-			case "${_CRYPTTYPE}" in
-				'swap')
-					cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
-					;;
-				'luks-gpg')
-					# key is in base64 format
-					base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
-					gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
-					# clean up
-					rm /tmp/"${_UUID}".asc || return $?
-					;;
-				'luks')
-					cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
-					;;
-			esac
-			# clean up
-			rm /tmp/"${_UUID}" || return $?
 			# use /dev/mapper
 			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
+			# check if cryptsetup is already open
+			if ! cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
+				# write key to temp file
+				echo "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
+				case "${_CRYPTTYPE}" in
+					'swap')
+						cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						;;
+					'luks-gpg')
+						# key is in base64 format
+						base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
+						gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						# clean up
+						rm /tmp/"${_UUID}".asc || return $?
+						;;
+					'luks')
+						cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						;;
+				esac
+				# clean up
+				rm /tmp/"${_UUID}" || return $?
+			fi
 		fi
 		# mount actions
 		if [ "${_FILESYSTEM}" != 'swap' ]; then
-			# create our mount directory
-			mkdir -p "${DESTDIR}${_MOUNTPOINT}" || exit $?
-			# mount the bad boy
-			mount -t "${_FILESYSTEM}" "${_PARTPATH}" "${DESTDIR}${_MOUNTPOINT}" >>"${LOG}" 2>&1
+			# check if already mounted
+			if !  mount | grep -q -e "^${_PARTPATH} on $(echo "${DESTDIR}${_MOUNTPOINT}" | sed 's/\/$//') "; then
+				# create our mount directory
+				mkdir -p "${DESTDIR}${_MOUNTPOINT}" || return $?
+				# mount the bad boy
+				mount -t "${_FILESYSTEM}" "${_PARTPATH}" "${DESTDIR}${_MOUNTPOINT}" >>"${LOG}" 2>&1 || return $?
+			fi
 		else
-			swapon ${_PARTPATH} >>"${LOG}" 2>&1 || exit $?
+			# check if already swapped on
+			if ! swapon -s | grep -q -e "$(readlink -f "${_PARTPATH}")"; then
+				# swapon the bad boy 1>&2
+				swapon "${_PARTPATH}" >>"${LOG}" 2>&1 || return $?
+			fi
 		fi
 	done
 }
@@ -589,6 +597,8 @@ FSspec_umountall() {
 	local _CRYPTTYPE=
 	local _CRYPTNAME=
 	local _PARTPATH=
+	# umount /mnt/gentoo
+	umount -R "${DESTDIR}" 2>/dev/null
 	# reverse sort by mountpoint
 	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
@@ -597,10 +607,8 @@ FSspec_umountall() {
 		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_PARTPATH="${_PARTITION}"
-		echo dump umount _PARTITION = "${_PARTITION}" 1>&2
 		local _MOUNTPOINT=
 		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
-		echo dump umount _MOUNTPOINT = "${_MOUNTPOINT}" 1>&2
 		[ "${_CRYPTTYPE}" != '' ] && _PARTPATH="/dev/mapper/${_CRYPTNAME}"
 		# ignore error when not mounted or used as swap
 		# umount partition

@@ -184,11 +184,10 @@ done
 
 # rewrite list from array
 CONFIG_LIST="${CONFIG_ARRAY[@]}"
-# umount all again and close cryptsetup
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-
 # default sort by partition again
 CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'partition' 0)" || exit $?
+
 # everything ok, write new config to STDOUT
 echo -n "${CONFIG_LIST}" || exit $?
+
 exit 0

@@ -51,7 +51,6 @@ if [ "${HAS_ROOT}" -ne 1 ]; then
 fi
 # ask user for partition
 PARTITION="$(partition_selectpartition '_')" || exit $?
-echo dump PARTITION = "${PARTITION}" 1>&2
 # check if partition is already configured
 if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'partition' "${PARTITION}"; then
 	show_dialog --msgbox "ERROR: Partition ${PARTITION} is already configured!" 0 0
@@ -73,7 +72,6 @@ if [ "${FILESYSTEM}" != 'swap' ]; then
 		MOUNTPOINT="$(show_dialog --inputbox "Enter the mountpoint for ${PARTITION}." 0 0 "${MOUNTPOINT}")" || exit $?
 		# trim result
 		MOUNTPOINT="$(echo "${MOUNTPOINT}" | awk '{gsub(/^ +| +$/,"")} {print $0}')" || exit $?
-		echo dump MOUNTPOINT = "'${MOUNTPOINT}'" 1>&2
 		# validate
 		if [ -z "${MOUNTPOINT}" ]; then
 			show_dialog --msgbox "ERROR: You have entered an empty mountpoint!" 0 0

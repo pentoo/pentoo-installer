@@ -66,14 +66,6 @@ NEWSELECTION=
 USERNAME=
 RETSUB=
 
-echo dump CONFIG_LIST="'${CONFIG_LIST}'" 1>&2
-
-# TODO, remove this debugging line
-chroot_umount || exit $?
-
-# TODO, remove this debugging line
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
@@ -146,6 +138,4 @@ done
 
 chroot_umount || exit $?
 
-# umount all again and close cryptsetup
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
 exit 0

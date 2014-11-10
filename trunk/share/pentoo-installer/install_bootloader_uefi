@@ -42,9 +42,6 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-# TODO, remove this debugging line
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
-
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
@@ -92,6 +89,4 @@ if [ $? -ne 0 ]; then
 fi
 show_dialog --msgbox "Success: Direct UEFI booting installed!" 0 0
 
-# umount all again and close cryptsetup
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
 exit 0
