@@ -177,11 +177,9 @@ partition_selectdisk() {
 	if [ "${_DISC}" = "OTHER" ]; then
 		_DISC="$(show_dialog --inputbox "Enter the full path to the device you wish to use" \
 		0 0 "/dev/sda")" || return $?
-		echo dump _DISC = "${_DISC}" 1>&2
 		# validate _DISC
 		if [ ! -b "${_DISC}" ] \
 			|| ! lsblk -dn -o TYPE "${_DISC}" | grep -q disk; then
-			echo dump2 _DISC = "${_DISC}" 1>&2
 			show_dialog --msgbox "Device '${_DISC}' is not valid" 0 0
 			return "${ERROR_CANCEL}"
 		fi

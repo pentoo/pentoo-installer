@@ -128,6 +128,9 @@ if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; 
 	fi
 fi
 
+# cleanup mounts
+"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
+
 while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	CONFIG_ITEM="${CONFIG_ARRAY[${CONFIG_INDEX}]}" || exit $?
 	PARTITION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?

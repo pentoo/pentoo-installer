@@ -189,52 +189,59 @@ get_yesno() {
 }
 
 # mount_umountall()
-# unmounts devices to prepare installation
-# also cleans up luks stuff
+# 1) umount -R $DESTDIR to prepare installation
+# 2) swaps off devices
+# 3) cleans up cryptsetup
+# does a dry run and asks user for 3
 #
 # arguments (required):
-#  disk: the disk to use, for ex.: /dev/sdc
+#  _DISCLIST: List of involved discs or partitions
 #
 # exits: !=1 is an error
 #
 mount_umountall() {
 	# check input
 	check_num_args "${FUNCNAME}" 1 $# || return $?
-	local _DISC=''
-	local _FSTYPE=''
-	local _MOUNTPOINT=''
-	local _PARTITION=''
-	local _RET=''
-	local _UMOUNTLIST=''
-	# umount /mnt/gentoo
+	local _DISCLIST="${1}"
+	local _DISC=
+	local _UMOUNTLIST=
+	local _NAME=
+	local _FSTYPE=
+	local _MOUNTPOINT=
+	local _CRYPTCLOSE=()
+	# umount /mnt/gentoo and below
+	# this is the only umount, anything mounted outside is the users problem
 	umount -R "${DESTDIR}" 2>/dev/null
-	_DISC="${1}"
-    show_dialog --infobox "Disabling swapspace, unmounting already mounted disk devices..." 0 0 || return $?
-	# get sorted list of mountpoints
-	_UMOUNTLIST=$(lsblk -f -l -o MOUNTPOINT -p -n "${_DISC}" | sed -r -e '/^[[:space:]]*$/d' -e '/\[SWAP\]/d' | sort) || return $?
-	# loop and umount
-	if [ -n "${_UMOUNTLIST}" ]; then
-		while read _MOUNTPOINT; do
-			umount "${_MOUNTPOINT}" || return $?
-		done <<<"${_UMOUNTLIST}"
-	fi
-	# get list of partitions, etc. below _DISC
-	_UMOUNTLIST=$(lsblk -f -l -o NAME,FSTYPE -p -n "${_DISC}" | tail -n +2) || return $?
-	# loop over the list , get name and fstype
-	if [ -n "${_UMOUNTLIST}" ]; then
+	# do a first run, swapoff, check mountpoints and collect cryptsetup stuff
+	for _DISC in ${_DISCLIST}; do
+		_UMOUNTLIST="$(lsblk -lnp -o NAME,FSTYPE,MOUNTPOINT "${_DISC}")" || return $?
 		while read _LINE; do
-			_PARTITION=$(echo ${_LINE} | awk '{print $1}')
+			_NAME=$(echo ${_LINE} | awk '{print $1}')
+			# FSTYPE is only helpful for luks devices, not swap
 			_FSTYPE=$(echo "${_LINE}" | awk '{print $2}')
-			# swap partition
-			if [ "${_FSTYPE}" = 'swap' ]; then
-				swapoff "${_PARTITION}" &>/dev/null
+			_MOUNTPOINT=$(echo "${_LINE}" | awk '{print $3}')
+			# swapped on partition
+			if [ "${_FSTYPE}" = 'swap' ] && [ "${_MOUNTPOINT}" = '[SWAP]' ]; then
+				swapoff "${_NAME}" || return $?
 				sleep 1
+			# throw error on any other mountpoint, aka outside $DESTDIR
+			elif [ -n "${_MOUNTPOINT}" ]; then
+				echo "ERROR: Unexpected mountpoint '${_MOUNTPOINT}' for '${_NAME}'." 1>&2
+				return 1
 			fi
-			# clean up luks mounts
-			if cryptsetup status "${_PARTITION}" &>/dev/null; then
-				cryptsetup close "${_PARTITION}" || return $?
+			# check for open cryptsetup
+			if cryptsetup status "${_NAME}" &>/dev/null; then
+				_CRYPTCLOSE+=("${_NAME}")
 			fi
 		done <<<"${_UMOUNTLIST}"
+	done
+	# cryptsetup open anywhere?
+	if [ "${#_CRYPTCLOSE[@]}" -gt 0 ]; then
+		# TODO: how is the correct term for an open cryptsetup thingy? ;)
+		show_dialog --defaultno --yesno "Cryptsetup is using the names below. Do you want to close them?\n$(echo "${_CRYPTCLOSE[@]}" | tr ' ' '\n')" 0 0 || return "${ERROR_CANCEL}"
+		for _NAME in ${_CRYPTCLOSE[@]}; do
+				cryptsetup close "${_NAME}" || return $?
+		done
 	fi
 	return 0
 }
