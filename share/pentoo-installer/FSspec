@@ -84,8 +84,8 @@ FSspec_createfull() {
 	local _CRYPTKEY="${8}"
 	# check values for spaces or delimiter char
 	while (( "$#" )); do
-		if echo "${1}" | grep -q "[[:space:]${CONFIG_SEPARATOR}]"; then
-			echo "Error: value cannot contain spaces or the '${CONFIG_SEPARATOR}' character" 1>&2
+		if echo "${1}" | grep -q "[[:space:]${CONFIG_SEPARATOR}'\"]"; then
+			echo "Error: value cannot contain spaces or these ${CONFIG_SEPARATOR}'\" characters" 1>&2
 			return 1
 		fi
 		shift
@@ -585,46 +585,22 @@ FSspec_mountall() {
 # anything else is a real error
 #
 # parameters (required):
-#  _CONFIG_LIST: a list of FSspec after encryption setup and mkfs
+#  _CONFIG_LIST: a list of FSspec
 #
 FSspec_umountall() {
 	# check input
 	check_num_args "${FUNCNAME}" 1 $# || return $?
 	local _CONFIG_LIST="${1}"
 	local _CONFIG_ITEM=
-	local _PARTITION=
-	local _FILESYSTEM=
-	local _CRYPTTYPE=
-	local _CRYPTNAME=
-	local _PARTPATH=
-	# umount /mnt/gentoo
-	umount -R "${DESTDIR}" 2>/dev/null
-	# reverse sort by mountpoint
-	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
+	local _PARTITIONS=
+	# create list of partitions and call mount_umountall()
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
-		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
-		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
-		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
-		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
-		_PARTPATH="${_PARTITION}"
-		local _MOUNTPOINT=
-		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
-		[ "${_CRYPTTYPE}" != '' ] && _PARTPATH="/dev/mapper/${_CRYPTNAME}"
-		# ignore error when not mounted or used as swap
-		# umount partition
-		if [ "${_FILESYSTEM}" != 'swap' ]; then
-			umount "${_PARTPATH}" 2>/dev/null
-		# swapoff
-		else
-			swapoff "${_PARTPATH}" 2>/dev/null
-			# sleep 1 to avoid error message from cryptsetup close
-			# Example: device-mapper: remove ioctl on sda10 failed: Device or resource busy
-			sleep 1
-		fi
-		if [ "${_CRYPTTYPE}" != '' ] && cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
-			cryptsetup close "${_CRYPTNAME}" || return $?
-		fi
+		_PARTITIONS="${_PARTITIONS} $(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 	done
+	if [ -n "${_PARTITIONS}" ]; then
+		# trim first space
+		mount_umountall "${_PARTITIONS:1}" || return $?
+	fi
 	return 0
 }
 
