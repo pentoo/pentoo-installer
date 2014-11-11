@@ -12,7 +12,7 @@
 #   mountpoint
 #   filesystem
 #	crypttype (one of: 'swap', 'luks', 'luks-gpg', '')
-#   format
+#   format (0=no 1=yes)
 #   cryptname (name used by cryptsetup)
 #   partuuid (PARTUUID, *not* the UUID)
 #	cryptkey
@@ -513,6 +513,7 @@ FSspec_mountall() {
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
 	local _CRYPTTYPE=
+	local _FORMAT=
 	local _CRYPTNAME=
 	local _CRYPTKEY=
 	local _PARTPATH=
@@ -529,10 +530,16 @@ FSspec_mountall() {
 		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
 		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
+		_FORMAT="$(FSspec_parse "${_CONFIG_ITEM}" 'format')" || return $?
 		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
 		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
 		_PARTPATH="${_PARTITION}"
+		# check format flag
+		if [ "${_FORMAT}" -ne 0 ];
+			echo "ERROR: Format flag for ${_PARTITION} should be 0 to mount, something is wrong!" 1>&2
+			return 1
+		fi
 		if [ "${_CRYPTTYPE}" != '' ]; then
 			# use /dev/mapper
 			_PARTPATH="/dev/mapper/${_CRYPTNAME}"

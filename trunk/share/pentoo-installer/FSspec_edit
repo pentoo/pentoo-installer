@@ -108,7 +108,6 @@ FSspec_getfilesystem() {
 	_FSOPTS="$(add_option_label "${_FSOPTS}" '-')" || return $?
 	_FSTYPE="$(show_dialog --default-item "${_CURRENT_FS}" --menu "Select a filesystem for ${_PARTITION}" \
 		0 0 6 ${_FSOPTS})" || return $?
-	show_dialog --yesno "${_FSTYPE} will be used for ${_PARTITION}. Is this OK?" 0 0 || return $?
 	# everything ok, write to STDOUT and return 0
 	echo "${_FSTYPE}"
 	return 0
