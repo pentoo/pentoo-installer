@@ -27,10 +27,10 @@
 # rant end ;)
 
 # location of other scripts to source
-readonly sharedir="$(dirname ${0})" || exit $?
+readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source common variables, functions and error handling
-source "${sharedir}"/common.sh || exit $?
+source "${SHAREDIR}"/common.sh || exit $?
 
 # Trap the killer signals so that we can kill child background processes
 trap 'killall unsquashfs;' SIGHUP
