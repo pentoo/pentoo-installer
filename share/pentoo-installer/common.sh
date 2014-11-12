@@ -225,7 +225,8 @@ mount_umountall() {
 				return 1
 			fi
 			# check for open cryptsetup
-			if cryptsetup status "${_NAME}" &>/dev/null; then
+			# only childs, not the target partition itself
+			if [ "${_NAME}" != "${_DISC}" ] && cryptsetup status "${_NAME}" &>/dev/null; then
 				_CRYPTCLOSE+=("${_NAME}")
 			fi
 		done <<<"${_UMOUNTLIST}"
