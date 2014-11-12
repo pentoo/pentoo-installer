@@ -151,12 +151,13 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptkey' "${CRYPTKEY}")" || exit $?
 		PARTPATH="/dev/mapper/${CRYPTNAME}"
 	fi
+	sync
 	# format partition
 	if [ "${FORMAT}" -eq 1 ]; then
 		case ${FILESYSTEM} in
 			xfs)      mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
-			jfs)      yes | mkfs.jfs ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
-			reiserfs) yes | mkreiserfs ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			jfs)      mkfs.jfs -q ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			reiserfs) mkreiserfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?r;;
 			ext2)     mke2fs "${PARTPATH}" -F >>"${LOG}" 2>&1 || exit $? ;;
 			ext3)     mke2fs -j ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
 			ext4)     mke2fs -t ext4 ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
