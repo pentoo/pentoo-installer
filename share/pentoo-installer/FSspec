@@ -536,7 +536,7 @@ FSspec_mountall() {
 		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
 		_PARTPATH="${_PARTITION}"
 		# check format flag
-		if [ "${_FORMAT}" -ne 0 ];
+		if [ "${_FORMAT}" -ne 0 ]; then
 			echo "ERROR: Format flag for ${_PARTITION} should be 0 to mount, something is wrong!" 1>&2
 			return 1
 		fi
