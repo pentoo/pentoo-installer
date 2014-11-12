@@ -441,43 +441,5 @@ show_dialog_rsync() {
 	return 0
 }
 
-# show_dialog_unsquashfs()
-# runs unsquashfs, displays output as gauge dialog
-# tee's log to "${LOG}"
-#
-# parameters (required):
-#  _SOURCE: source for unsquashfs
-#  _DESTINATION: destination for unsquashfs
-#  _MSG: message for gauge dialog
-#
-# returns $ERROR_CANCEL=64 on user cancel
-# anything else is a real error
-# reason: show_dialog() needs a way to exit "Cancel"
-#
-show_dialog_unsquashfs() {
-	# check input
-	check_num_args "${FUNCNAME}" 3 $# || return $?
-	local _SOURCE="${1}"
-	local _DESTINATION="${2}"
-	local _MSG="${3}"
-	# dump rest code:| tr '\r' '\n' \
-		# | tee "${LOG}" \
-	unsquashfs -f -d "${_DESTINATION}" "${_SOURCE}" 2>&1 \
-		| tee "${LOG}" \
-		| tr '\r' '\n' \
-		| sed --unbuffered -r 's/^.*[[:space:]]([0-9]+)%$/\1/'
-		# | awk -v MSG="${_MSG}" -f "${SHAREDIR}"/unsquashfs.awk
-		# | show_dialog --gauge "${_MSG}" 0 0
-		# | sed --unbuffered 's/\r/\n/g' 1>&2
-		exit 1
-	_RET_SUB=$?
-	if [ "${_RET_SUB}" -ne 0 ]; then
-		show_dialog --msgbox "Failed to unsquash '${_SOURCE}'. See the log output for more information" 0 0
-		return "${_RET_SUB}"
-	fi
-	return 0
-	
-}
-
 ## END: utility functions ##
 ############################
