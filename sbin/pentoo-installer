@@ -17,7 +17,8 @@
 readonly SHAREDIR="$(dirname ${0})/../share/pentoo-installer"
 
 # source common variables, functions and error handling
-source "${SHAREDIR}"/common.sh || exit $?
+# also get functions to save settings
+source "${SHAREDIR}"/save_settings.sh || exit $?
 
 #####################
 ## begin execution ##
