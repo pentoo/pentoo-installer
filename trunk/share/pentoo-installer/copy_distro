@@ -243,14 +243,14 @@ mknod -m600 "${DESTDIR}"/dev/console c 5 1
 mkdir -m755 "${DESTDIR}"/media/{cd,dvd,fl}
 
 chroot "${DESTDIR}" /bin/bash <<EOF
-rc-update del autoconfig default || exit $?
-rc-update del binary-driver-handler || exit $?
-rc-update del firmware boot || exit $?
-rc-update del fixinittab default || exit $?
-rc-update add keymaps default || exit $?
-rc-update add fcron default || exit $?
-mv /etc/inittab.old /etc/inittab || exit $?
-mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh || exit $?
+rc-update del autoconfig default # || exit $?
+rc-update del binary-driver-handler # || exit $?
+rc-update del firmware boot # || exit $?
+rc-update del fixinittab default # || exit $?
+rc-update add keymaps default # || exit $?
+rc-update add fcron default # || exit $?
+mv /etc/inittab.old /etc/inittab # || exit $?
+mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh # || exit $?
 EOF
 RET_SUB=$?
 [ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
