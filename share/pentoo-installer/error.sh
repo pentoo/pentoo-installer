@@ -32,9 +32,10 @@ error_exit() {
 }
 
 # Trap the killer signals so that we can exit with a good message.
-trap "error_exit 'Received signal SIGHUP'" SIGHUP
-trap "error_exit 'Received signal SIGINT'" SIGINT
-trap "error_exit 'Received signal SIGTERM'" SIGTERM
+# TODO: dump remove the basename below
+trap 'error_exit ''"$(basename $0)" Received signal SIGHUP''' SIGHUP
+trap 'error_exit ''"$(basename $0)" Received signal SIGINT''' SIGINT
+trap 'error_exit ''"$(basename $0)" Received signal SIGTERM''' SIGTERM
 
 # Alias the function so that it will print a message with the following format:
 # prog-name(@line#): message
