@@ -226,14 +226,11 @@ FSspec_list_haskeyvalue() {
 FSspec_listfind() {
 	# check input
 	check_num_args "${FUNCNAME}" 3 $# || return $?
-	local _CONFIG_LIST="${1}"
-	local _VARNAME="${2}"
-	local _VARVALUE="${3}"
 	local _ITEM=
 	local _TMPVALUE=
-	for _ITEM in ${_CONFIG_LIST}; do
-		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${_VARNAME}")" || return $?
-		if [ "${_TMPVALUE}" = "${_VARVALUE}" ]; then
+	for _ITEM in ${1}; do
+		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${2}")" || return $?
+		if [ "${_TMPVALUE}" = "${3}" ]; then
 			echo "${_ITEM}"
 			return 0
 		fi
@@ -311,30 +308,28 @@ FSspec_merge() {
 #  varname: an item of the FSspec format
 #
 FSspec_parse() {
-	# check input
-	check_num_args "${FUNCNAME}" 2 $# || return $?
-	local _ITEM="${1}"
-	local _VARNAME="${2}"
-	local _PARTITION=
-	local _MOUNTPOINT=
-	local _FILESYSTEM=
-	local _CRYPTTYPE=
-	local _FORMAT=
-	local _CRYPTNAME=
-	local _PARTUUID=
-	local _CRYPTKEY=
-	local _CHECKKEY=
-	local _COUNT=
 	# only for debugging, takes time
 	if [ "${DEBUG_CHECKS}" -eq 1 ]; then
-		echo dump1 $(($(date +%s%N)/1000000)) 1>&2
+		# check input
+		check_num_args "${FUNCNAME}" 2 $# || return $?
+		local _ITEM="${1}"
+		local _VARNAME="${2}"
+		local _PARTITION=
+		local _MOUNTPOINT=
+		local _FILESYSTEM=
+		local _CRYPTTYPE=
+		local _FORMAT=
+		local _CRYPTNAME=
+		local _PARTUUID=
+		local _CRYPTKEY=
+		local _CHECKKEY=
+		local _COUNT=
 		# check if input has correct number of separators
 		_COUNT="$(echo -n "${_ITEM//[^${CONFIG_SEPARATOR}]}" | wc -m)" || return false;
 		if [ "${_COUNT}" -ne 15 ]; then
 			echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
 			return 1
 		fi
-		echo dump2 $(($(date +%s%N)/1000000)) 1>&2
 		# parse the item keys
 		_COUNT=0
 		for _CHECKKEY in "${FSspec_DEFINITION[@]}"; do
@@ -344,7 +339,6 @@ FSspec_parse() {
 			fi
 			_COUNT="$((_COUNT+1))"
 		done
-		echo dump3 $(($(date +%s%N)/1000000)) 1>&2
 		# parse the item values
 		_PARTITION="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f2)" || return $?
 		_MOUNTPOINT="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f4)" || return $?
@@ -354,7 +348,6 @@ FSspec_parse() {
 		_CRYPTNAME="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f12)" || return $?
 		_PARTUUID="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f14)" || return $?
 		_CRYPTKEY="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f16)" || return $?
-		echo dump4 $(($(date +%s%N)/1000000)) 1>&2
 		# convert boolean values to 0 or 1
 		[ "${_FORMAT}" != '1' ] && _FORMAT=0
 		# validate
@@ -369,7 +362,6 @@ FSspec_parse() {
 			"${_CRYPTKEY}" \
 			1>/dev/null \
 			|| return $?
-		echo dump5 $(($(date +%s%N)/1000000)) 1>&2
 		# print value to STDOUT
 		case "${_VARNAME}" in
 			"partition")
@@ -395,25 +387,25 @@ FSspec_parse() {
 	# shorthand parsing without extra checks
 	else
 		# print value to STDOUT
-		case "${_VARNAME}" in
+		case "${2}" in
 			"partition")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f2 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f2 || return $? ;;
 			"mountpoint")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f4 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f4 || return $? ;;
 			"filesystem")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f6 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f6 || return $? ;;
 			"crypttype")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f8 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f8 || return $? ;;
 			"format")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f10 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f10 || return $? ;;
 			"cryptname")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f12 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f12 || return $? ;;
 			"partuuid")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f14 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f14 || return $? ;;
 			"cryptkey")
-				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f16 || return $? ;;
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f16 || return $? ;;
 			*)
-				echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
+				echo "Unexpected varname '${2}' in ${FUNCNAME}()" 1>&2
 				return 1 ;;
 		esac
 	fi
