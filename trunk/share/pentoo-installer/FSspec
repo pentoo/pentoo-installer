@@ -34,6 +34,9 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
 
+# DEBUG_CHECKS if '1', then time-consuming extra checks are done
+readonly DEBUG_CHECKS=0
+
 readonly FSspec_DEFINITION=(partition mountpoint filesystem crypttype format cryptname partuuid cryptkey) || exit $?
 readonly CONFIG_SEPARATOR=':' || exit $?
 
@@ -322,66 +325,98 @@ FSspec_parse() {
 	local _CRYPTKEY=
 	local _CHECKKEY=
 	local _COUNT=
-	# check if input has correct number of separators
-	_COUNT="$(echo -n "${_ITEM//[^${CONFIG_SEPARATOR}]}" | wc -m)" || return false;
-	if [ "${_COUNT}" -ne 15 ]; then
-		echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
-		return 1
-	fi
-	# parse the item keys
-	_COUNT=0
-	for _CHECKKEY in "${FSspec_DEFINITION[@]}"; do
-		if [ "$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f"$((_COUNT * 2 + 1))")" != "${_CHECKKEY}" ]; then
-			echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+	# only for debugging, takes time
+	if [ "${DEBUG_CHECKS}" -eq 1 ]; then
+		echo dump1 $(($(date +%s%N)/1000000)) 1>&2
+		# check if input has correct number of separators
+		_COUNT="$(echo -n "${_ITEM//[^${CONFIG_SEPARATOR}]}" | wc -m)" || return false;
+		if [ "${_COUNT}" -ne 15 ]; then
+			echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
 			return 1
 		fi
-		_COUNT="$((_COUNT+1))"
-	done
-	# parse the item values
-	_PARTITION="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f2)" || return $?
-	_MOUNTPOINT="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f4)" || return $?
-	_FILESYSTEM="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f6)" || return $?
-	_CRYPTTYPE="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f8)" || return $?
-	_FORMAT="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f10)" || return $?
-	_CRYPTNAME="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f12)" || return $?
-	_PARTUUID="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f14)" || return $?
-	_CRYPTKEY="$(echo ${_ITEM} | cut -d "${CONFIG_SEPARATOR}" -f16)" || return $?
-	# convert boolean values to 0 or 1
-	[ "${_FORMAT}" != '1' ] && _FORMAT=0
-	# validate
-	FSspec_createfull \
-		"${_PARTITION}" \
-		"${_MOUNTPOINT}" \
-		"${_FILESYSTEM}" \
-		"${_CRYPTTYPE}" \
-		"${_FORMAT}" \
-		"${_CRYPTNAME}" \
-		"${_PARTUUID}" \
-		"${_CRYPTKEY}" \
-		&>/dev/null \
-		|| return $?
-	# print value to STDOUT
-	case "${_VARNAME}" in
-		"partition")
-			echo "${_PARTITION}";;
-		"mountpoint")
-			echo "${_MOUNTPOINT}";;
-		"filesystem")
-			echo "${_FILESYSTEM}";;
-		"crypttype")
-			echo "${_CRYPTTYPE}";;
-		"format")
-			echo "${_FORMAT}";;
-		"cryptname")
-			echo "${_CRYPTNAME}";;
-		"partuuid")
-			echo "${_PARTUUID}";;
-		"cryptkey")
-			echo "${_CRYPTKEY}";;
-		*)
-			echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
-			return 1 ;;
-	esac
+		echo dump2 $(($(date +%s%N)/1000000)) 1>&2
+		# parse the item keys
+		_COUNT=0
+		for _CHECKKEY in "${FSspec_DEFINITION[@]}"; do
+			if [ "$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f"$((_COUNT * 2 + 1))")" != "${_CHECKKEY}" ]; then
+				echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+				return 1
+			fi
+			_COUNT="$((_COUNT+1))"
+		done
+		echo dump3 $(($(date +%s%N)/1000000)) 1>&2
+		# parse the item values
+		_PARTITION="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f2)" || return $?
+		_MOUNTPOINT="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f4)" || return $?
+		_FILESYSTEM="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f6)" || return $?
+		_CRYPTTYPE="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f8)" || return $?
+		_FORMAT="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f10)" || return $?
+		_CRYPTNAME="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f12)" || return $?
+		_PARTUUID="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f14)" || return $?
+		_CRYPTKEY="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f16)" || return $?
+		echo dump4 $(($(date +%s%N)/1000000)) 1>&2
+		# convert boolean values to 0 or 1
+		[ "${_FORMAT}" != '1' ] && _FORMAT=0
+		# validate
+		FSspec_createfull \
+			"${_PARTITION}" \
+			"${_MOUNTPOINT}" \
+			"${_FILESYSTEM}" \
+			"${_CRYPTTYPE}" \
+			"${_FORMAT}" \
+			"${_CRYPTNAME}" \
+			"${_PARTUUID}" \
+			"${_CRYPTKEY}" \
+			1>/dev/null \
+			|| return $?
+		echo dump5 $(($(date +%s%N)/1000000)) 1>&2
+		# print value to STDOUT
+		case "${_VARNAME}" in
+			"partition")
+				echo "${_PARTITION}";;
+			"mountpoint")
+				echo "${_MOUNTPOINT}";;
+			"filesystem")
+				echo "${_FILESYSTEM}";;
+			"crypttype")
+				echo "${_CRYPTTYPE}";;
+			"format")
+				echo "${_FORMAT}";;
+			"cryptname")
+				echo "${_CRYPTNAME}";;
+			"partuuid")
+				echo "${_PARTUUID}";;
+			"cryptkey")
+				echo "${_CRYPTKEY}";;
+			*)
+				echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
+				return 1 ;;
+		esac
+	# shorthand parsing without extra checks
+	else
+		# print value to STDOUT
+		case "${_VARNAME}" in
+			"partition")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f2 || return $? ;;
+			"mountpoint")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f4 || return $? ;;
+			"filesystem")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f6 || return $? ;;
+			"crypttype")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f8 || return $? ;;
+			"format")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f10 || return $? ;;
+			"cryptname")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f12 || return $? ;;
+			"partuuid")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f14 || return $? ;;
+			"cryptkey")
+				echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f16 || return $? ;;
+			*)
+				echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
+				return 1 ;;
+		esac
+	fi
 	return 0
 }
 
@@ -515,6 +550,7 @@ FSspec_mountall() {
 	local _CRYPTTYPE=
 	local _FORMAT=
 	local _CRYPTNAME=
+	local _PARTUUID=
 	local _CRYPTKEY=
 	local _PARTPATH=
 	local _UUID=
@@ -533,11 +569,17 @@ FSspec_mountall() {
 		_FORMAT="$(FSspec_parse "${_CONFIG_ITEM}" 'format')" || return $?
 		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
+		_PARTUUID="$(FSspec_parse "${_CONFIG_ITEM}" 'partuuid')" || return $?
 		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
 		_PARTPATH="${_PARTITION}"
 		# check format flag
 		if [ "${_FORMAT}" -ne 0 ]; then
 			echo "ERROR: Format flag for ${_PARTITION} should be 0 to mount, something is wrong!" 1>&2
+			return 1
+		fi
+		# check partuuid
+		if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
+			echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
 			return 1
 		fi
 		if [ "${_CRYPTTYPE}" != '' ]; then
