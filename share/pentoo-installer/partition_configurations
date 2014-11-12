@@ -85,46 +85,73 @@ while true; do
 	# ### menu keys will be the partitions, like '/dev/sda1'
 	# ###
 	# loop input/config items, create formatted/padded strings for the menu
-	TMP_ITEM=0
-	while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
-		# construct formatted string
-		MENU_STRING=
+	if [ "${#PARTITIONS[@]}" -gt 0 ]; then
 
+		# loop partitions and init menu items array
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			# add to menu items
+			MENU_ITEMS+=("${PARTITIONS[$TMP_ITEM]}" "") || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
+		# construct formatted string
+		# padd all strings
 		# mountpoint
-		MENU_STRING="${MENU_STRING}mountpoint="
 		MAXLEN=$(partition_getlistmaxlength "$(echo ${MOUNTPOINTS[@]})") || exit $?
-		TMPSTRING="${MOUNTPOINTS[$TMP_ITEM]}" || exit $?
-		# append spaces so all items have same length + 4 for padding
-		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
-		MENU_STRING="${MENU_STRING}${TMPSTRING}"
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${MOUNTPOINTS[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="mountpoint=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
 		# filesystem
-		MENU_STRING="${MENU_STRING}filesystem="
 		MAXLEN=$(partition_getlistmaxlength "$(echo ${FILESYSTEMS[@]})") || exit $?
-		TMPSTRING="${FILESYSTEMS[$TMP_ITEM]}" || exit $?
-		# append spaces so all items have same length + 4 for padding
-		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
-		MENU_STRING="${MENU_STRING}${TMPSTRING}"
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${FILESYSTEMS[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="filesystem=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
 		# crypttypes
-		MENU_STRING="${MENU_STRING}encryption="
 		MAXLEN=$(partition_getlistmaxlength "$(echo ${CRYPTTYPES[@]})") || exit $?
-		TMPSTRING="${CRYPTTYPES[$TMP_ITEM]}" || exit $?
-		# append spaces so all items have same length + 4 for padding
-		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
-		MENU_STRING="${MENU_STRING}${TMPSTRING}"
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${CRYPTTYPES[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="encryption=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
 		# format
 		MENU_STRING="${MENU_STRING}format="
 		MAXLEN=$(partition_getlistmaxlength "$(echo ${FORMATS[@]})") || exit $?
-		TMPSTRING="${FORMATS[$TMP_ITEM]}" || exit $?
-		# append spaces so all items have same length + 4 for padding
-		TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
-		MENU_STRING="${MENU_STRING}${TMPSTRING}"
-		# partition
-		TMPSTRING="${PARTITIONS[$TMP_ITEM]}" || exit $?
-		# add to menu items
-		MENU_ITEMS+=("${TMPSTRING}" "${MENU_STRING}") || exit $?
-		# increment for next partition
-		TMP_ITEM=$((TMP_ITEM+1))
-	done
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${FORMATS[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="format=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
+	fi
 	# ###
 	# ### END: UGLY CODE BLOCK ###
 	# Add other options: ADD, DONE
