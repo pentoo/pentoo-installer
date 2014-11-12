@@ -13,10 +13,6 @@ readonly ERROR_CANCEL=64
 readonly ISNUMBER='^[0-9]+$'
 # use the first VT not dedicated to a running console
 readonly LOG="/dev/tty8"
-# tmp file used to backup settings of main menu
-readonly SETTINGS_FILE='/tmp/.pentoo-installer'
-# non-tmp file used to backup settings of main menu
-readonly SETTINGS_FILE_PERMANENT='~/.pentoo-installer'
 readonly TITLE="Pentoo Installation"
 ## END: define constants ##
 ############################
@@ -57,8 +53,7 @@ add_option_label() {
 # returns 0 when an error was given
 # otherwise returns 0
 #
-# parameters:
-# required: 3
+# parameters (required):
 #  _FUNCNAME: name of calling function/script
 #  _SELECTION: which menu selection caused the error
 #  _RETSUB: the return of the sub-function/script
@@ -215,7 +210,7 @@ mount_umountall() {
 	# do a first run, swapoff, check mountpoints and collect cryptsetup stuff
 	for _DISC in ${_DISCLIST}; do
 		_UMOUNTLIST="$(lsblk -lnp -o NAME,FSTYPE,MOUNTPOINT "${_DISC}")" || return $?
-		while read _LINE; do
+		while read -r _LINE; do
 			_NAME=$(echo ${_LINE} | awk '{print $1}')
 			# FSTYPE is only helpful for luks devices, not swap
 			_FSTYPE=$(echo "${_LINE}" | awk '{print $2}')
@@ -412,117 +407,76 @@ show_dialog() {
 	return 0
 }
 
-# settings_check()
-# checks for valid settings file
-#
-# parameters (none)
-#
-# returns 0 when a valid settings file is present
-#
-settings_check(){
-	# check input
-	check_num_args "${FUNCNAME}" 0 $# || return $?
-	# look for permanent file
-	if [ -f "${SETTINGS_FILE_PERMANENT}" ]; then
-		# use only if tmp file not present
-		if [ ! -f "${SETTINGS_FILE}" ]; then
-			cp "${SETTINGS_FILE_PERMANENT}" "${SETTINGS_FILE}" || return $?
-		fi
-		# delete permantent file
-		shred -u "${SETTINGS_FILE_PERMANENT}" || return $?
-	fi
-	if [ -f "${SETTINGS_FILE}" ]; then
-		if [ "$(cat "${SETTINGS_FILE}" | wc -l)" -eq 2 ]; then
-			return 0
-		fi
-		# shred wrong files
-		shred -u "${SETTINGS_FILE}" || return $?
-	fi
-	return 1
-}
-
-# settings_checkmount()
-# checks if all partitions from a settings file can be mounted
+# show_dialog_rsync()
+# runs rsync, displays output as gauge dialog
+# tee's log to "${LOG}"
 #
 # parameters (required):
-#  _MOUNT_SELECTION: value for MAXSELECTION after which partitions should be mounted
-#   (meaning past "Prepare harddrive")
+#  _OPTIONS: options for rsync
+#  _SOURCE: source for rsync
+#  _DESTINATION: destination for rsync
+#  _MSG: message for gauge dialog
 #
-# returns 0 if everything looks ok
-#
-settings_checkmount(){
-	# check input
-	check_num_args "${FUNCNAME}" 1 $# || return $?
-	local _MOUNT_SELECTION="${1}"
-	local _SELECTION=
-	local _MAXSELECTION=
-	local _CONFIG_LIST=
-	# check if partitions should be mounted
-	# read lines of file
-	_SELECTION="$(sed -n 1p "${SETTINGS_FILE}")" || return $?
-	_MAXSELECTION="$(sed -n 2p "${SETTINGS_FILE}")" || return $?
-	_CONFIG_LIST="$(sed -n 3p "${SETTINGS_FILE}")" || return $?
-	# check integers
-	[[ "${_SELECTION}" =~ ^[1-9][0-9]*$ ]] || return 1
-	[[ "${_MAXSELECTION}" =~ ^[1-9][0-9]*$ ]] || return 1
-	# check if things should be mounted
-	if [ "${_MAXSELECTION}" -gt "${_MOUNT_SELECTION}" ]; then
-		# Try to unmount everything
-		"${SHAREDIR}"/FSspec umountall "${_CONFIG_LIST}" || return $?
-		# mount everything, including cryptsetup
-		"${SHAREDIR}"/FSspec mountall "${_CONFIG_LIST}" || return $?
-	fi
-	# looking good
-	return 0
-}
-
-# settings_read()
-# reads values from a settings file and prints to STDOUT
-#
-# parameters (required):
-#  _INDEX: line number to read
-#
-settings_read(){
-	# check input
-	check_num_args "${FUNCNAME}" 1 $# || return $?
-	sed -n "${1}"p "${SETTINGS_FILE}" || return $?
-	return 0
-}
-
-# settings_write()
-# writes config of main menu to a temp file
-#
-# parameters (vars from main menu):
-#  SELECTION
-#  MAXSELECTION
-#  CONFIG_LIST
-#
-# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
 # anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
 #
-settings_write(){
+show_dialog_rsync() {
+	# check input
+	check_num_args "${FUNCNAME}" 4 $# || return $?
+	local _OPTIONS="${1}"
+	local _SOURCE="${2}"
+	local _DESTINATION="${3}"
+	local _MSG="${4}"
+	rsync ${_OPTIONS} ${_SOURCE} ${_DESTINATION} 2>&1 \
+		| tee "${LOG}" \
+		| awk -f "${SHAREDIR}"/rsync.awk \
+		| sed --unbuffered 's/\([0-9]*\).*/\1/' \
+		| show_dialog --gauge "${_MSG}" 0 0
+	_RET_SUB=$?
+	if [ "${_RET_SUB}" -ne 0 ]; then
+		show_dialog --msgbox "Failed to rsync '${_DESTINATION}'. See the log output for more information" 0 0
+		return "${_RET_SUB}"
+	fi
+	return 0
+}
+
+# show_dialog_unsquashfs()
+# runs unsquashfs, displays output as gauge dialog
+# tee's log to "${LOG}"
+#
+# parameters (required):
+#  _SOURCE: source for unsquashfs
+#  _DESTINATION: destination for unsquashfs
+#  _MSG: message for gauge dialog
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+show_dialog_unsquashfs() {
 	# check input
 	check_num_args "${FUNCNAME}" 3 $# || return $?
-	echo "${1}">"${SETTINGS_FILE}" || return $?
-	echo "${2}">>"${SETTINGS_FILE}" || return $?
-	echo -n "${3}">>"${SETTINGS_FILE}" || return $?
-	return 0
-}
-
-# settings_shred()
-# shreds config files
-#
-# parameters (none)
-#
-# returns 0 on success
-#
-settings_shred(){
-	# check input
-	check_num_args "${FUNCNAME}" 0 $# || return $?
-	if [ -e "${SETTINGS_FILE}" ]; then
-		shred -u "${SETTINGS_FILE}" || return $?
+	local _SOURCE="${1}"
+	local _DESTINATION="${2}"
+	local _MSG="${3}"
+	# dump rest code:| tr '\r' '\n' \
+		# | tee "${LOG}" \
+	unsquashfs -f -d "${_DESTINATION}" "${_SOURCE}" 2>&1 \
+		| tee "${LOG}" \
+		| tr '\r' '\n' \
+		| sed --unbuffered -r 's/^.*[[:space:]]([0-9]+)%$/\1/'
+		# | awk -v MSG="${_MSG}" -f "${SHAREDIR}"/unsquashfs.awk
+		# | show_dialog --gauge "${_MSG}" 0 0
+		# | sed --unbuffered 's/\r/\n/g' 1>&2
+		exit 1
+	_RET_SUB=$?
+	if [ "${_RET_SUB}" -ne 0 ]; then
+		show_dialog --msgbox "Failed to unsquash '${_SOURCE}'. See the log output for more information" 0 0
+		return "${_RET_SUB}"
 	fi
 	return 0
+	
 }
 
 ## END: utility functions ##
