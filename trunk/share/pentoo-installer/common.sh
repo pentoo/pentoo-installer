@@ -410,6 +410,7 @@ show_dialog() {
 # show_dialog_rsync()
 # runs rsync, displays output as gauge dialog
 # tee's log to "${LOG}"
+# options to rsync should include '--progress' or the gauge will not move ;)
 #
 # parameters (required):
 #  _OPTIONS: options for rsync

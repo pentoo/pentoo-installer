@@ -112,10 +112,14 @@ while true; do
 			# 2. set up user
 			# 3. set password for user
 			# 4. copy root profile
+			# run rsync with nice dialog
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
 				&& chroot ${DESTDIR} useradd -m -G users,wheel,audio,cdrom,video,cdrw,usb,plugdev,wireshark,kismet,android ${USERNAME} \
 				&& setpassword "${USERNAME}" \
-				&& rsync -r --exclude=.svn --exclude=.subversion "${DESTDIR}"/root/.[!.]* "${DESTDIR}"/home/"${USERNAME}"/ >>"${LOG}" \
+				&& show_dialog_rsync '-r --progress --exclude=.svn --exclude=.subversion' \
+					"${DESTDIR}"'/root/.[!.]*' \
+					"${DESTDIR}/home/${USERNAME}/" \
+					"Syncing ${DESTDIR}/home/${USERNAME}/ ..." \
 				&& chroot "${DESTDIR}" chown -R "${USERNAME}":"${USERNAME}" "/home/${USERNAME}" >>"${LOG}"
 			RETSUB=$?
 			;;
