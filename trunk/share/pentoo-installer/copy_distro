@@ -209,10 +209,13 @@ MODULE=
 
 "${SHAREDIR}"/gauge_unsquashfs '/mnt/cdrom/image.squashfs' "${DESTDIR}" "Uncompressing base system" || exit $?
 
-for MODULE in $(ls /mnt/cdrom/modules/*.lzm); do
+# squashfs files created by flushchanges are ignored - they may contain whiteout files!
+# filenames used by flushchanged (old/new syntax): z_changes-* zz_changes-*
+for MODULE in $(ls -1 --color=never /mnt/cdrom/modules/*.lzm | grep -Ev '/z?z_changes-[^/]+$'); do
 	"${SHAREDIR}"/gauge_unsquashfs "${MODULE}" "${DESTDIR}" "Uncompressing ${MODULE%.lzm}" || exit $?
 done
 
+# TODO: add option not to rsync anything, plain LiveCD files
 show_dialog --defaultno --yesno "Would you like to sync unsaved changes to your new install?\nAll modules are automatically synced, but saying yes to this question\nwill also sync changes made during this session which have not been saved\nwith flushchanges or makemo.\nSay no, and only a small set of essentials will be synced;\nsay yes, and everything will be synced, but it may take much longer." 0 0
 RET_SUB=$?
 

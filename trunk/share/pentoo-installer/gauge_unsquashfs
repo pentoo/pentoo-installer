@@ -61,7 +61,11 @@ echo 1 > /tmp/.unsquashfs-retcode
 (
 	echo "unsquashing $(basename $1) ..." > /tmp/unsquashfs.log; \
 	echo >> /tmp/unsquashfs.log; \
-	unsquashfs -f -d "${DESTINATION}" "${SOURCE}" >>/tmp/unsquashfs.log 2>&1
+	# unsquash and output to file used for gauge dialog
+	# also write filtered output to $LOG
+	unsquashfs -f -d "${DESTINATION}" "${SOURCE}" 2>&1 \
+		| tee -a /tmp/unsquashfs.log \
+		| tr '\r' '\n' | grep -Ev '[[:blank:]][0-9]+/[0-9]+[[:blank:]]+[0-9]+\%$' >>"${LOG}"
 	echo $? > /tmp/.unsquashfs-retcode
 	echo >> /tmp/unsquashfs.log
 	rm -f /tmp/setup-unsquashfs-running
