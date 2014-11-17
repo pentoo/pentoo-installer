@@ -34,8 +34,8 @@ CONFIG_LIST_NEW=
 while true; do
 	# define menu items
 	MENU_ITEMS=("0" "Auto-Prepare (erases the ENTIRE hard drive)" \
-		"1" "Manually Partition Hard Drives" \
-		"2" "Define Mount Points"
+		"1" "Manually partition hard drives" \
+		"2" "Fine-tune partition setup (add, edit, delete, encryption)"
 		)
 	# check if root partition is defined
 	if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
