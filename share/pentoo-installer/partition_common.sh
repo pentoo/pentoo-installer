@@ -186,10 +186,10 @@ partition_selectdisk() {
 	fi
 	# sanity check
 	# TODO remove for public use
-	if [ "${_DISC}" = "/dev/sda" ] || [ "${_DISC}" = "/dev/sdb" ]; then
-		echo "EXITING FOR SAFETY, NOT TESTING ON /dev/sd[ab]!" 1>&2
-		exit 1
-	fi
+	# if [ "${_DISC}" = "/dev/sda" ] || [ "${_DISC}" = "/dev/sdb" ]; then
+		# echo "EXITING FOR SAFETY, NOT TESTING ON /dev/sd[ab]!" 1>&2
+		# exit 1
+	# fi
 	# everything ok,_DISC_LIST print result to STDOUT
 	echo "${_DISC}"
 	return 0

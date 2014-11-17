@@ -29,23 +29,23 @@ source "${SHAREDIR}"/partition_common.sh || exit $?
 ## START: dialog functions/definitions ##
 
 # get_grub_map()
-# prints grub device map to /tmp/.dev.map
+# prints grub device map to /tmp/dev.map
 #
 # parameters (none)
 #
 get_grub_map() {
 	# check input
 	check_num_args "${FUNCNAME}" 0 $# || return $?
-    [ -e /tmp/.dev.map ] && rm /tmp/.dev.map
+    [ -e /tmp/dev.map ] && rm /tmp/dev.map
     show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
-    ${DESTDIR}/sbin/grub --no-floppy --device-map /tmp/.dev.map >/tmp/grub.log 2>&1 <<EOF
+    ${DESTDIR}/sbin/grub --no-floppy --device-map /tmp/dev.map >/tmp/grub.log 2>&1 <<EOF
 quit
 EOF
 }
 
 # mapdev()
 # maps a device to a grub device
-# uses /tmp/.dev.map from get_grub_map()
+# uses /tmp/dev.map from get_grub_map()
 #
 # parameters (required)
 #  _SEARCHDEV: The partition
@@ -58,41 +58,37 @@ mapdev() {
 	local _SEARCHDEV="$1"
     local _PARTITION_FLAG=0
     local _DEVICE_FOUND=0
-	local _ALLDEVS=
+	# local _ALLDEVS=
 	local _TMPDEV=
 	local _LINUXDEVICE=
 	local _PNUM=
 	local _GRUBDEVICE=
 	local _GRUBDEVICE_STRINGLEN=
-    _ALLDEVS="$(cat /tmp/dev.map | grep -v fd | sed 's/ *\t/ /' | sed ':a;$!N;$!ba;s/\n/ /g')" || return $?
-    _LINUXDEVICE=$(echo "${_SEARCHDEV}" | cut -b1-8) || return $?
-    if [ "$(echo "${_SEARCHDEV}" | egrep '[0-9]$')" ]; then
-        # /dev/hdXY
-        _PNUM=$(echo "${_SEARCHDEV}" | cut -b9-) || return $?
-        _PNUM=$((${_PNUM}-1)) || return $?
-        _PARTITION_FLAG=1
-    fi
-    for  _TMPDEV in ${_ALLDEVS}; do
-		if [ "(" = $(echo ${_TMPDEV} | cut -b1) ]; then
-			_GRUBDEVICE="${_TMPDEV}"
-        elif [ "${_TMPDEV}" = "${_LINUXDEVICE}" ]; then
-			_DEVICE_FOUND=1
-			break
-       fi
-    done
-    if [ "${_DEVICE_FOUND}" = "1" ]; then
-        if [ "${_PARTITION_FLAG}" = "0" ]; then
-            echo "${_GRUBDEVICE}"
-        else
-            _GRUBDEVICE_STRINGLEN=${#_GRUBDEVICE}
-            _GRUBDEVICE_STRINGLEN=$((${_GRUBDEVICE_STRINGLEN} - 1)) || return $?
-            _GRUBDEVICE=$(echo ${_GRUBDEVICE} | cut -b1-${_GRUBDEVICE_STRINGLEN}) || return $?
-            echo "${_GRUBDEVICE},${_PNUM})"
-        fi
-    else
-        echo "DEVICE '${_SEARCHDEV}' NOT FOUND" 1>&2
+	# floppy (fd) should not be in the map
+    # _ALLDEVS="$(cat /tmp/dev.map | grep -v fd | sed 's/ *\t/ /' | sed ':a;$!N;$!ba;s/\n/ /g')" || return $?
+    # _ALLDEVS="$(cat /tmp/dev.map | sed 's/ *\t/ /' | tr '\n' ' ')" || return $?
+	# get parent (/dev/sda)
+	_LINUXDEVICE="$(lsblk -dnp -o PKNAME "${_SEARCHDEV}")" || return $?
+	# check type='disk'
+	if [ "$(lsblk -dnp -o TYPE "${_LINUXDEVICE}")" != 'disk' ]; then
+		echo "ERROR: Expected type=disk!" 1>&2
 		return 1
-    fi
+	fi
+	# /dev/sdaXY
+	_PNUM="${_SEARCHDEV#"${_LINUXDEVICE}"}"
+	# -1 (grub starts counting at 1)
+	_PNUM=$((${_PNUM}-1)) || return $?
+	_GRUBDEVICE="$(sed -r -e 's/\(\)//g' -e 's/[[:blank:]]+/ /g' /tmp/dev.map | grep " ${_LINUXDEVICE}$" | cut -d' ' -f1)" || return $?
+    if [ -n "${_GRUBDEVICE}" ] && [ -n "${_PNUM}" ]; then
+		echo -n '('
+		echo -n "${_GRUBDEVICE}"
+		echo -n ','
+		echo -n "${_PNUM}"
+		echo -n ')'
+	else
+		echo "ERROR: GRUB device not found properly" 1>&2
+		return 1
+	fi
 	return 0
 }
 
@@ -127,37 +123,29 @@ PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $
 # root partition encrypted?
 CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
 
-GRUBDEV=$(mapdev ${PART_ROOT})
-GRUBDEV_FOUND=$?
-ROOTPART="${PART_ROOT}"
 # look for a separately-mounted /boot partition
-BOOTDEV=
-BOOTDEV=$(mount | grep ${DESTDIR}/boot | cut -d' ' -f 1)
-SUBDIR=
-KERNEL_PARAMS=
+if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
+	# get boot partition
+	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
+	PART_BOOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+	GRUBDEV="$(mapdev ${PART_BOOT})" || exit $?
+	SUBDIR=
+else
+	GRUBDEV="$(mapdev ${PART_ROOT})" || exit $?
+	SUBDIR="/boot"
+fi
 
+KERNEL_PARAMS=
 # get kernel version
 KERNVER=$(getkernelversion) || exit $?
 # get kernel params
-KERNEL_PARAMS="$(getkernelparams "${ROOTPART}" "${BOOTDEV}" "${CRYPTTYPE}")" || exit $?
+KERNEL_PARAMS="$(getkernelparams "${PART_ROOT}" "${PART_BOOT}" "${CRYPTTYPE}")" || exit $?
 
-if [ "${GRUBDEV}" != "" -o "${BOOTDEV}" != "" ]; then
-	if [ "${BOOTDEV}" != "" ]; then
-		GRUBDEV=$(mapdev ${BOOTDEV})
-		GRUBDEV_FOUND=$?
-	else
-		SUBDIR="/boot"
-	fi
-	# keep the file from being completely bogus
-	if [ "${GRUBDEV_FOUND}" -ne 0 ]; then
-		show_dialog --msgbox "Your root boot device could not be autodetected by setup.  Ensure you adjust the 'root (hd0,0)' line in your GRUB config accordingly." 0 0
-		GRUBDEV="(hd0,0)"
-	fi
-	# remove default entries
-	sed -i 's/^#splashimage/splashimage/' ${GRUBMENU} || exit $?
-	sed -i '/^#/d' ${GRUBMENU} || exit $?
-
-	cat >>${GRUBMENU} <<EOF
+# remove default entries
+sed -i 's/^#splashimage/splashimage/' ${GRUBMENU} || exit $?
+sed -i '/^#/d' ${GRUBMENU} || exit $?
+# write new grubmenu
+cat >>${GRUBMENU} <<EOF
 
 # (0) Pentoo
 title  Pentoo
@@ -171,8 +159,32 @@ initrd ${SUBDIR}/initramfs-genkernel${KERNVER}
 #makeactive
 #chainloader +1
 EOF
-	RET_SUB=$?
-	[ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
+RET_SUB=$?
+[ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
+
+
+
+####
+
+GRUBDEV=$(mapdev ${PART_ROOT})
+GRUBDEV_FOUND=$?
+ROOTPART="${PART_ROOT}"
+# look for a separately-mounted /boot partition
+BOOTDEV=
+BOOTDEV=$(mount | grep ${DESTDIR}/boot | cut -d' ' -f 1)
+
+if [ "${GRUBDEV}" != "" -o "${BOOTDEV}" != "" ]; then
+	if [ "${BOOTDEV}" != "" ]; then
+		GRUBDEV=$(mapdev ${BOOTDEV})
+		GRUBDEV_FOUND=$?
+	else
+		SUBDIR="/boot"
+	fi
+	# keep the file from being completely bogus
+	if [ "${GRUBDEV_FOUND}" -ne 0 ]; then
+		show_dialog --msgbox "Your root boot device could not be autodetected by setup.  Ensure you adjust the 'root (hd0,0)' line in your GRUB config accordingly." 0 0
+		GRUBDEV="(hd0,0)"
+	fi
 fi
 
 show_dialog --msgbox "Before installing GRUB, you must review the configuration file.  You will now be put into the editor.  After you save your changes and exit the editor, you can install GRUB." 0 0
