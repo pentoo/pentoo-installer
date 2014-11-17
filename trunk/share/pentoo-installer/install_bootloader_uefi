@@ -45,12 +45,6 @@ fi
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
-# get root partition
-CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
-PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
-# root partition encrypted?
-CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
-
 # get kernel version
 KERNVER=$(getkernelversion) || exit $?
 
@@ -58,6 +52,23 @@ KERNVER=$(getkernelversion) || exit $?
 KERNELPATH="/boot/kernel-genkernel${KERNVER}"
 # initrdpath: path to initrd
 INITRDPATH="/boot/initramfs-genkernel${KERNVER}"
+
+# get root partition
+CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
+ROOT_PART="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+# root partition encrypted?
+ROOT_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
+
+# check for separate /boot partition
+BOOT_PART=
+if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
+	# get boot partition
+	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
+	BOOT_PART="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+	# fix paths
+	KERNELPATH="${KERNELPATH#/boot}"
+	INITRDPATH="${INITRDPATH#/boot}"
+fi
 
 # kernel path with \\ instead of /
 KERNELPATH=${KERNELPATH//\//\\\\}
@@ -67,11 +78,12 @@ INITRDPATH=${INITRDPATH//\//\\}
 # get kernel params
 KERNEL_PARAMS="$(getkernelparams "${ROOTPART}" "${BOOTDEV}" "${CRYPTTYPE}")" || exit $?
 
-kernelpart=
-# kernelpart: kernel partition, ex. /dev/sda2
-kernelpart="$(show_dialog --menu "Select the partition with the kernel (/boot)" 21 50 13 NONE - ${PARTS})" || exit $?
-PARTS="$(echo ${PARTS} | sed -e "s#${kernelpart}\ _##g")"
-[ "${kernelpart}" = "NONE" ] && return 1
+# kernelpart=
+# # kernelpart: kernel partition, ex. /dev/sda2
+# kernelpart="$(show_dialog --menu "Select the partition with the kernel (/boot)" 21 50 13 NONE - ${PARTS})" || exit $?
+# PARTS="$(echo ${PARTS} | sed -e "s#${kernelpart}\ _##g")"
+# [ "${kernelpart}" = "NONE" ] && return 1
+
 # kernelpart as disk and trailing part-number
 local kernelpartnu=$(expr match "${kernelpart}" '.*\([1-9][0-9]*\)')
 local kernelpartdisk=${kernelpart:0: -${#kernelpartnu}}
