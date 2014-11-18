@@ -43,7 +43,7 @@ settings_check(){
 			return 0
 		fi
 		# shred wrong files
-		shred -u "${SETTINGS_FILE}" || return $?
+		# shred -u "${SETTINGS_FILE}" || return $?
 	fi
 	return 1
 }
