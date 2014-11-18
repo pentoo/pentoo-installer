@@ -57,16 +57,16 @@ if settings_check; then
 		# extra check, pass menu-index of 'Prepare hard drive'
 		if ! settings_checkmount 1; then
 			show_dialog --msgbox "ERROR: Unable to load old settings." 0 0
-			settings_shred || exit $?
+			# settings_shred || exit $?
 		# load 'controller' vars'
 		else
 			SELECTION="$(settings_read 1)" || exit $?
 			MAXSELECTION="$(settings_read 2)" || exit $?
 			CONFIG_LIST="$(settings_read 3)" || exit $?
 		fi
-	else
+	# else
 		# remove old files
-		settings_shred || exit $?
+		# settings_shred || exit $?
 	fi
 fi
 
