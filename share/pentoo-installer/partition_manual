@@ -56,6 +56,7 @@ partition_setpartitionlabel() {
 		show_dialog --defaultno --yesno "${_DISC} will be COMPLETELY ERASED!  Are you absolutely sure?" 0 0 \
 			|| return $?
 		parted -s "${_DISC}" mklabel "${_PT}" || return $?
+		sync
 	fi
 	# print partition editor to STDOUT
 	echo "${_PARTITIONEDITOR}"
@@ -81,9 +82,11 @@ mount_umountall "${DISC}" || exit $?
 PARTITIONEDITOR=$(partition_setpartitionlabel "${DISC}") || exit $?
 show_dialog --msgbox "Now you'll be put into the ${PARTITIONEDITOR} program where you can partition your hard drive.\nYou should make a swap partition and as many data partitions as you will need.\nNOTE:\n${PARTITIONEDITOR} may tell you to reboot after creating partitions.\nIf you need to reboot, just re-enter this install program, skip this step and go on to the next step." 0 0
 # switch STDOUT and STDERR
+sync
 # Partition disc
 "${PARTITIONEDITOR}" "${DISC}" 3>"${LOG}" 1>&2 2>&3
 RET=$?
+sync
 if [ "${RET}" -ne 0 ]; then
 	echo "Partition editor ${PARTITIONEDITOR} failed" 1>&2
 	exit "${RET}"

@@ -172,6 +172,7 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 		esac	
 		FORMAT='0'
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'format' "${FORMAT}")" || exit $?
+		sync
 	fi
 	# mount actions
 	if [ "${FILESYSTEM}" != 'swap' ]; then
