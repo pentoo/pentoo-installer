@@ -21,75 +21,78 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 # source bootloader commons
 source "${SHAREDIR}"/install_bootloader_common.sh || exit $?
 
-# source partitioning commons
-# needed for partition_finddisks(), ...
-source "${SHAREDIR}"/partition_common.sh || exit $?
-
 #########################################
 ## START: dialog functions/definitions ##
 
 # get_grub_map()
-# prints grub device map to /tmp/dev.map
+# prints grub device map to "${DESTDIR}/boot/grub/device.map"
 #
 # parameters (none)
 #
 get_grub_map() {
 	# check input
 	check_num_args "${FUNCNAME}" 0 $# || return $?
-    [ -e /tmp/dev.map ] && rm /tmp/dev.map
+    [ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
     show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
-    ${DESTDIR}/sbin/grub --no-floppy --device-map /tmp/dev.map >/tmp/grub.log 2>&1 <<EOF
+    ${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
 quit
 EOF
 }
 
+# get_parent_disk()
+# Gets the parent disk of a partition, prints to STDOUT
+#
+# returns 0 on success
+#
+# parameters (required):
+#  _PARTITION: the partition
+#
+get_parent_disk() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _PARENT=
+	# get parent (/dev/sda)
+	_PARENT="$(lsblk -dnp -o PKNAME "${1}")" || return $?
+	# check type='disk'
+	if [ "$(lsblk -dnp -o TYPE "${_PARENT}")" != 'disk' ]; then
+		echo "ERROR: Expected type=disk!" 1>&2
+		return 1
+	fi
+	echo "${_PARENT}"
+	return 0
+}
+
 # mapdev()
-# maps a device to a grub device
-# uses /tmp/dev.map from get_grub_map()
+# maps a partition to a grub device
+# uses "${DESTDIR}/boot/grub/device.map" from get_grub_map()
 #
 # parameters (required)
-#  _SEARCHDEV: The partition
+#  _PARTITION: The partition
 #
 # TODO: rewrite this, or someone explain it ;)
+# done ;)
 #
 mapdev() {
 	# check input
 	check_num_args "${FUNCNAME}" 1 $# || return $?
-	local _SEARCHDEV="$1"
-    local _PARTITION_FLAG=0
-    local _DEVICE_FOUND=0
-	# local _ALLDEVS=
-	local _TMPDEV=
-	local _LINUXDEVICE=
+	local _PARTITION="$1"
+	local _DISK=
 	local _PNUM=
-	local _GRUBDEVICE=
-	local _GRUBDEVICE_STRINGLEN=
-	# floppy (fd) should not be in the map
-    # _ALLDEVS="$(cat /tmp/dev.map | grep -v fd | sed 's/ *\t/ /' | sed ':a;$!N;$!ba;s/\n/ /g')" || return $?
-    # _ALLDEVS="$(cat /tmp/dev.map | sed 's/ *\t/ /' | tr '\n' ' ')" || return $?
+	local _DISK_GRUB=
 	# get parent (/dev/sda)
-	_LINUXDEVICE="$(lsblk -dnp -o PKNAME "${_SEARCHDEV}")" || return $?
-	# check type='disk'
-	if [ "$(lsblk -dnp -o TYPE "${_LINUXDEVICE}")" != 'disk' ]; then
-		echo "ERROR: Expected type=disk!" 1>&2
-		return 1
-	fi
+	_DISK="$(get_parent_disk "${_PARTITION}")" || return $?
 	# /dev/sdaXY
-	_PNUM="${_SEARCHDEV#"${_LINUXDEVICE}"}"
+	_PNUM="${_PARTITION#"${_DISK}"}"
 	# -1 (grub starts counting at 1)
 	_PNUM=$((${_PNUM}-1)) || return $?
-	_GRUBDEVICE="$(sed -r -e 's/\(\)//g' -e 's/[[:blank:]]+/ /g' /tmp/dev.map | grep " ${_LINUXDEVICE}$" | cut -d' ' -f1)" || return $?
-    if [ -n "${_GRUBDEVICE}" ] && [ -n "${_PNUM}" ]; then
-		echo -n '('
-		echo -n "${_GRUBDEVICE}"
-		echo -n ','
-		echo -n "${_PNUM}"
-		echo -n ')'
+	_DISK_GRUB="$(sed -r -e 's/\(\)//g' -e 's/[[:blank:]]+/ /g' "${DESTDIR}/boot/grub/device.map" | grep " ${_DISK}$" | cut -d' ' -f1)" || return $?
+    if [ -n "${_DISK_GRUB}" ] && [ -n "${_PNUM}" ]; then
+		echo -n "(${_DISK_GRUB},${_PNUM})"
+		return 0
 	else
 		echo "ERROR: GRUB device not found properly" 1>&2
 		return 1
 	fi
-	return 0
 }
 
 ## END: dialog functions/definitions ##
@@ -104,18 +107,8 @@ CONFIG_LIST="${1}"
 CONFIG_ITEM=
 RET_SUB=
 
-# write grub device map to /tmp/... file
+# write grub device map to "${DESTDIR}/boot/grub/device.map"
 get_grub_map
-
-GRUBMENU="${DESTDIR}/boot/grub/grub.conf"
-rm ${DESTDIR}/boot/grub/menu.lst
-# TODO: I dont like this ln
-ln -s ./grub.conf ${DESTDIR}/boot/grub/menu.lst
-# sanity check
-if [ ! -f ${GRUBMENU} ]; then
-	show_dialog --msgbox "Error: Couldn't find ${GRUBMENU}  Is GRUB installed?" 0 0
-	exit 1
-fi
 
 # get root partition
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
@@ -128,28 +121,40 @@ if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; 
 	# get boot partition
 	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
 	PART_BOOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
-	GRUBDEV="$(mapdev ${PART_BOOT})" || exit $?
+	PART_GRUB="$(mapdev ${PART_BOOT})" || exit $?
 	SUBDIR=
+	DISK_BOOT="$(get_parent_disk "${PART_BOOT}")" || exit $?
 else
-	GRUBDEV="$(mapdev ${PART_ROOT})" || exit $?
+	PART_GRUB="$(mapdev ${PART_ROOT})" || exit $?
 	SUBDIR="/boot"
+	DISK_BOOT="$(get_parent_disk "${PART_ROOT}")" || exit $?
 fi
 
 KERNEL_PARAMS=
 # get kernel version
-KERNVER=$(getkernelversion) || exit $?
+KERNVER="$(getkernelversion)" || exit $?
 # get kernel params
 KERNEL_PARAMS="$(getkernelparams "${PART_ROOT}" "${PART_BOOT}" "${CRYPTTYPE}")" || exit $?
 
+GRUBMENU="${DESTDIR}/boot/grub/grub.conf"
+rm "${DESTDIR}"/boot/grub/menu.lst
+# TODO: I dont like this ln
+ln -s ./grub.conf "${DESTDIR}/boot/grub/menu.lst"
+# sanity check
+if [ ! -f "${GRUBMENU}" ]; then
+	show_dialog --msgbox "Error: Couldn't find ${GRUBMENU}  Is GRUB installed?" 0 0
+	exit 1
+fi
+
 # remove default entries
-sed -i 's/^#splashimage/splashimage/' ${GRUBMENU} || exit $?
-sed -i '/^#/d' ${GRUBMENU} || exit $?
+sed -i 's/^#splashimage/splashimage/' "${GRUBMENU}" || exit $?
+sed -i '/^#/d' "${GRUBMENU}" || exit $?
 # write new grubmenu
 cat >>${GRUBMENU} <<EOF
 
 # (0) Pentoo
 title  Pentoo
-root   ${GRUBDEV}
+root   ${PART_GRUB}
 kernel ${SUBDIR}/kernel-genkernel${KERNVER} ${KERNEL_PARAMS}
 initrd ${SUBDIR}/initramfs-genkernel${KERNVER}
 
@@ -162,47 +167,17 @@ EOF
 RET_SUB=$?
 [ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
 
+# inform user about target disk, partitions and such, last chance to abort ;)
+show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BOOT}'.\nPlease confirm this.\n\nYou will then be put into the editor to review the GRUB configuration file.\nInstallation will continue after you exit the editor." 0 0 || exit $?
 
-
-####
-
-GRUBDEV=$(mapdev ${PART_ROOT})
-GRUBDEV_FOUND=$?
-ROOTPART="${PART_ROOT}"
-# look for a separately-mounted /boot partition
-BOOTDEV=
-BOOTDEV=$(mount | grep ${DESTDIR}/boot | cut -d' ' -f 1)
-
-if [ "${GRUBDEV}" != "" -o "${BOOTDEV}" != "" ]; then
-	if [ "${BOOTDEV}" != "" ]; then
-		GRUBDEV=$(mapdev ${BOOTDEV})
-		GRUBDEV_FOUND=$?
-	else
-		SUBDIR="/boot"
-	fi
-	# keep the file from being completely bogus
-	if [ "${GRUBDEV_FOUND}" -ne 0 ]; then
-		show_dialog --msgbox "Your root boot device could not be autodetected by setup.  Ensure you adjust the 'root (hd0,0)' line in your GRUB config accordingly." 0 0
-		GRUBDEV="(hd0,0)"
-	fi
-fi
-
-show_dialog --msgbox "Before installing GRUB, you must review the configuration file.  You will now be put into the editor.  After you save your changes and exit the editor, you can install GRUB." 0 0
-
-chroot_mount || exit $?
 # set system editor (if not already defined)
+chroot_mount || exit $?
 EDITOR="$(geteditor)" || exit $?
 chroot_umount || exit $?
 
-DEVS="$(partition_finddisks)" || exit $?
-DEVS="${DEVS} $(findpartitions)" || exit $?
-DEVS=$(add_option_label "${DEVS}" '-') || exit $?
-if [ "${DEVS}" = "" ]; then
-	show_dialog --msgbox "No hard drives were found" 0 0
-	exit 1
-fi
+# let user edit grub menu file
+"${EDITOR}" "${GRUBMENU}" || exit $?
 
-ROOTDEV="$(show_dialog --menu "Select the boot device where the GRUB bootloader will be installed (usually the MBR and not a partition)." 0 0 0 ${DEVS})" || exit $?
 show_dialog --infobox "Installing the GRUB bootloader..." 0 0
 if [ -d "${DESTDIR}"/usr/lib/grub/i386-pc ]; then
 	cp -a "${DESTDIR}"/usr/lib/grub/i386-pc/* "${DESTDIR}"/boot/grub/ || exit $?
@@ -212,49 +187,25 @@ sync
 # freeze xfs filesystems to enable grub installation on xfs filesystems
 if [ -x /usr/sbin/xfs_freeze ]; then
 	# TODO: test this
-	mount | grep ${DESTDIR}/boot | grep -q xfs && /usr/sbin/xfs_freeze -f ${DESTDIR}/boot > /dev/null 2>&1 || exit $?
-	mount | grep ${DESTDIR} | grep -q xfs && /usr/sbin/xfs_freeze -f ${DESTDIR}/ > /dev/null 2>&1 || exit $?
+	for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
+		echo "INFO: Freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
+		/usr/sbin/xfs_freeze -f "${MOUNTPOINT_XFS}" 2>/dev/null
+	done
 fi
 
-# look for a separately-mounted /boot partition
-BOOTPART=$(mount | grep ${DESTDIR}/boot | cut -d' ' -f 1)
-if [ "${BOOTPART}" = "" ]; then
-	if [ "${PART_ROOT}" = "" ]; then
-		BOOTPART="$(show_dialog --inputbox "Enter the full path to your root device" 8 65 "/dev/sda3")" || exit $?
-	else
-		BOOTPART=${PART_ROOT}
-	fi
-fi
-show_dialog --defaultno --yesno "Do you have your system installed on software raid?\nAnswer 'YES' to install grub to another hard disk." 0 0
-if [ $? -eq 0 ]; then
-	# TODO: redo-ing grub-installation .... vs. writing menu once like the above ... = conflict?
-	BOOTPART="$(show_dialog --menu "Please select the boot partition device, this cannot be autodetected!\nPlease redo grub installation for all partitions you need it!" 14 55 7 ${DEVS})" || exit $?
-fi
-BOOTPART=$(mapdev ${BOOTPART})
-BOOTPART_FOUND=$?
-BOOTDEV=$(mapdev ${ROOTDEV})
-BOOTDEV_FOUND=$?
-
-if [ "${BOOTPART}" = "" ]; then
-	show_dialog --msgbox "Error: Missing/Invalid root device: ${BOOTPART}" 0 0
-	exit 1
-fi
-
-if [ "${BOOTPART_FOUND}" -ne 0 -o "${BOOTDEV_FOUND}" -ne 0 ]; then
-	show_dialog --msgbox "GRUB root and setup devices could not be auto-located.  You will need to manually run the GRUB shell to install a bootloader." 0 0
-	exit 1
-fi
-
-/sbin/grub-install --no-floppy --recheck --grub-shell=${DESTDIR}/sbin/grub --root-directory=${DESTDIR} ${ROOTDEV} >/tmp/grub.log 2>&1
+/sbin/grub-install --no-floppy --recheck --grub-shell="${DESTDIR}/sbin/grub" --root-directory="${DESTDIR}" "${DISK_BOOT}" >/tmp/grub.log 2>&1
 cat /tmp/grub.log >"${LOG}"
 
 # unfreeze xfs filesystems
 if [ -x /usr/sbin/xfs_freeze ]; then
-	mount | grep ${DESTDIR}/boot | grep -q xfs && /usr/sbin/xfs_freeze -u ${DESTDIR}/boot > /dev/null 2>&1 || exit $?
-	mount | grep ${DESTDIR}/boot | grep -q xfs && /usr/sbin/xfs_freeze -u ${DESTDIR}/ > /dev/null 2>&1 || exit $?
+	# TODO: test this
+	for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
+		echo "INFO: Un-freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
+		/usr/sbin/xfs_freeze -u "${MOUNTPOINT_XFS}" 2>/dev/null
+	done
 fi
 
-if grep "Error [0-9]*: " /tmp/grub.log >/dev/null; then
+if grep -q 'Error [0-9]*: ' /tmp/grub.log; then
 	show_dialog --msgbox "Error installing GRUB. (see ${LOG} for output)" 0 0
 	exit 1
 fi
