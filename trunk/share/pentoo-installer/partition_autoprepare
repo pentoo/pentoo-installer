@@ -60,7 +60,7 @@ partition_getpartitionsize() {
 	local _SUGGESTED_SIZE="$4"
 	local _PART_SIZE=
 	while true; do
-		_PART_SIZE="$(show_dialog --inputbox "Enter the size (MiB) of your ${_MOUNTPOINT} partition.  Minimum value is ${_MIN_SIZE} MiB\n\nDisk space left: ${_DISC_SIZE} MiB" \
+		_PART_SIZE="$(show_dialog --inputbox "Enter the size (MiB) of your ${_MOUNTPOINT} partition. Minimum value is ${_MIN_SIZE} MiB\n\nDisk space left: ${_DISC_SIZE} MiB" \
 			0 0 "${_SUGGESTED_SIZE}")" || return $?
 		if ! [[ ${_PART_SIZE} =~ ${ISNUMBER} ]]; then
 			show_dialog --msgbox "ERROR: You have entered an invalid size, please enter again." 0 0
@@ -121,11 +121,11 @@ CURRENT_PARTITIONTABLE='unknown'
 # this can fail, for ex. on a virgin HD with no partition table
 CURRENT_PARTITIONTABLE=$(parted "${DISC}" print -s | sed -nr 's/^Partition Table:\s(.*)/\1/p')
 if [ "${CURRENT_PARTITIONTABLE}" != 'msdos' ]; then
-	show_dialog --defaultno --yesno "${DISC} currently has a '${CURRENT_PARTITIONTABLE}' partition layout.\nThis will be changed to 'msdos'!  Are you absolutely sure?" 0 0 \
+	show_dialog --defaultno --yesno "${DISC} currently has a '${CURRENT_PARTITIONTABLE}' partition layout.\nThis will be changed to 'msdos'!\nAre you absolutely sure?" 0 0 \
 		|| exit "${ERROR_CANCEL}"
 	parted -s "${DISC}" mklabel 'msdos' || exit $?
 fi
-show_dialog --defaultno --yesno "${DISC} will be COMPLETELY ERASED!  Are you absolutely sure?" \
+show_dialog --defaultno --yesno "${DISC} will be COMPLETELY ERASED! Are you absolutely sure?" \
 	0 0 || exit "${ERROR_CANCEL}"
 # umount and swapoff all partitions of the disc
 mount_umountall "${DISC}" || exit $?
@@ -143,6 +143,7 @@ printk off || exit $?
 show_dialog --infobox "Partitioning ${DISC}" 0 0
 # TODO reactivate clearing of $LOG with > instead of >>
 # sfdisk ${DISC} -uM >"${LOG}" 2>&1 <<EOF
+sync
 sfdisk ${DISC} -uM >>"${LOG}" 2>&1 <<EOF
 ${SFDISK_INPUT}
 EOF
@@ -152,6 +153,7 @@ if [ $? -gt 0 ]; then
 	exit 1
 fi
 printk on
+sync
 show_dialog --msgbox "Auto-prepare was successful" 0 0
 # construct FSspec for each used device and print result to STDOUT
 # boot partition

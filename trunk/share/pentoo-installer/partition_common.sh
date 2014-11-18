@@ -86,7 +86,6 @@ partition_findpartitions() {
         _DISC=$(echo ${_DEVPATH} | sed 's|.*/||') || return $?
         for _PARTPATH in "/sys/block/${_DISC}/${_DISC}"*; do
 			_PART="$(basename ${_PARTPATH})" || return $?
-			fdisk -l /dev/"${_DISC}" | grep "^/dev/${_PART}[[:space:]]" | awk '{print $5}' 1>&2
             # check if not already assembled to a raid device
             if ! cat /proc/mdstat 2>/dev/null | grep -q "${_PART}" \
 				&& ! file -s /dev/"${_PART}" | grep -qi lvm2 \
