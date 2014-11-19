@@ -85,7 +85,7 @@ mapdev() {
 	_PNUM="${_PARTITION#"${_DISK}"}"
 	# -1 (grub starts counting at 1)
 	_PNUM=$((${_PNUM}-1)) || return $?
-	_DISK_GRUB="$(sed -r -e 's/\(\)//g' -e 's/[[:blank:]]+/ /g' "${DESTDIR}/boot/grub/device.map" | grep " ${_DISK}$" | cut -d' ' -f1)" || return $?
+	_DISK_GRUB="$(sed -r -e 's/[\(\)]//g' -e 's/[[:blank:]]+/ /g' "${DESTDIR}/boot/grub/device.map" | grep " ${_DISK}$" | cut -d' ' -f1)" || return $?
     if [ -n "${_DISK_GRUB}" ] && [ -n "${_PNUM}" ]; then
 		echo -n "(${_DISK_GRUB},${_PNUM})"
 		return 0
@@ -173,6 +173,7 @@ show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BO
 # set system editor (if not already defined)
 chroot_mount || exit $?
 EDITOR="$(geteditor)" || exit $?
+chroot "${DESTDIR}" "${EDITOR}" "${GRUBMENU}" || exit $?
 chroot_umount || exit $?
 
 # let user edit grub menu file
