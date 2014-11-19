@@ -580,7 +580,7 @@ FSspec_mountall() {
 			# check if cryptsetup is already open
 			if ! cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
 				# write key to temp file
-				echo "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
+				echo -n "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
 				case "${_CRYPTTYPE}" in
 					'swap')
 						cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
