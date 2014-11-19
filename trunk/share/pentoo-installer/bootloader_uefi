@@ -2,7 +2,7 @@
 # This script is released under the GNU General Public License 3.0
 # Check the COPYING file included with this distribution
 
-# install_bootloader
+# bootloader_uefi
 # writes kernel to UEFI as new boot option
 #
 # parameters (required)
@@ -17,7 +17,7 @@
 readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source bootloader commons
-source "${SHAREDIR}"/install_bootloader_common.sh || exit $?
+source "${SHAREDIR}"/bootloader_common.sh || exit $?
 
 #########################################
 ## START: dialog functions/definitions ##

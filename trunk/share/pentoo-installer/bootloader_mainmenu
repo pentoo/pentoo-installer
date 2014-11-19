@@ -2,7 +2,7 @@
 # This script is released under the GNU General Public License 3.0
 # Check the COPYING file included with this distribution
 
-# install_bootloader
+# bootloader_mainmenu
 # main menu for bootloader installation
 #
 # parameters (required)
@@ -39,22 +39,28 @@ RETSUB=
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
+# TODO: enable uefi options once they are implemented
+# SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub is the Pentoo default." \
+	# 0 0 4 \
+	# "GRUB" "Use the GRUB bootloader (default)" \
+	# "UEFI-GRUB" "Use GRUB2 and UEFI (unsupported)" \
+	# "UEFI" "Boot kernel directly by UEFI (unsupported)" \
+	# "None" "Warning: you must install your own bootloader!")" \
+	# || exit $?
 SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub is the Pentoo default." \
 	0 0 4 \
 	"GRUB" "Use the GRUB bootloader (default)" \
-	"UEFI-GRUB" "Use GRUB2 and UEFI (unsupported)" \
-	"UEFI" "Boot kernel directly by UEFI (unsupported)" \
 	"None" "Warning: you must install your own bootloader!")" \
 	|| exit $?
 case "${SELECTION}" in
 	"GRUB")
-		"${SHAREDIR}"/install_bootloader_grub "${CONFIG_LIST}" || exit $?
+		"${SHAREDIR}"/bootloader_grub "${CONFIG_LIST}" || exit $?
 		;;
 	"UEFI-GRUB")
-		"${SHAREDIR}"/install_bootloader_uefigrub "${CONFIG_LIST}" || exit $?
+		"${SHAREDIR}"/bootloader_uefigrub "${CONFIG_LIST}" || exit $?
 		;;
 	"UEFI")
-		"${SHAREDIR}"/install_bootloader_uefi "${CONFIG_LIST}" || exit $?
+		"${SHAREDIR}"/bootloader_uefi "${CONFIG_LIST}" || exit $?
 		;;
 	"None")
 		# TODO: Give user info about kernel params and such

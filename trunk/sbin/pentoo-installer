@@ -113,7 +113,7 @@ while [ true ]; do
 			RETSUB=$?
 			;;
 		"5")
-			"${SHAREDIR}"/install_bootloader "${CONFIG_LIST}"
+			"${SHAREDIR}"/bootloader_mainmenu "${CONFIG_LIST}"
 			RETSUB=$?
 			;;
 		"6")
