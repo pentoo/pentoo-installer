@@ -206,7 +206,10 @@ mount_umountall() {
 	local _CRYPTCLOSE=()
 	# umount /mnt/gentoo and below
 	# this is the only umount, anything mounted outside is the users problem
-	umount -R "${DESTDIR}" 2>/dev/null
+	# umount -R "${DESTDIR}" 2>/dev/null
+	if lsblk -o MOUNTPOINT | grep -Eq '^/mnt/gentoo(/.*)?'; then
+		umount `lsblk -o MOUNTPOINT | grep -E '^/mnt/gentoo(/.*)?' | sort -r | tr '\n' ' '` || return $?
+	fi
 	# do a first run, swapoff, check mountpoints and collect cryptsetup stuff
 	for _DISC in ${_DISCLIST}; do
 		_UMOUNTLIST="$(lsblk -lnp -o NAME,FSTYPE,MOUNTPOINT "${_DISC}")" || return $?
