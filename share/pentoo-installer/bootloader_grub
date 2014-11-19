@@ -2,7 +2,7 @@
 # This script is released under the GNU General Public License 3.0
 # Check the COPYING file included with this distribution
 
-# install_bootloader_grub
+# bootloader_grub
 # installs traditional Grub
 #
 # parameters (required)
@@ -19,7 +19,7 @@
 readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source bootloader commons
-source "${SHAREDIR}"/install_bootloader_common.sh || exit $?
+source "${SHAREDIR}"/bootloader_common.sh || exit $?
 
 #########################################
 ## START: dialog functions/definitions ##
@@ -173,7 +173,6 @@ show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BO
 # set system editor (if not already defined)
 chroot_mount || exit $?
 EDITOR="$(geteditor)" || exit $?
-chroot "${DESTDIR}" "${EDITOR}" "${GRUBMENU}" || exit $?
 chroot_umount || exit $?
 
 # let user edit grub menu file
