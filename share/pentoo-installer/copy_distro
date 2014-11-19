@@ -61,10 +61,10 @@ auto_dmcrypt() {
 				case "${_CRYPTTYPE}" in
 					'luks-gpg')
 						# key is in base64 format
-						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
+						echo -n "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
 						;;
 					'luks')
-						echo "${_CRYPTKEY}" >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
+						echo -n "${_CRYPTKEY}" >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
 						;;
 				esac
 			# write key for root-partition
