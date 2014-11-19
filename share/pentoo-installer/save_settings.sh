@@ -39,7 +39,7 @@ settings_check(){
 		shred -u "${SETTINGS_FILE_PERMANENT}" || return $?
 	fi
 	if [ -f "${SETTINGS_FILE}" ]; then
-		if [ "$(cat "${SETTINGS_FILE}" | wc -l)" -eq 2 ]; then
+		if [ "$(cat "${SETTINGS_FILE}" | wc -l)" -eq 3 ]; then
 			return 0
 		fi
 		# shred wrong files
@@ -112,7 +112,7 @@ settings_write(){
 	check_num_args "${FUNCNAME}" 3 $# || return $?
 	echo "${1}">"${SETTINGS_FILE}" || return $?
 	echo "${2}">>"${SETTINGS_FILE}" || return $?
-	echo -n "${3}">>"${SETTINGS_FILE}" || return $?
+	echo "${3}">>"${SETTINGS_FILE}" || return $?
 	return 0
 }
 
