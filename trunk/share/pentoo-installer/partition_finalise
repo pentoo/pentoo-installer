@@ -179,7 +179,7 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
         # create our mount directory
         mkdir -p "${DESTDIR}${MOUNTPOINT}" || exit $?
         # mount the bad boy
-        mount -t "${FILESYSTEM}" "${PARTPATH}" "${DESTDIR}${MOUNTPOINT}" >>"${LOG}" 2>&1
+        mount -t "${FILESYSTEM}" "${PARTPATH}" "${DESTDIR}${MOUNTPOINT}" >>"${LOG}" 2>&1 || exit $?
 	else
         swapon ${PARTPATH} >>"${LOG}" 2>&1 || exit $?
 	fi

@@ -207,6 +207,7 @@ mount_umountall() {
 	# umount /mnt/gentoo and below
 	# this is the only umount, anything mounted outside is the users problem
 	# umount -R "${DESTDIR}" 2>/dev/null
+	chroot_umount
 	if lsblk -o MOUNTPOINT | grep -Eq '^/mnt/gentoo(/.*)?'; then
 		umount `lsblk -o MOUNTPOINT | grep -E '^/mnt/gentoo(/.*)?' | sort -r | tr '\n' ' '` || return $?
 	fi
