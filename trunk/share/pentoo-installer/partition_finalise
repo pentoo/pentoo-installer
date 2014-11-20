@@ -83,7 +83,7 @@ partition_crypt_setup() {
 			echo "ERROR: Unexpected input '${_CRYPTTYPE}' in '${FUNCNAME}'" 1>&2
 			return 1
 			;;
-    esac
+	esac
 	return 0
 }
 
@@ -155,15 +155,15 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	# format partition
 	if [ "${FORMAT}" -eq 1 ]; then
 		case ${FILESYSTEM} in
-			xfs)      mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
-			jfs)      mkfs.jfs -q ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
-			reiserfs) mkreiserfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?r;;
-			ext2)     mke2fs "${PARTPATH}" -F >>"${LOG}" 2>&1 || exit $? ;;
-			ext3)     mke2fs -j ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
-			ext4)     mke2fs -t ext4 ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
-			vfat)     mkfs.vfat ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			xfs)		mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			jfs)		mkfs.jfs -q ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			reiserfs)	mkreiserfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?r;;
+			ext2)		mke2fs "${PARTPATH}" -F >>"${LOG}" 2>&1 || exit $? ;;
+			ext3)		mke2fs -j ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
+			ext4)		mke2fs -t ext4 ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
+			vfat)		mkfs.vfat ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			# swap
-			swap)     mkswap ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			swap)		mkswap ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			*)
 				echo "ERROR: Unexpected file sytem '${FILESYSTEM}' for '${PARTITION}'" 1>&2
 				exit 1 ;;
@@ -174,17 +174,17 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	fi
 	# mount actions
 	if [ "${FILESYSTEM}" != 'swap' ]; then
-        # create our mount directory
-        mkdir -p "${DESTDIR}${MOUNTPOINT}" || exit $?
-        # mount the bad boy
-        mount -t "${FILESYSTEM}" "${PARTPATH}" "${DESTDIR}${MOUNTPOINT}" >>"${LOG}" 2>&1 || exit $?
+		# create our mount directory
+		mkdir -p "${DESTDIR}${MOUNTPOINT}" || exit $?
+		# mount the bad boy
+		mount -t "${FILESYSTEM}" "${PARTPATH}" "${DESTDIR}${MOUNTPOINT}" >>"${LOG}" 2>&1 || exit $?
 	else
-        swapon ${PARTPATH} >>"${LOG}" 2>&1 || exit $?
+		swapon ${PARTPATH} >>"${LOG}" 2>&1 || exit $?
 	fi
 	# write FSspec back to array
 	CONFIG_ARRAY[${CONFIG_INDEX}]="${CONFIG_ITEM}" || exit $?
 	# increment array index
-	 CONFIG_INDEX="$((CONFIG_INDEX+1))" || exit $?
+	CONFIG_INDEX="$((CONFIG_INDEX+1))" || exit $?
 done
 
 # rewrite list from array

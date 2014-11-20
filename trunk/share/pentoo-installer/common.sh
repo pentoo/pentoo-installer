@@ -59,9 +59,9 @@ add_option_label() {
 #  _RETSUB: the return of the sub-function/script
 #
 # usage example:
-#  	if [ ! catch_menuerror "$(basename $0)" "${NEWSELECTION}" "${RETSUB}" ]; then
-#     do_OK_action
-#   fi
+#	if [ ! catch_menuerror "$(basename $0)" "${NEWSELECTION}" "${RETSUB}" ]; then
+#		do_OK_action
+#	fi
 catch_menuerror() {
 	# check input
 	check_num_args "${FUNCNAME}" 3 $# || return $?
@@ -91,18 +91,18 @@ catch_menuerror() {
 chroot_mount() {
 	# do a clean chroot-umount
 	chroot_umount || return $?
-    if [ ! -e "${DESTDIR}/sys" ]; then
+	if [ ! -e "${DESTDIR}/sys" ]; then
 		mkdir "${DESTDIR}/sys" || return $?
 	fi
-    if [ ! -e "${DESTDIR}/proc" ]; then
+	if [ ! -e "${DESTDIR}/proc" ]; then
 		mkdir "${DESTDIR}/proc" || return $?
 	fi
-    if [ ! -e "${DESTDIR}/dev" ]; then
+	if [ ! -e "${DESTDIR}/dev" ]; then
 		mkdir "${DESTDIR}/dev" || return $?
 	fi
-    mount -t sysfs sysfs "${DESTDIR}/sys" || return $?
-    mount -t proc proc "${DESTDIR}/proc" || return $?
-    mount -o bind /dev "${DESTDIR}/dev" || return $?
+	mount -t sysfs sysfs "${DESTDIR}/sys" || return $?
+	mount -t proc proc "${DESTDIR}/proc" || return $?
+	mount -o bind /dev "${DESTDIR}/dev" || return $?
 	return 0
 }
 
@@ -154,10 +154,10 @@ check_num_args() {
 #
 get_supportedFS() {
 	echo -n 'ext2 ext3 ext4'
-	[ "$(which mkreiserfs 2>/dev/null)" ] && echo -n ' reiserfs'
-	[ "$(which mkfs.xfs 2>/dev/null)" ]   && echo -n ' xfs'
-	[ "$(which mkfs.jfs 2>/dev/null)" ]   && echo -n ' jfs'
-	[ "$(which mkfs.vfat 2>/dev/null)" ]   && echo -n ' vfat'
+	[ "$(which mkreiserfs 2>/dev/null)" ]	&& echo -n ' reiserfs'
+	[ "$(which mkfs.xfs 2>/dev/null)" ]		&& echo -n ' xfs'
+	[ "$(which mkfs.jfs 2>/dev/null)" ]		&& echo -n ' jfs'
+	[ "$(which mkfs.vfat 2>/dev/null)" ]	&& echo -n ' vfat'
 	return 0
 }
 
@@ -400,7 +400,7 @@ show_dialog() {
 	_ANSWER=$("${_WHICHDIALOG}" "${_ARGUMENTS[@]}" 3>&1 1>&2 2>&3)
 	_DIALOGRETURN=$?
 	# check if user clicked cancel or closed the box
-	if [ "${_DIALOGRETURN}" -eq "1" ] ||  [ "${_DIALOGRETURN}" -eq "255" ]; then
+	if [ "${_DIALOGRETURN}" -eq "1" ] || [ "${_DIALOGRETURN}" -eq "255" ]; then
 		return ${ERROR_CANCEL}
 	elif [ "${_DIALOGRETURN}" -ne "0" ]; then
 		return "${_DIALOGRETURN}"

@@ -53,7 +53,7 @@ partition_setpartitionlabel() {
 	esac
 	# Check current partition layout
 	if [ "${_PT}" != "${_CPT}" ]; then
-		show_dialog --defaultno --yesno "${_DISC} will be COMPLETELY ERASED!  Are you absolutely sure?" 0 0 \
+		show_dialog --defaultno --yesno "${_DISC} will be COMPLETELY ERASED! Are you absolutely sure?" 0 0 \
 			|| return $?
 		parted -s "${_DISC}" mklabel "${_PT}" || return $?
 		sync

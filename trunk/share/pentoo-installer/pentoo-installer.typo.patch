@@ -1,11 +1,11 @@
 --- /usr/sbin/pentoo-installer	2014-10-07 23:02:41.637324642 +0200
 +++ pentoo-installer.orig	2014-10-07 23:03:24.319321761 +0200
 @@ -568,7 +568,7 @@
-             if ! [[ ${BOOT_PART_SIZE} =~ ${isnumber} ]]; then
-                 DIALOG --msgbox "ERROR: You have entered an invalid size, please enter again." 0 0
-             else
--                if [ "$BOOT_PART_SIZE" -ge "$DISC_SIZE" -o "$BOOT_PART_SIZE" -lt "32" -o "$SBOOT_PART_SIZE" = "$DISC_SIZE" ]; then
-+                if [ "$BOOT_PART_SIZE" -ge "$DISC_SIZE" -o "$BOOT_PART_SIZE" -lt "32" -o "$BOOT_PART_SIZE" = "$DISC_SIZE" ]; then
-                     DIALOG --msgbox "ERROR: You have entered a too large size, please enter again." 0 0
-                 else
-                     BOOT_PART_SET=1
+			 if ! [[ ${BOOT_PART_SIZE} =~ ${isnumber} ]]; then
+				 DIALOG --msgbox "ERROR: You have entered an invalid size, please enter again." 0 0
+			 else
+-				if [ "$BOOT_PART_SIZE" -ge "$DISC_SIZE" -o "$BOOT_PART_SIZE" -lt "32" -o "$SBOOT_PART_SIZE" = "$DISC_SIZE" ]; then
++				if [ "$BOOT_PART_SIZE" -ge "$DISC_SIZE" -o "$BOOT_PART_SIZE" -lt "32" -o "$BOOT_PART_SIZE" = "$DISC_SIZE" ]; then
+					 DIALOG --msgbox "ERROR: You have entered a too large size, please enter again." 0 0
+				 else
+					 BOOT_PART_SET=1

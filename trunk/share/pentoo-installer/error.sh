@@ -8,11 +8,12 @@
 ## START: error handling settings ##
 
 # These are not without drawbacks!
-set -o pipefail  # trace ERR through pipes
-set -o errtrace  # trace ERR through 'time command' and other functions
-set -o nounset   # set -u : exit the script if you try to use an uninitialised variable
+set -o pipefail		# trace ERR through pipes
+set -o errtrace		# trace ERR through 'time command' and other functions
+set -o nounset		# set -u : exit the script if you try to use an uninitialised variable
 # this is really 'tricky' thus diabled
-# set -o errexit   # set -e : exit the script if any statement returns a non-true return value
+# at least causes problem with show_dialog() and user-cancel
+# set -o errexit	# set -e : exit the script if any statement returns a non-true return value
 
 ## END: error handling settings ##
 ##################################

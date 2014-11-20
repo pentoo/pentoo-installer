@@ -147,7 +147,7 @@ while true; do
 	FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
 	# reset array holding menu items
 	MENU_ITEMS=()
-	 # construct menu
+	# construct menu
 	if [ "${FILESYSTEM}" != 'swap' ]; then
 		MENU_ITEMS+=("mountpoint" "Change mountpoint, now: '${MOUNTPOINT}'") || exit $?
 		MENU_ITEMS+=("filesystem" "Change file system, now: '${FILESYSTEM}'") || exit $?
@@ -229,7 +229,7 @@ while true; do
 			;;
 		'format')
 			# dialog for boolean value
-            show_dialog --yesno "Formatting of ${PARTITION} is now '$(get_yesno "${FORMAT}")'.\nDo you want to change it?" 0 0
+			show_dialog --yesno "Formatting of ${PARTITION} is now '$(get_yesno "${FORMAT}")'.\nDo you want to change it?" 0 0
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ] && [ "${FORMAT}" -eq '0' ]; then
 				# change FSspec string

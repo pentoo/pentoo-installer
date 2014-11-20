@@ -15,7 +15,7 @@
 #   format (0=no 1=yes)
 #   cryptname (name used by cryptsetup)
 #   partuuid (PARTUUID, *not* the UUID)
-#	cryptkey
+#   cryptkey
 #
 #  mountpoint of a swap partition must be empty
 #  all non swap partitions must have a mountpoint
@@ -603,7 +603,7 @@ FSspec_mountall() {
 		# mount actions
 		if [ "${_FILESYSTEM}" != 'swap' ]; then
 			# check if already mounted
-			if !  mount | grep -q -e "^${_PARTPATH} on $(echo "${DESTDIR}${_MOUNTPOINT}" | sed 's/\/$//') "; then
+			if ! mount | grep -q -e "^${_PARTPATH} on $(echo "${DESTDIR}${_MOUNTPOINT}" | sed 's/\/$//') "; then
 				# create our mount directory
 				mkdir -p "${DESTDIR}${_MOUNTPOINT}" || return $?
 				# mount the bad boy

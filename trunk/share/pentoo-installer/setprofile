@@ -46,11 +46,11 @@ LINE=
 CUR_PROF="$(chroot ${DESTDIR} eselect profile show | grep pentoo | awk '{match($1,"pentoo/.*",a)}END{print a[0]}')" || exit $?
 
 if [[ -n "$(echo ${CUR_PROF} | grep hardened)" ]]; then
-        CUR_PROF_TYPE="hardened"
+		CUR_PROF_TYPE="hardened"
 elif [[ -n "$(echo ${CUR_PROF} | grep default)" ]]; then
-        CUR_PROF_TYPE="default"
+		CUR_PROF_TYPE="default"
 else
-        show_dialog --keep-tite --msgbox "Warning: unable to detect a current Pentoo profile in the ${DESTDIR} directory" 0 0
+		show_dialog --keep-tite --msgbox "Warning: unable to detect a current Pentoo profile in the ${DESTDIR} directory" 0 0
 fi
 
 while read -r LINE; do
