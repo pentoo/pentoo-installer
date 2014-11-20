@@ -24,7 +24,7 @@ while true; do
 		0 0 0 "${MENU_ITEMS[@]}")" || exit $?
 
 	# Alternative to direct exit
-	# 
+	#
 	# NEWSELECTION="$(show_dialog --default-item "${SELECTION}" \
     #     --menu "Some text" \
 	# 	0 0 0 "${_MENU_ITEMS[@]}")" || exit $?
@@ -49,11 +49,11 @@ while true; do
 			exit 1
 			;;
 	esac
-	
+
 	# handle errors from sub-script/functions using a common utility function
 	if ! catch_menuerror "$(basename $0)" "${NEWSELECTION}" "${RETSUB}"; then
 		# no error in sub-script
-		# do something, for example: increment selected item	
+		# do something, for example: increment selected item
 		SELECTION="$((NEWSELECTION+1))" || exit $?
 		# or SELECTION="DONE" || exit $?
 	fi

@@ -37,7 +37,7 @@ partition_getlistmaxlength() {
 	local _ITEM=
 	local _MAX=0
 	for _ITEM in ${_LIST}; do
-		[ "${_MAX}" -lt "${#_ITEM}" ] && _MAX="${#_ITEM}"	
+		[ "${_MAX}" -lt "${#_ITEM}" ] && _MAX="${#_ITEM}"
 	done
 	echo "${_MAX}"
 	return 0

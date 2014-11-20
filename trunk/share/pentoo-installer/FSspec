@@ -184,7 +184,7 @@ FSspec_del_keyvalue() {
 	local _TMPVAL=
 	# loop list and output item if key=value not true
 	for _ITEM in ${1}; do
-		_TMPVAL="$(FSspec_parse "${_ITEM}" "${2}")" || return $? 
+		_TMPVAL="$(FSspec_parse "${_ITEM}" "${2}")" || return $?
 		if [ "${_TMPVAL}" != "${3}" ]; then
 			[ "${_FIRST}" -ne 1 ] && echo -n ' '
 			[ "${_FIRST}" -eq 1 ] && _FIRST=0
