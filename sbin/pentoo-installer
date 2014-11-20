@@ -48,7 +48,7 @@ MENU_ITEMS=
 if settings_check; then
 	# ask if old settings should be loaded
 	NEWSELECTION="$(show_dialog \
-        --menu "Settings from previously aborted installation detected.\nDo you want to load them?" \
+		--menu "Settings from previously aborted installation detected.\nDo you want to load them?" \
 		0 0 0 \
 		'No' 'Start from scratch' \
 		'Yes' 'Load settings (you might have to enter passwords)')"
@@ -83,7 +83,7 @@ while [ true ]; do
 	[ "${MAXSELECTION}" -eq 6 ] && MENU_ITEMS+=("6" "Exit Install")
 	# expand menu items array below
 	NEWSELECTION="$(show_dialog --default-item "${SELECTION}" \
-        --menu "Use the UP and DOWN arrows to navigate menus.  Use TAB to switch between buttons and ENTER to select." \
+		--menu "Use the UP and DOWN arrows to navigate menus. Use TAB to switch between buttons and ENTER to select." \
 		0 0 0 "${MENU_ITEMS[@]}")"
 	RETSUB=$?
 	if [ "${RETSUB}" -ne "0" ]; then

@@ -30,11 +30,11 @@ source "${SHAREDIR}"/partition_common.sh || exit $?
 printk() {
 	# check input
 	check_num_args "${FUNCNAME}" 1 $# || return $?
-    case $1 in
-        "on") echo 4 >/proc/sys/kernel/printk || return $? ;;
-        "off") echo 0 >/proc/sys/kernel/printk || return $? ;;
+	case $1 in
+		"on") echo 4 >/proc/sys/kernel/printk || return $? ;;
+		"off") echo 0 >/proc/sys/kernel/printk || return $? ;;
 		*) return 1 ;;
-    esac
+	esac
 	return 0
 }
 

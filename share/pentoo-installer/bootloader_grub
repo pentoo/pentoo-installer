@@ -32,9 +32,9 @@ source "${SHAREDIR}"/bootloader_common.sh || exit $?
 get_grub_map() {
 	# check input
 	check_num_args "${FUNCNAME}" 0 $# || return $?
-    [ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
-    show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
-    ${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
+	[ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
+	show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
+	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
 quit
 EOF
 }
@@ -83,7 +83,7 @@ mapdev() {
 	# -1 (grub starts counting at 1)
 	_PNUM=$((${_PNUM}-1)) || return $?
 	_DISK_GRUB="$(sed -r -e 's/[\(\)]//g' -e 's/[[:blank:]]+/ /g' "${DESTDIR}/boot/grub/device.map" | grep " ${_DISK}$" | cut -d' ' -f1)" || return $?
-    if [ -n "${_DISK_GRUB}" ] && [ -n "${_PNUM}" ]; then
+	if [ -n "${_DISK_GRUB}" ] && [ -n "${_PNUM}" ]; then
 		echo -n "(${_DISK_GRUB},${_PNUM})"
 		return 0
 	else
@@ -139,7 +139,7 @@ rm "${DESTDIR}"/boot/grub/menu.lst
 ln -s ./grub.conf "${DESTDIR}/boot/grub/menu.lst"
 # sanity check
 if [ ! -f "${GRUBMENU}" ]; then
-	show_dialog --msgbox "Error: Couldn't find ${GRUBMENU}  Is GRUB installed?" 0 0
+	show_dialog --msgbox "Error: Couldn't find ${GRUBMENU}. Is GRUB installed?" 0 0
 	exit 1
 fi
 

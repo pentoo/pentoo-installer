@@ -75,14 +75,14 @@ chroot_mount || exit $?
 EDITOR="$(geteditor)" || exit $?
 
 # define menu items
-MENU_ITEMS=("Editor"       				"System Editor" \
-			"/etc/conf.d/keymaps"       "Keymap" \
-            "/etc/fstab"                "Filesystem Mountpoints" \
-            "/etc/resolv.conf"          "DNS Servers" \
-            "/etc/hosts"                "Network Hosts" \
-            "/etc/locale.gen"           "Glibc Locales" \
-            "Root-Password"             "Set the root password" \
-            "add-user"                  "Add a new user" \
+MENU_ITEMS=("Editor"					"System Editor" \
+			"/etc/conf.d/keymaps"		"Keymap" \
+			"/etc/fstab"				"Filesystem Mountpoints" \
+			"/etc/resolv.conf"			"DNS Servers" \
+			"/etc/hosts"				"Network Hosts" \
+			"/etc/locale.gen"			"Glibc Locales" \
+			"Root-Password"				"Set the root password" \
+			"add-user"					"Add a new user" \
 			"DONE"						"Return to Main Menu" )
 
 while true; do

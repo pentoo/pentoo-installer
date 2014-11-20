@@ -116,7 +116,7 @@ auto_dmcrypt() {
 	done
 	# run rc-update, chroot must be mounted outside this function!
 	if [ "${_DO_RCUPDATE}" -eq 1 ]; then
-        chroot ${DESTDIR} /bin/bash <<EOF
+		chroot ${DESTDIR} /bin/bash <<EOF
 rc-update add dmcrypt boot || exit $?
 EOF
 		_RET_SUB=$?

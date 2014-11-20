@@ -7,7 +7,7 @@
 #
 # parameters (required):
 #  CONFIG_LIST: One string with 0 or more items of defined FSspec
-#    Already configured partitions Need this to trigger setup of root/swap partition
+#	Already configured partitions Need this to trigger setup of root/swap partition
 #
 # returns 0 on success
 # returns $ERROR_CANCEL=64 on user cancel

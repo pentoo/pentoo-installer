@@ -54,15 +54,15 @@ getkernelparams() {
 # outputs the kernel version
 #
 # parameters: none
-# outputs:    kernel version on success
-#             nothing on failure
-# returns:    0 on success
-#             1 on failure
+# outputs:	kernel version on success
+#
+# returns:	0 on success
+#			1 on failure
 getkernelversion() {
-    local _KERNVER=
-    _KERNVER=$(ls "${DESTDIR}"/boot/kernel-genkernel-* | sed -e "s|kernel-genkernel||g" -e "s|${DESTDIR}/boot/||") \
-        || return 1
-    echo "${_KERNVER}"
+	local _KERNVER=
+	_KERNVER=$(ls "${DESTDIR}"/boot/kernel-genkernel-* | sed -e "s|kernel-genkernel||g" -e "s|${DESTDIR}/boot/||") \
+		|| return 1
+	echo "${_KERNVER}"
 }
 
 # parse_kernel_cmdline()
