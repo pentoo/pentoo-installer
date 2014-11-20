@@ -94,7 +94,7 @@ while [ true ]; do
 		"0")
 			"${SHAREDIR}"/settzclock
 			RETSUB=$?
-			;;			
+			;;
 		"1")
 			# prepares (encrypted) partitions and returns a list of partition configs
 			CONFIG_LIST="$("${SHAREDIR}"/partition_mainmenu)"

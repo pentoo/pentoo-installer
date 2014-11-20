@@ -28,7 +28,7 @@ source "${SHAREDIR}"/partition_common.sh || exit $?
 # format a luks or swap partition. Cipher and hash chosen arbitrarily
 # uses cryptsetup
 # writes the key to STDOUT, in base64 form for gpg
-# 
+#
 # parameters (required)
 #  _PARTITION: The partition to encrypt
 #  _CRYPTNAME: name used by cryptsetup
@@ -167,7 +167,7 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 			*)
 				echo "ERROR: Unexpected file sytem '${FILESYSTEM}' for '${PARTITION}'" 1>&2
 				exit 1 ;;
-		esac	
+		esac
 		FORMAT='0'
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'format' "${FORMAT}")" || exit $?
 		sync

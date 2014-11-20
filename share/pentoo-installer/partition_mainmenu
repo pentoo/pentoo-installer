@@ -41,7 +41,7 @@ while true; do
 	if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
 		MENU_ITEMS+=("3" "Finish partition setup")
 	else
-		[ "${MAXSELECTION}" -ge 3 ] && MAXSELECTION=2	
+		[ "${MAXSELECTION}" -ge 3 ] && MAXSELECTION=2
 	fi
 
 	# expand menu items array below
