@@ -141,9 +141,8 @@ SFDISK_INPUT=$(printf "${SFDISK_INPUT}") || exit $?
 # invoke sfdisk
 printk off || exit $?
 show_dialog --infobox "Partitioning ${DISC}" 0 0
-# TODO reactivate clearing of $LOG with > instead of >>
-# sfdisk ${DISC} -uM >"${LOG}" 2>&1 <<EOF
 sync
+# run sfdisk with prepared input
 sfdisk ${DISC} -uM >>"${LOG}" 2>&1 <<EOF
 ${SFDISK_INPUT}
 EOF

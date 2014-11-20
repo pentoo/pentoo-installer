@@ -11,7 +11,7 @@
 # Example:
 # clock=[UTC|localtime]
 # timezone=Europe/Zurich
-# datetime=TODO
+# datetime=Thu Nov 20 17:45:10 CET 2014
 
 # writes menus and noise to STDERR
 
@@ -24,7 +24,6 @@
 readonly SHAREDIR="$(dirname ${0})" || exit $?
 
 # source common variables, functions and error handling
-# TODO this is not really needed, remove it after debugging
 source "${SHAREDIR}"/common.sh || exit $?
 
 # utc or local?

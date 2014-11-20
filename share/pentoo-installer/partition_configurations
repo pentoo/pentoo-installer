@@ -171,7 +171,6 @@ while true; do
 			fi
 			;;
 		'DONE')
-			#TODO double check the data
 			# print result to STDOUT
 			echo "${CONFIG_LIST}"
 			exit 0

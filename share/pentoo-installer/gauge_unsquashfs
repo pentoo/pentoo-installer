@@ -18,10 +18,10 @@
 #
 # writes menus and noise to stderr
 
-# todo:
+# TODO:
 # find a better solution to remove background process then `killall unsquashfs`
 
-# todo:
+# TODO:
 # find a way to pipe output of unsquashfs so background process and temp files are not needed
 # somehow piping through awk/sed results in strange delays/buffering which is not shown when tee-ing to /dev/tty8 before
 # rant end ;)
