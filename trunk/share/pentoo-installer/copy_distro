@@ -75,7 +75,7 @@ auto_dmcrypt() {
 						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/boot/key.gpg" || return $?
 						;;
 					'luks')
-						# TODO: this should not be possible for root partition and actually is disabled in the menu
+						# Info: this should not be possible for root partition and actually is disabled in the menu
 						echo "${_CRYPTKEY}" >"${DESTDIR}/boot/key.gpg" || return $?
 						;;
 				esac

@@ -69,9 +69,6 @@ get_parent_disk() {
 # parameters (required)
 #  _PARTITION: The partition
 #
-# TODO: rewrite this, or someone explain it ;)
-# done ;)
-#
 mapdev() {
 	# check input
 	check_num_args "${FUNCNAME}" 1 $# || return $?
@@ -186,7 +183,6 @@ sync
 
 # freeze xfs filesystems to enable grub installation on xfs filesystems
 if [ -x /usr/sbin/xfs_freeze ]; then
-	# TODO: test this
 	for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
 		echo "INFO: Freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
 		/usr/sbin/xfs_freeze -f "${MOUNTPOINT_XFS}" 2>/dev/null
@@ -198,7 +194,6 @@ cat /tmp/grub.log >"${LOG}"
 
 # unfreeze xfs filesystems
 if [ -x /usr/sbin/xfs_freeze ]; then
-	# TODO: test this
 	for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
 		echo "INFO: Un-freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
 		/usr/sbin/xfs_freeze -u "${MOUNTPOINT_XFS}" 2>/dev/null

@@ -91,7 +91,6 @@ catch_menuerror() {
 chroot_mount() {
 	# do a clean chroot-umount
 	chroot_umount || return $?
-	# TODO: check if target is a mountpoint
     if [ ! -e "${DESTDIR}/sys" ]; then
 		mkdir "${DESTDIR}/sys" || return $?
 	fi
@@ -111,7 +110,6 @@ chroot_mount() {
 # tears down chroot in target system
 #
 chroot_umount() {
-	# TODO: check if target is a mountpoint
 	sleep 1
 	if mount | grep -q "${DESTDIR}/proc "; then
 		umount ${DESTDIR}/proc || return $?
