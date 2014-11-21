@@ -202,6 +202,7 @@ mount_umountall() {
 	local _FSTYPE=
 	local _MOUNTPOINT=
 	local _CRYPTCLOSE=()
+	local _LINE=
 	# umount /mnt/gentoo and below
 	# this is the only umount, anything mounted outside is the users problem
 	# umount -R "${DESTDIR}" 2>/dev/null
@@ -307,6 +308,19 @@ geteditor(){
 	return 0
 }
 
+# get_dialog()
+# prints used dialog programm: 'dialog' or 'Xdialog'
+#
+get_dialog() {
+	# let's support Xdialog for the fun of it
+	if [ ! $(type "Xdialog" &> /dev/null) ] && [ -n "${DISPLAY}" ]; then
+		echo 'Xdialog'
+	else
+		echo 'dialog'
+	fi
+	return 0
+}
+
 # show_dialog()
 # uses dialogSTDOUT
 # an el-cheapo dialog wrapper
@@ -327,7 +341,7 @@ show_dialog() {
 	local _WIDTH=
 	local _BOXOPTION_INDEX=
 	local _INDEX=0
-	local _WHICHDIALOG='dialog'
+	local _WHICHDIALOG=
 	local ANSWER=
 	local _DIALOGRETURN=
 	local _XDIALOG_AUTOSIZE_PERCENTAGE=33
@@ -335,10 +349,8 @@ show_dialog() {
 	# also prepend our own arguments
 	_ARGUMENTS=("$@") || return $?
 	_ARGUMENTS=( '--backtitle' "${TITLE}" '--aspect' '15' "$@") || return $?
-	# let's support Xdialog for the fun of it
-	if [ ! $(type "Xdialog" &> /dev/null) ] && [ -n "${DISPLAY}" ]; then
-		_WHICHDIALOG='Xdialog'
-	fi
+	# decide which dialog to use
+	_WHICHDIALOG="$(get_dialog)"
 	# for Xdialog: autosize does not work well with a title, use percentage of max-size
 	if [ "${_WHICHDIALOG}" = 'Xdialog' ]; then
 		# loop arguments and search for the box option
