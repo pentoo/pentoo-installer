@@ -135,6 +135,8 @@ while [ true ]; do
 			# umount all again and close cryptsetup
 			"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}"
 			RETSUB=$?
+			# shred temp config file, it might contain encryption keys
+			settings_shred
 			if [ "${RETSUB}" -eq 0 ]; then
 				echo ""
 				echo "If the install finished successfully, you can now type 'reboot'"
