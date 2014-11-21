@@ -116,10 +116,9 @@ elif [ "${DISC_SIZE}" -lt "24000" ]; then
 fi
 show_dialog --msgbox "${DISC_SIZE} MiB will be used for your / partition." 0 0
 # Check current partition layout
-# parted prints to STDERR if layout is foobar, but that's ok then
 CURRENT_PARTITIONTABLE='unknown'
 # this can fail, for ex. on a virgin HD with no partition table
-CURRENT_PARTITIONTABLE=$(parted "${DISC}" print -s | sed -nr 's/^Partition Table:\s(.*)/\1/p')
+CURRENT_PARTITIONTABLE=$(parted "${DISC}" print -s 2>/dev/null | sed -nr 's/^Partition Table:\s(.*)/\1/p')
 if [ "${CURRENT_PARTITIONTABLE}" != 'msdos' ]; then
 	show_dialog --defaultno --yesno "${DISC} currently has a '${CURRENT_PARTITIONTABLE}' partition layout.\nThis will be changed to 'msdos'!\nAre you absolutely sure?" 0 0 \
 		|| exit "${ERROR_CANCEL}"
