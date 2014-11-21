@@ -42,7 +42,7 @@ partition_setpartitionlabel() {
 	# Read current partition layout
 	_CPT='unknown'
 	# ignore if this fails
-	_CPT=$(parted $1 print -s | sed -nr 's/^Partition Table:\s(.*)/\1/p')
+	_CPT=$(parted $1 print -s 2>/dev/null | sed -nr 's/^Partition Table:\s(.*)/\1/p')
 	_PT=$(show_dialog --menu "Select a partition table to use" 0 0 3 \
 		"msdos" "msdos (default)" \
 		"gpt" "gpt (unsupported)") || return $?
