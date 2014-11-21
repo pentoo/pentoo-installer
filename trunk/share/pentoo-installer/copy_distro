@@ -146,8 +146,8 @@ auto_fstab() {
 	local _CRYPTNAME=
 	local _FSTAB_ITEM=
 	local _PARTPATH=
-	# sort by partition
-	_CONF_LIST="$("${SHAREDIR}"/FSspec sort "${_CONF_LIST}" 'partition' 0)" || return $?
+	# sort by mountpoint
+	_CONF_LIST="$("${SHAREDIR}"/FSspec sort "${_CONF_LIST}" 'mountpoint' 0)" || return $?
 	# comment out stray /dev entries in fstab
 	# sed -i 's/^\/dev/#\/dev/g' "${DESTDIR}/etc/fstab" || return $?
 	# comment out anything not commented out
