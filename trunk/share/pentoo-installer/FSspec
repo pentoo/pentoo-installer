@@ -260,19 +260,29 @@ FSspec_merge() {
 	local _LIST_RESULT=
 	local _ITEM_OLD=
 	local _ITEM_NEW=
-	local _DEV_NEW=
-	local _DEV_OLD=
+	local _PARTITION_NEW=
+	local _PARTITION_OLD=
+	local _MOUNTPOINT_NEW=
+	local _MOUNTPOINT_OLD=
 	local _FOUND=
 	# loop old list and add item if not found in new list
 	for _ITEM_OLD in ${_LIST_OLD}; do
 		_FOUND=0
-		_DEV_OLD="$(FSspec_parse "${_ITEM_OLD}" 'partition')" || return $?
+		_PARTITION_OLD="$(FSspec_parse "${_ITEM_OLD}" 'partition')" || return $?
+		_MOUNTPOINT_OLD="$(FSspec_parse "${_ITEM_OLD}" 'mountpoint')" || return $?
 		# loop new list
 		for _ITEM_NEW in ${_LIST_NEW}; do
-			_DEV_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
-			if [ "${_DEV_OLD}" = "${_DEV_NEW}" ]; then
+			_PARTITION_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
+			_MOUNTPOINT_NEW="$(FSspec_parse "${_ITEM_NEW}" 'mountpoint')" || return $?
+			# check partition
+			if [ "${_PARTITION_OLD}" = "${_PARTITION_NEW}" ]; then
 				_FOUND=1
-				echo "INFO: Replacing existing config of ${_DEV_OLD}." 1>&2
+				echo "INFO: Replacing existing config of ${_PARTITION_OLD}." 1>&2
+				break
+			# check mountpoint
+			elif [ "${_MOUNTPOINT_OLD}" = "${_MOUNTPOINT_NEW}" ]; then
+				_FOUND=1
+				echo "INFO: Replacing existing config of ${_PARTITION_OLD}; mountpoint ${_MOUNTPOINT_OLD} now points to ${_PARTITION_NEW}." 1>&2
 				break
 			fi
 		done
@@ -282,9 +292,9 @@ FSspec_merge() {
 	done
 	# check if all partitions exist
 	for _ITEM_NEW in ${_LIST_NEW}; do
-		_DEV_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
-		if [ ! -b "${_DEV_NEW}" ]; then
-			echo "INFO: Device ${_DEV_NEW} is not a valid block partition. Removing config for it." 1>&2
+		_PARTITION_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
+		if [ ! -b "${_PARTITION_NEW}" ]; then
+			echo "INFO: Device ${_PARTITION_NEW} is not a valid block partition. Removing config for it." 1>&2
 		else
 			[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT} "
 			_LIST_RESULT="${_LIST_RESULT}${_ITEM_NEW}"

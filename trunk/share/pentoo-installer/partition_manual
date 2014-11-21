@@ -40,7 +40,9 @@ partition_setpartitionlabel() {
 	local _PT=
 	local _PARTITIONEDITOR=
 	# Read current partition layout
-	_CPT=$(parted $1 print | sed -nr 's/^Partition Table:\s(.*)/\1/p') || return $?
+	_CPT='unknown'
+	# ignore if this fails
+	_CPT=$(parted $1 print -s | sed -nr 's/^Partition Table:\s(.*)/\1/p')
 	_PT=$(show_dialog --menu "Select a partition table to use" 0 0 3 \
 		"msdos" "msdos (default)" \
 		"gpt" "gpt (unsupported)") || return $?
