@@ -67,7 +67,4 @@ case "${SELECTION}" in
 		;;
 esac
 
-# everything ok
-# umount all again and close cryptsetup
-"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}" || exit $?
 exit 0
