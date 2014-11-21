@@ -506,29 +506,32 @@ FSspec_sort() {
 	# check input
 	check_num_args "${FUNCNAME}" 3 $# || return $?
 	local _CONFIG_LIST="${1}"
-	local _LIST_RESULT=
 	local _VARNAME="${2}"
+	local _LIST_RESULT=
 	local _ITEM=
 	local _TMPVALUE=
 	local _DIRECTION=
+	local _SEPARATOR=' '
+	local _LINE=
+	local _INDEX=0
 	[ "${3}" -eq '1' ] && _DIRECTION='-r'
 	for _ITEM in ${_CONFIG_LIST}; do
 		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${_VARNAME}")" || return $?
-		# append space
-		[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT} "
-		# simply prepend the value at start
-		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${CONFIG_SEPARATOR}${_ITEM}"
+		# append newline
+		[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT}"$'\n'
+		# simply prepend the value at start, then space, then the config-item
+		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${_SEPARATOR}${_ITEM}"
 	done
 	# sort the result
-	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort ${_DIRECTION} | tr '\n' ' ')" || return $?
-	_CONFIG_LIST=
-	for _ITEM in ${_LIST_RESULT}; do
-		# append space
-		[ -n "${_CONFIG_LIST}" ] && _CONFIG_LIST="${_CONFIG_LIST} "
-		_CONFIG_LIST="${_CONFIG_LIST}$(echo "${_ITEM}" | cut -d':' -f2-)" || return $?
-	done
-	# write result to STDOUT
-	echo "${_CONFIG_LIST}"
+	_LIST_RESULT="$(echo -n "${_LIST_RESULT}" | sort ${_DIRECTION})" || return $?
+	# loop line by line and print second field
+	while read -r _LINE; do
+		# prepend space
+		[ "${_INDEX}" -gt 0 ] && echo -n ' '
+		# write result to STDOUT
+		echo -n "$(echo -n "${_LINE}" | cut -d"${_SEPARATOR}" -f2)" || return $?
+		_INDEX="$((_INDEX + 2))"
+	done <<<"${_LIST_RESULT}"
 	return 0
 }
 
