@@ -89,7 +89,7 @@ partition_findpartitions() {
 			# check if not already assembled to a raid device
 			if ! cat /proc/mdstat 2>/dev/null | grep -q "${_PART}" \
 				&& ! file -s /dev/"${_PART}" | grep -qi lvm2 \
-				&& ! fdisk -l /dev/"${_DISC}" | grep "^/dev/${_PART}[[:space:]]" | awk '{print $5}' | grep -q 5 \
+				&& ! fdisk -l /dev/"${_DISC}" | grep "^/dev/${_PART}[[:space:]]" | sed 's/ \* /   /' | awk '{print $5}' | grep -q 5 \
 				; then
 				if [ -d "${_PARTPATH}" ]; then
 					echo "/dev/${_PART}"
