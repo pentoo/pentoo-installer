@@ -112,6 +112,7 @@ CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')"
 PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
 # root partition encrypted?
 CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
+CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'cryptname')" || exit $?
 
 # look for a separately-mounted /boot partition
 if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
@@ -131,7 +132,7 @@ KERNEL_PARAMS=
 # get kernel version
 KERNVER="$(getkernelversion)" || exit $?
 # get kernel params
-KERNEL_PARAMS="$(getkernelparams "${PART_ROOT}" "${PART_BOOT}" "${CRYPTTYPE}")" || exit $?
+KERNEL_PARAMS="$(getkernelparams "${PART_ROOT}" "${PART_BOOT}" "${CRYPTTYPE}" "${CRYPTNAME}")" || exit $?
 
 GRUBMENU="${DESTDIR}/boot/grub/grub.conf"
 rm "${DESTDIR}"/boot/grub/menu.lst

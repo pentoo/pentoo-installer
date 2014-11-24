@@ -27,21 +27,23 @@ source "${SHAREDIR}"/common.sh || exit $?
 #  _ROOTPART: root partition
 #  _BOOTPART: boot partition
 #  _CRYPTTYPE: encryption-type (should be '' or 'luks-gpg')
+#  _CRYPTNAME: cryptname of root partition
 #
 # returns 0 on success
 # anything else is a real error
 #
 getkernelparams() {
 	# check input
-	check_num_args "${FUNCNAME}" 3 $# || return $?
-	local _ROOTPART="$1"
-	local _BOOTPART="$2"
-	local _CRYPTTYPE="$3"
+	check_num_args "${FUNCNAME}" 4 $# || return $?
+	local _ROOTPART="${1}"
+	local _BOOTPART="${2}"
+	local _CRYPTTYPE="${3}"
+	local _CRYPTNAME="${4}"
 	local _KERNEL_PARAMS=
 	_KERNEL_PARAMS="$(parse_kernel_cmdline)" || return $?
 	# encrypted root partition
 	if [ "${_CRYPTTYPE}" != '' ]; then
-		_KERNEL_PARAMS="root=/dev/ram0 real_root=/dev/mapper/root dogpg crypt_root=${_ROOTPART} root_key=/key.gpg root_keydev=${_BOOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
+		_KERNEL_PARAMS="root=/dev/ram0 real_root=/dev/mapper/${_CRYPTNAME} dogpg crypt_root=${_ROOTPART} root_key=/${_CRYPTNAME}.gpg root_keydev=${_BOOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
 	else
 		_KERNEL_PARAMS="root=/dev/ram0 real_root=${_ROOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
 	fi
