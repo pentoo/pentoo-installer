@@ -1,0 +1,696 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# FSspec
+# handler for the FSspec format defined below
+# all actions with FSspec should use this
+
+# FSspec definition
+#  contains the following key-value pairs:
+#   partition
+#   mountpoint
+#   filesystem
+#	crypttype (one of: 'swap', 'luks', 'luks-gpg', '')
+#   format (0=no 1=yes)
+#   cryptname (name used by cryptsetup)
+#   partuuid (PARTUUID, *not* the UUID)
+#   cryptkey
+#
+#  mountpoint of a swap partition must be empty
+#  all non swap partitions must have a mountpoint
+#  root partition can only be encrypted when /boot is on another partition
+#  values cannot contain white-space or the ":" character!
+#
+#  internal:
+#   the definition is stored as one long string of key:value:key:value:...
+#   order of keys is important!
+
+# writes errors and noise to STDERR
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source common variables, functions and error handling
+source "${SHAREDIR}"/common.sh || exit $?
+
+# DEBUG_CHECKS if '1', then time-consuming extra checks are done
+readonly DEBUG_CHECKS=0
+
+readonly FSspec_DEFINITION=(partition mountpoint filesystem crypttype format cryptname partuuid cryptkey) || exit $?
+readonly CONFIG_SEPARATOR=':' || exit $?
+
+
+#############################
+## START: utility functions##
+
+# FSspec_create()
+# creates an FSspec string from the input variables and writes it to STDOUT
+# for external use, not all values of an FSspec are required as input
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  these items of an FSspec in this order
+#   partition, mountpoint, filesystem, crypttype, format
+#
+FSspec_create() {
+	# check input
+	check_num_args "${FUNCNAME}" 5 $# || return $?
+	local _PARTUUID=
+	# set partuuid
+	_PARTUUID="$(blkid -s PARTUUID -o value "${1}")" || return $?
+	# simply call the internal create function with empty strings for missing FSspec items
+	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "" "${_PARTUUID}" ""
+}
+
+# FSspec_createfull()
+# creates an FSspec string from the input variables and writes it to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+# all items of an FSspec in correct order
+#
+FSspec_createfull() {
+	# check input
+	check_num_args "${FUNCNAME}" 8 $# || return $?
+	local _PARTITION="${1}"
+	local _MOUNTPOINT="${2}"
+	local _FILESYSTEM="${3}"
+	local _CRYPTTYPE="${4}"
+	local _FORMAT="${5}"
+	local _CRYPTNAME="${6}"
+	local _PARTUUID="${7}"
+	local _CRYPTKEY="${8}"
+	# check values for spaces or delimiter char
+	while (( "$#" )); do
+		if echo "${1}" | grep -q "[[:space:]${CONFIG_SEPARATOR}'\"]"; then
+			echo "Error: value cannot contain spaces or these ${CONFIG_SEPARATOR}'\" characters" 1>&2
+			return 1
+		fi
+		shift
+	done
+	# convert boolean values to 0 or 1
+	[ "${_FORMAT}" != '1' ] && _FORMAT=0
+	# validate
+	if [ -z "${_PARTITION}" ] || [ -z "${_FILESYSTEM}" ]; then
+		echo "error parsing config, partition or filesystem missing" 1>&2
+		return 1
+	fi
+	# swap partition cannot have mountpoint
+	if [ "${_FILESYSTEM}" = 'swap' ]; then
+		if [ -n "${_MOUNTPOINT}" ]; then
+			echo "error parsing config, swap partition cannot have mountpoint" 1>&2
+			return 1
+		fi
+	# non swap partition, must have mountpoint
+	elif [ -z "${_MOUNTPOINT}" ]; then
+		echo "error parsing config, partition must have mountpoint" 1>&2
+		return 1
+	fi
+	# validate crypttype
+	if [ "${_CRYPTTYPE}" != '' ]; then
+		# check crypttype
+		# swap must have swap as type
+		if [ "${_FILESYSTEM}" = 'swap' ]; then
+			if [ "${_CRYPTTYPE}" != 'swap' ]; then
+				echo "error parsing config, wrong crypttype for swap partition" 1>&2
+				return 1
+			fi
+		# non-swap
+		else
+			# /boot
+			if [ "${_MOUNTPOINT}" = '/boot' ]; then
+				echo "error parsing config, partition on mountpoint '/boot' cannot be encrypted" 1>&2
+				return 1
+			# root partition
+			elif [ "${_MOUNTPOINT}" = '/' ]; then
+				# check crypttype
+				if [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+					echo "error parsing config, wrong crypttype for root partition" 1>&2
+					return 1
+				fi
+			# non-root partition, check crypttype
+			elif [ "${_CRYPTTYPE}" != 'luks' ] && [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+				echo "error parsing config, unexpected crypttype '${_CRYPTTYPE}'" 1>&2
+				return 1
+			fi
+		fi
+	fi
+	# check partuuid
+	if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
+		echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
+		return 1
+	fi
+	# everything ok, write to STDOUT and return 0
+	echo -n "partition${CONFIG_SEPARATOR}${_PARTITION}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "mountpoint${CONFIG_SEPARATOR}${_MOUNTPOINT}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "filesystem${CONFIG_SEPARATOR}${_FILESYSTEM}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "crypttype${CONFIG_SEPARATOR}${_CRYPTTYPE}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "format${CONFIG_SEPARATOR}${_FORMAT}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "cryptname${CONFIG_SEPARATOR}${_CRYPTNAME}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "partuuid${CONFIG_SEPARATOR}${_PARTUUID}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "cryptkey${CONFIG_SEPARATOR}${_CRYPTKEY}"
+	return 0
+}
+
+# FSspec_del_keyvalue()
+# parses a list of FSspec and deletes all elements with key=value
+# all other items from the list are printed to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  key: see defined FSscpec format
+#  value: search for this
+#
+FSspec_del_keyvalue() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _FIRST=1
+	local _ITEM=
+	local _TMPVAL=
+	# loop list and output item if key=value not true
+	for _ITEM in ${1}; do
+		_TMPVAL="$(FSspec_parse "${_ITEM}" "${2}")" || return $?
+		if [ "${_TMPVAL}" != "${3}" ]; then
+			[ "${_FIRST}" -ne 1 ] && echo -n ' '
+			[ "${_FIRST}" -eq 1 ] && _FIRST=0
+			echo -n "${_ITEM}"
+		fi
+	done
+	return 0
+}
+
+# FSspec_list_haskeyvalue()
+# checks if a list of FSspec has a key=value element
+#
+# returns 0 when found, 1 when not found
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  key: see defined FSscpec format
+#  value: search for this
+#
+FSspec_list_haskeyvalue() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	FSspec_listfind "${@}" 1>/dev/null
+	return $?
+}
+
+# FSspec_listfind()
+# parses a list of FSspec-strings, searches for matching key=value
+# and prints first matching list item to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  varname: an item of the FSspec format
+#  varvalue: the value to search for
+#
+FSspec_listfind() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _ITEM=
+	local _TMPVALUE=
+	for _ITEM in ${1}; do
+		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${2}")" || return $?
+		if [ "${_TMPVALUE}" = "${3}" ]; then
+			echo "${_ITEM}"
+			return 0
+		fi
+	done
+	# item not found, exit ungracefully
+	return 1
+}
+
+# FSspec_merge()
+# merges a list of old config with a list of new ones by their partition
+# partitions in both lists: new config is used
+# partitions which do not exist are removed
+# all other items from both lists are printed to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  list_old_configs: list of FSspec items, see defined FSscpec format
+#  list_new_configs: list of FSspec items, see defined FSscpec format
+#
+FSspec_merge() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local _LIST_OLD="${1}"
+	local _LIST_NEW="${2}"
+	local _LIST_RESULT=
+	local _ITEM_OLD=
+	local _ITEM_NEW=
+	local _PARTITION_NEW=
+	local _PARTITION_OLD=
+	local _MOUNTPOINT_NEW=
+	local _MOUNTPOINT_OLD=
+	local _FOUND=
+	# loop old list and add item if not found in new list
+	for _ITEM_OLD in ${_LIST_OLD}; do
+		_FOUND=0
+		_PARTITION_OLD="$(FSspec_parse "${_ITEM_OLD}" 'partition')" || return $?
+		_MOUNTPOINT_OLD="$(FSspec_parse "${_ITEM_OLD}" 'mountpoint')" || return $?
+		# loop new list
+		for _ITEM_NEW in ${_LIST_NEW}; do
+			_PARTITION_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
+			_MOUNTPOINT_NEW="$(FSspec_parse "${_ITEM_NEW}" 'mountpoint')" || return $?
+			# check partition
+			if [ "${_PARTITION_OLD}" = "${_PARTITION_NEW}" ]; then
+				_FOUND=1
+				echo "INFO: Replacing existing config of ${_PARTITION_OLD}." 1>&2
+				break
+			# check mountpoint
+			elif [ "${_MOUNTPOINT_OLD}" = "${_MOUNTPOINT_NEW}" ]; then
+				_FOUND=1
+				echo "INFO: Replacing existing config of ${_PARTITION_OLD}; mountpoint ${_MOUNTPOINT_OLD} now points to ${_PARTITION_NEW}." 1>&2
+				break
+			fi
+		done
+		if [ "${_FOUND}" -eq 0 ]; then
+			_LIST_NEW="${_LIST_NEW} ${_ITEM_OLD}"
+		fi
+	done
+	# check if all partitions exist
+	for _ITEM_NEW in ${_LIST_NEW}; do
+		_PARTITION_NEW="$(FSspec_parse "${_ITEM_NEW}" 'partition')" || return $?
+		if [ ! -b "${_PARTITION_NEW}" ]; then
+			echo "INFO: Device ${_PARTITION_NEW} is not a valid block partition. Removing config for it." 1>&2
+		else
+			[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT} "
+			_LIST_RESULT="${_LIST_RESULT}${_ITEM_NEW}"
+		fi
+	done
+	# sort result
+	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort | tr '\n' ' ')" || return $?
+	# write result to STDOUT
+	echo "${_LIST_RESULT}"
+	return 0
+}
+
+# FSspec_parse()
+# parses an input FSspec and writes desired var to STDOUT
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  input: see defined FSscpec format
+#  varname: an item of the FSspec format
+#
+FSspec_parse() {
+	# only for debugging, takes time
+	if [ "${DEBUG_CHECKS}" -eq 1 ]; then
+		# check input
+		check_num_args "${FUNCNAME}" 2 $# || return $?
+		local _ITEM="${1}"
+		local _VARNAME="${2}"
+		local _PARTITION=
+		local _MOUNTPOINT=
+		local _FILESYSTEM=
+		local _CRYPTTYPE=
+		local _FORMAT=
+		local _CRYPTNAME=
+		local _PARTUUID=
+		local _CRYPTKEY=
+		local _CHECKKEY=
+		local _COUNT=
+		# check if input has correct number of separators
+		_COUNT="$(echo -n "${_ITEM//[^${CONFIG_SEPARATOR}]}" | wc -m)" || return false;
+		if [ "${_COUNT}" -ne 15 ]; then
+			echo "error parsing config, wrong number of separators in '${_ITEM}'" 1>&2
+			return 1
+		fi
+		# parse the item keys
+		_COUNT=0
+		for _CHECKKEY in "${FSspec_DEFINITION[@]}"; do
+			if [ "$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f"$((_COUNT * 2 + 1))")" != "${_CHECKKEY}" ]; then
+				echo "error parsing config, unexpected key '${_CHECKKEY}' in '${_ITEM}'" 1>&2
+				return 1
+			fi
+			_COUNT="$((_COUNT+1))"
+		done
+		# parse the item values
+		_PARTITION="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f2)" || return $?
+		_MOUNTPOINT="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f4)" || return $?
+		_FILESYSTEM="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f6)" || return $?
+		_CRYPTTYPE="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f8)" || return $?
+		_FORMAT="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f10)" || return $?
+		_CRYPTNAME="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f12)" || return $?
+		_PARTUUID="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f14)" || return $?
+		_CRYPTKEY="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f16)" || return $?
+		# convert boolean values to 0 or 1
+		[ "${_FORMAT}" != '1' ] && _FORMAT=0
+		# validate
+		FSspec_createfull \
+			"${_PARTITION}" \
+			"${_MOUNTPOINT}" \
+			"${_FILESYSTEM}" \
+			"${_CRYPTTYPE}" \
+			"${_FORMAT}" \
+			"${_CRYPTNAME}" \
+			"${_PARTUUID}" \
+			"${_CRYPTKEY}" \
+			1>/dev/null \
+			|| return $?
+		# print value to STDOUT
+		case "${_VARNAME}" in
+			"partition")
+				echo "${_PARTITION}";;
+			"mountpoint")
+				echo "${_MOUNTPOINT}";;
+			"filesystem")
+				echo "${_FILESYSTEM}";;
+			"crypttype")
+				echo "${_CRYPTTYPE}";;
+			"format")
+				echo "${_FORMAT}";;
+			"cryptname")
+				echo "${_CRYPTNAME}";;
+			"partuuid")
+				echo "${_PARTUUID}";;
+			"cryptkey")
+				echo "${_CRYPTKEY}";;
+			*)
+				echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
+				return 1 ;;
+		esac
+	# shorthand parsing without extra checks
+	else
+		# print value to STDOUT
+		case "${2}" in
+			"partition")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f2 || return $? ;;
+			"mountpoint")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f4 || return $? ;;
+			"filesystem")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f6 || return $? ;;
+			"crypttype")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f8 || return $? ;;
+			"format")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f10 || return $? ;;
+			"cryptname")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f12 || return $? ;;
+			"partuuid")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f14 || return $? ;;
+			"cryptkey")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f16 || return $? ;;
+			*)
+				echo "Unexpected varname '${2}' in ${FUNCNAME}()" 1>&2
+				return 1 ;;
+		esac
+	fi
+	return 0
+}
+
+# FSspec_setvalue()
+# replaces the value of a key
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  input: see defined FSscpec format
+#  varname: an item of the FSspec format
+#  varvalue: the new value
+#
+FSspec_setvalue() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _ITEM="${1}"
+	local _VARNAME="${2}"
+	local _VARVALUE="${3}"
+	local _PARTITION=
+	local _MOUNTPOINT=
+	local _FILESYSTEM=
+	local _CRYPTTYPE=
+	local _FORMAT=
+	local _CRYPTNAME=
+	local _PARTUUID=
+	local _CRYPTKEY=
+	# parse the item values
+	_PARTITION="$(FSspec_parse "${_ITEM}" 'partition')" || return $?
+	_MOUNTPOINT="$(FSspec_parse "${_ITEM}" 'mountpoint')" || return $?
+	_FILESYSTEM="$(FSspec_parse "${_ITEM}" 'filesystem')" || return $?
+	_CRYPTTYPE="$(FSspec_parse "${_ITEM}" 'crypttype')" || return $?
+	_FORMAT="$(FSspec_parse "${_ITEM}" 'format')" || return $?
+	_CRYPTNAME="$(FSspec_parse "${_ITEM}" 'cryptname')" || return $?
+	_PARTUUID="$(FSspec_parse "${_ITEM}" 'partuuid')" || return $?
+	_CRYPTKEY="$(FSspec_parse "${_ITEM}" 'cryptkey')" || return $?
+	# replace desired value
+	case "${_VARNAME}" in
+		"partition")
+			_PARTITION="${_VARVALUE}" ;;
+		"mountpoint")
+			_MOUNTPOINT="${_VARVALUE}" ;;
+		"filesystem")
+			_FILESYSTEM="${_VARVALUE}" ;;
+		"crypttype")
+			_CRYPTTYPE="${_VARVALUE}" ;;
+		"format")
+			_FORMAT="${_VARVALUE}" ;;
+		"cryptname")
+			_CRYPTNAME="${_VARVALUE}" ;;
+		"partuuid")
+			_PARTUUID="${_VARVALUE}" ;;
+		"cryptkey")
+			_CRYPTKEY="${_VARVALUE}" ;;
+		*)
+			echo "Unexpected varname '${_VARNAME}' in ${FUNCNAME}()" 1>&2
+			return 1 ;;
+	esac
+	# validate and print to STDOUT
+	FSspec_createfull \
+		"${_PARTITION}" \
+		"${_MOUNTPOINT}" \
+		"${_FILESYSTEM}" \
+		"${_CRYPTTYPE}" \
+		"${_FORMAT}" \
+		"${_CRYPTNAME}" \
+		"${_PARTUUID}" \
+		"${_CRYPTKEY}" \
+		|| return $?
+}
+
+# FSspec_sort()
+# sort a list of FSspec-strings by the values of a key
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  config_list: see defined FSscpec format
+#  varname: an item of the FSspec format
+#  direction: 0 for ascending, 1 for reverse
+#
+FSspec_sort() {
+	# check input
+	check_num_args "${FUNCNAME}" 3 $# || return $?
+	local _CONFIG_LIST="${1}"
+	local _VARNAME="${2}"
+	local _LIST_RESULT=
+	local _ITEM=
+	local _TMPVALUE=
+	local _DIRECTION=
+	local _SEPARATOR=' '
+	local _LINE=
+	local _INDEX=0
+	[ "${3}" -eq '1' ] && _DIRECTION='-r'
+	for _ITEM in ${_CONFIG_LIST}; do
+		_TMPVALUE="$(FSspec_parse "${_ITEM}" "${_VARNAME}")" || return $?
+		# append newline
+		[ -n "${_LIST_RESULT}" ] && _LIST_RESULT="${_LIST_RESULT}"$'\n'
+		# simply prepend the value at start, then space, then the config-item
+		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${_SEPARATOR}${_ITEM}"
+	done
+	# sort the result
+	_LIST_RESULT="$(echo -n "${_LIST_RESULT}" | sort ${_DIRECTION})" || return $?
+	# loop line by line and print second field
+	while read -r _LINE; do
+		# prepend space
+		[ "${_INDEX}" -gt 0 ] && echo -n ' '
+		# write result to STDOUT
+		echo -n "$(echo -n "${_LINE}" | cut -d"${_SEPARATOR}" -f2)" || return $?
+		_INDEX="$((_INDEX + 2))"
+	done <<<"${_LIST_RESULT}"
+	return 0
+}
+
+# FSspec_mountall()
+# mounts devices to prepare installation
+# also opens encrypted partitions
+#
+# arguments (required):
+#  _CONFIG_LIST: a list of FSspec after encryption setup and mkfs
+#
+# exits: !=1 is an error
+#
+FSspec_mountall() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _CONFIG_LIST="${1}"
+	local _CONFIG_ITEM=
+	local _PARTITION=
+	local _MOUNTPOINT=
+	local _FILESYSTEM=
+	local _CRYPTTYPE=
+	local _FORMAT=
+	local _CRYPTNAME=
+	local _PARTUUID=
+	local _CRYPTKEY=
+	local _PARTPATH=
+	local _UUID=
+	_UUID="$(uuidgen)" || return $?
+	# check if mountpoint '/' exists
+	if ! FSspec_list_haskeyvalue "${_CONFIG_LIST}" 'mountpoint' '/'; then
+		echo "ERROR: Root partition (with mountpoint '/') not found." 1>&2
+		return 1
+	fi
+	# sort by mountpoint
+	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
+	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
+		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
+		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
+		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
+		_FORMAT="$(FSspec_parse "${_CONFIG_ITEM}" 'format')" || return $?
+		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
+		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
+		_PARTUUID="$(FSspec_parse "${_CONFIG_ITEM}" 'partuuid')" || return $?
+		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
+		_PARTPATH="${_PARTITION}"
+		# check format flag
+		if [ "${_FORMAT}" -ne 0 ]; then
+			echo "ERROR: Format flag for ${_PARTITION} should be 0 to mount, something is wrong!" 1>&2
+			return 1
+		fi
+		# check partuuid
+		if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
+			echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
+			return 1
+		fi
+		if [ "${_CRYPTTYPE}" != '' ]; then
+			# use /dev/mapper
+			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
+			# check if cryptsetup is already open
+			if ! cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
+				# write key to temp file
+				echo -n "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
+				case "${_CRYPTTYPE}" in
+					'swap')
+						cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						;;
+					'luks-gpg')
+						# key is in base64 format
+						base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
+						gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						# clean up
+						rm /tmp/"${_UUID}".asc || return $?
+						;;
+					'luks')
+						cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						;;
+				esac
+				# clean up
+				rm /tmp/"${_UUID}" || return $?
+			fi
+		fi
+		# mount actions
+		if [ "${_FILESYSTEM}" != 'swap' ]; then
+			# check if already mounted
+			if ! mount | grep -q -e "^${_PARTPATH} on $(echo "${DESTDIR}${_MOUNTPOINT}" | sed 's/\/$//') "; then
+				# create our mount directory
+				mkdir -p "${DESTDIR}${_MOUNTPOINT}" || return $?
+				# mount the bad boy
+				mount -t "${_FILESYSTEM}" "${_PARTPATH}" "${DESTDIR}${_MOUNTPOINT}" >>"${LOG}" 2>&1 || return $?
+			fi
+		else
+			# check if already swapped on
+			if ! swapon -s | grep -q -e "$(readlink -f "${_PARTPATH}")"; then
+				# swapon the bad boy 1>&2
+				swapon "${_PARTPATH}" >>"${LOG}" 2>&1 || return $?
+			fi
+		fi
+	done
+}
+
+# FSspec_umountall()
+# umount all items and close cryptsetup
+#
+# returns 0 on success
+# anything else is a real error
+#
+# parameters (required):
+#  _CONFIG_LIST: a list of FSspec
+#
+FSspec_umountall() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _CONFIG_LIST="${1}"
+	local _CONFIG_ITEM=
+	local _PARTITIONS=
+	# create list of partitions and call mount_umountall()
+	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
+		_PARTITIONS="${_PARTITIONS} $(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
+	done
+	if [ -n "${_PARTITIONS}" ]; then
+		# trim first space
+		mount_umountall "${_PARTITIONS:1}" || return $?
+	fi
+	return 0
+}
+
+
+## END: utility functions##
+#############################
+
+# simpy call function based on mode
+MODE="${1}"
+shift
+case "${MODE}" in
+	'add')
+		"${SHAREDIR}"/FSspec_add "${@}" ;;
+	'create')
+		FSspec_create "${@}" ;;
+	'del_keyvalue')
+		FSspec_del_keyvalue "${@}" ;;
+	'edit')
+		"${SHAREDIR}"/FSspec_edit "${@}" ;;
+	'listfind')
+		FSspec_listfind "${@}" ;;
+	'list_haskeyvalue')
+		FSspec_list_haskeyvalue "${@}" ;;
+	'merge')
+		FSspec_merge "${@}" ;;
+	'parse')
+		FSspec_parse "${@}" ;;
+	'setvalue')
+		FSspec_setvalue "${@}" ;;
+	'sort')
+		FSspec_sort "${@}" ;;
+	'mountall')
+		FSspec_mountall "${@}" ;;
+	'umountall')
+		FSspec_umountall "${@}" ;;
+	*)
+		echo "Unexpected mode '${MODE}' received, exiting ungracefully" 1>&2
+		exit 1
+esac

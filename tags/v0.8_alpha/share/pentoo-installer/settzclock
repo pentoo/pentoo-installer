@@ -1,0 +1,70 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# settzclock
+# prompts user to set hardware clock and timezone
+# sets hwclock, timezone and system time
+# params: none
+
+# writes 3 lines to STDOUT
+# Example:
+# clock=[UTC|localtime]
+# timezone=Europe/Zurich
+# datetime=Thu Nov 20 17:45:10 CET 2014
+
+# writes menus and noise to STDERR
+
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source common variables, functions and error handling
+source "${SHAREDIR}"/common.sh || exit $?
+
+# utc or local?
+HARDWARECLOCK="$(show_dialog --menu "Is your hardware clock in UTC or time?" 0 0 2 \
+	"utc" "UTC time" \
+	"localtime" "local time")" \
+	|| exit $?
+
+# write to STDERR
+echo "hwclock: ${HARDWARECLOCK}" 1>&2
+echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
+/sbin/hwclock --hctosys --"${HARDWARECLOCK}" --noadjfile || exit $?
+
+# timezone?
+# TODO: replace tzselect with better dialogs
+TIMEZONE="$(tzselect)" || exit $?
+# write to STDERR
+echo "timezone: ${TIMEZONE}" 1>&2
+if [ "${TIMEZONE}" != "" -a -e "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+	echo "setting timezone to: ${TIMEZONE}" 1>&2
+	/bin/rm -f /etc/localtime 1>&2 || exit $?
+	/bin/cp "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime 1>&2 || exit $?
+fi
+
+# display and ask to set date/time
+DATE="$(show_dialog --calendar "Set the date.\nUse <TAB> to navigate and arrow keys to change values." 0 0 0 0 0)" || exit $?
+TIME="$(show_dialog --timebox "Set the time.\nUse <TAB> to navigate and up/down to change values." 0 0)" || exit $?
+
+# write to STDERR
+echo "date: ${DATE} time: ${TIME}" 1>&2
+# save the time
+# DD/MM/YYYY hh:mm:ss -> YYYY-MM-DD hh:mm:ss
+DATETIME="$(echo "${DATE}" "${TIME}" | sed 's#\(..\)/\(..\)/\(....\) \(..\):\(..\):\(..\)#\3-\2-\1 \4:\5:\6#g')" || exit $?
+
+echo "setting date to: ${DATETIME}" 1>&2
+
+# write to STDOUT, might be useful
+echo "clock=${HARDWARECLOCK}"
+echo "timezone=${TIMEZONE}"
+
+# date writes to STDOUT
+echo -n "date="
+date -s "${DATETIME}" || exit $?
+/sbin/hwclock --systohc --"${HARDWARECLOCK}" --noadjfile 1>&2 || exit $?

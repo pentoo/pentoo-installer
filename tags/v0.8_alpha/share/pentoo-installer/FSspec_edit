@@ -1,0 +1,260 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# FSspec_edit
+# user GUI to edit an FSspec
+#
+# parameters (required):
+#  CONFIG_ITEM: a FSspec
+#  CONFIG_LIST: the list of all config items
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+#
+# prints result to STDOUT
+#  this is the new FSspec, if it's empty, then the FSspec was deleted
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source common variables, functions and error handling
+source "${SHAREDIR}"/common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+# FSspec_hasluks()
+# return 0 if file system is uspported with luks
+# parameters (required)
+# _CURRENT_FS: Current file system
+#
+# TODO: tell user which FS support luks
+FSspec_hasluks() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	case "${1}" in
+		'ext3'|'ext4'|'reiserfs')
+			return 0 ;;
+	esac
+	return 1
+}
+
+# FSspec_getcrypttype()
+# asks user for enrcryption type of a partition and prints result to STDOUT
+# parameters (required)
+#  _PARTITION: The partition
+#  _FILESYSTEM: file system
+#  _MOUNTPOINT: the mountpoint
+#  _CURRENT_CRYPTTYPE: Current crypttype
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+FSspec_getcrypttype() {
+	# check input
+	check_num_args "${FUNCNAME}" 4 $# || return $?
+	local _PARTITION="${1}"
+	local _FILESYSTEM="${2}"
+	local _MOUNTPOINT="${3}"
+	local _CURRENT_CRYPTTYPE="${4}"
+	local _CRYPTTYPE=
+	local _MENU_ITEMS=()
+	# construct menu
+	if [ "${_FILESYSTEM}" = 'swap' ]; then
+		_MENU_ITEMS+=("swap" "Encrypted swap partition") || return $?
+	elif [ "${_MOUNTPOINT}" != '/boot' ]; then
+		_MENU_ITEMS+=("luks-gpg" "LUKS with a GPG encrypted key") || return $?
+		# root partition must have gpg
+		if [ "${_MOUNTPOINT}" != '/' ]; then
+			_MENU_ITEMS+=("luks" "LUKS") || return $?
+		fi
+	fi
+	_MENU_ITEMS+=("None" "No encryption") || return $?
+	[ "${_CURRENT_CRYPTTYPE}" = '' ] && _CURRENT_CRYPTTYPE='None'
+	# expand menu items array below
+	_CRYPTTYPE="$(show_dialog --default-item "${_CURRENT_CRYPTTYPE}" --menu "Select the encryption type for ${_PARTITION} on ${_MOUNTPOINT}" \
+		0 0 3 "${_MENU_ITEMS[@]}")" || return $?
+	[ "${_CRYPTTYPE}" = 'None' ] && _CRYPTTYPE=''
+	# everything ok, write to STDOUT and return 0
+	echo "${_CRYPTTYPE}"
+	return 0
+}
+
+# FSspec_getfilesystem()
+# asks user for filesystem and prints result to STDOUT
+# parameters (required)
+#  _PARTITION: The partition
+#  _CURRENT_FS: Current file system
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+FSspec_getfilesystem() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local _PARTITION="${1}"
+	local _CURRENT_FS="${2}"
+	local _FSTYPE=
+	local _FSOPTS=
+	# get available file systems
+	_FSOPTS="$(get_supportedFS)" || return $?
+	_FSOPTS="$(add_option_label "${_FSOPTS}" '-')" || return $?
+	_FSTYPE="$(show_dialog --default-item "${_CURRENT_FS}" --menu "Select a filesystem for ${_PARTITION}" \
+		0 0 6 ${_FSOPTS})" || return $?
+	# everything ok, write to STDOUT and return 0
+	echo "${_FSTYPE}"
+	return 0
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+# check input
+check_num_args "$(basename $0)" 2 $# || exit $?
+CONFIG_ITEM="${1}"
+CONFIG_LIST="${2}"
+
+# properties of FSspec
+PARTITION=
+MOUNTPOINT=
+FILESYSTEM=
+CRYPTTYPE=
+FORMAT=
+
+SELECTION=
+# array holding menu items
+MENU_ITEMS=()
+NEWVAL=
+MESSAGE=
+RETSUB=
+
+while true; do
+	# parse the item, also validates
+	PARTITION="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+	MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'mountpoint')" || exit $?
+	FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'filesystem')" || exit $?
+	CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
+	FORMAT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'format')" || exit $?
+	# reset array holding menu items
+	MENU_ITEMS=()
+	# construct menu
+	if [ "${FILESYSTEM}" != 'swap' ]; then
+		MENU_ITEMS+=("mountpoint" "Change mountpoint, now: '${MOUNTPOINT}'") || exit $?
+		MENU_ITEMS+=("filesystem" "Change file system, now: '${FILESYSTEM}'") || exit $?
+	fi
+	MENU_ITEMS+=("encryption" "Change encryption, now: '${CRYPTTYPE}'") || exit $?
+	MENU_ITEMS+=("format" "Format and create file system, now: '$(get_yesno "${FORMAT}")'") || exit $?
+	# Add other options: DONE
+	MENU_ITEMS+=("DELETE" "Remove configuration, partition will no longer be used") || exit $?
+	MENU_ITEMS+=("DONE" "Save changes") || exit $?
+	# expand menu items array below
+	SELECTION="$(show_dialog --menu "Changing setup of partition '${PARTITION}'.\nPlease select a property to change." \
+		0 0 0 "${MENU_ITEMS[@]}")" || exit $?
+	# evaluate answer
+	case "${SELECTION}" in
+		'mountpoint')
+			NEWVAL="$(show_dialog --inputbox "Enter the mountpoint for ${PARTITION}. Now: '${MOUNTPOINT}'." 0 0 "${MOUNTPOINT}")"
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ]; then
+				# trim result
+				NEWVAL="$(echo "${NEWVAL}" | awk '{gsub(/^ +| +$/,"")} {print $0}')" || exit $?
+				# validate
+				if [ -z "${NEWVAL}" ]; then
+					show_dialog --msgbox "ERROR: You have entered an empty mountpoint!" 0 0
+				elif [ "${NEWVAL:0:1}" != '/' ]; then
+					show_dialog --msgbox "ERROR: A valid mountpoint begins with '/'!" 0 0
+				elif [ "${NEWVAL}" = '/boot' ] && [ "${CRYPTTYPE}" != '' ]; then
+					show_dialog --msgbox "ERROR: Mountpoint '/boot' cannot be encrypted!" 0 0
+				else
+					# change FSspec string
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'mountpoint' "${NEWVAL}")" || exit $?
+					MOUNTPOINT="${NEWVAL}"
+				fi
+			fi
+			;;
+		'filesystem')
+			# show dialog for filesystem
+			NEWVAL="$(FSspec_getfilesystem "${PARTITION}" "${FILESYSTEM}")"
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ]; then
+				if [ -z "${NEWVAL}" ]; then
+					# should not be possible
+					exit 1
+				fi
+				# check if encryption might be lost
+				if [ "${CRYPTTYPE}" != '' ] && ! FSspec_hasluks "${NEWVAL}"; then
+					show_dialog --yesno "New file system '${NEWVAL}' does not support encryption.\nDo you want to continue?" 0 0
+					RETSUB=$?
+					if [ "${RETSUB}" -eq 0 ]; then
+						# change FSspec string
+						CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'crypttype' '')" || exit $?
+						CRYPTTYPE=''
+					fi
+				fi
+				if [ "${RETSUB}" -eq 0 ]; then
+					# change FSspec string
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'filesystem' "${NEWVAL}")" || exit $?
+					FILESYSTEM="${NEWVAL}"
+				fi
+			fi
+			;;
+		'encryption')
+			# check if file system supports encryption
+			if [ "${FILESYSTEM}" != 'swap' ] && ! FSspec_hasluks "${FILESYSTEM}"; then
+				show_dialog --msgbox "Error: Current file system '${FILESYSTEM}' does not support encryption.\nPlease select another file system." 0 0
+			# for root partition, check if there is a separate /boot
+			elif [ "${MOUNTPOINT}" = '/' ] && ! "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; then
+				show_dialog --msgbox "Error: You must define a separate partition for mountpoint '/boot' to encrypt the root partition.\nPlease do this first!" 0 0
+			# everything ok, let user edit the value
+			else
+				# show dialog for encryption types
+				NEWVAL="$(FSspec_getcrypttype "${PARTITION}" "${FILESYSTEM}" "${MOUNTPOINT}" "${CRYPTTYPE}")"
+				RETSUB=$?
+				if [ "${RETSUB}" -eq 0 ]; then
+					# change FSspec string
+					CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'crypttype' "${NEWVAL}")" || exit $?
+					CRYPTTYPE="${NEWVAL}"
+				fi
+			fi
+			;;
+		'format')
+			# dialog for boolean value
+			show_dialog --yesno "Formatting of ${PARTITION} is now '$(get_yesno "${FORMAT}")'.\nDo you want to change it?" 0 0
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ] && [ "${FORMAT}" -eq '0' ]; then
+				# change FSspec string
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'format' '1')" || exit $?
+				FORMAT=1
+			elif [ "${RETSUB}" -eq 0 ]; then
+				# change FSspec string
+				CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'format' '0')" || exit $?
+				FORMAT=0
+			fi
+			;;
+		'DELETE')
+			# Print empty sting
+			# print result to STDOUT and exit 0
+			echo ''
+			exit 0
+			;;
+		'DONE')
+			# everything ok, print result to STDOUT and exit 0
+			echo "${CONFIG_ITEM}"
+			exit 0
+			;;
+		*)
+			echo "ERROR: Unexpected response '${SELECTION}' in $(basename $0)" 1>&2
+			exit 1
+			;;
+	esac
+done

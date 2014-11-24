@@ -1,0 +1,198 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# partition_configurations
+# display configure mountpoints and filesystems
+# lets user add new ones or delete existing ones
+# parameters (required)
+#  CONFIG_LIST: One string with 0 or more items of defined FSspec
+#
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+#
+# prints result to STDOUT
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source partitioning commons
+source "${SHAREDIR}"/partition_common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+# partition_getlistmaxlength()
+# loops string list and prints length of longest item
+# parameters (required)
+#  _LIST: The list
+partition_getlistmaxlength() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _LIST="${1}"
+	local _ITEM=
+	local _MAX=0
+	for _ITEM in ${_LIST}; do
+		[ "${_MAX}" -lt "${#_ITEM}" ] && _MAX="${#_ITEM}"
+	done
+	echo "${_MAX}"
+	return 0
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+# check input
+check_num_args "$(basename $0)" 1 $# || exit $?
+CONFIG_LIST="${1}"
+RETSUB=
+
+while true; do
+	# array holding menu items
+	MENU_ITEMS=()
+	MENU_STRING=
+	# arrays of item settings
+	PARTITIONS=()
+	MOUNTPOINTS=()
+	FILESYSTEMS=()
+	CRYPTTYPES=()
+	FORMATS=()
+	# other vars
+	TMP_ITEM=
+	TMPSTRING=
+	MAXLEN=
+	SELECTION=
+	# parse input
+	# loop input/config items, add each sub-var to an array for the menu
+	for TMP_ITEM in ${CONFIG_LIST}; do
+		# parse the item, also validates
+		# add each item to the corresponding array
+		PARTITIONS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'partition')") || exit $?
+		MOUNTPOINTS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'mountpoint')") || exit $?
+		FILESYSTEMS+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'filesystem')") || exit $?
+		CRYPTTYPES+=("$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'crypttype')") || exit $?
+		FORMATS+=("$(get_yesno "$("${SHAREDIR}"/FSspec parse "${TMP_ITEM}" 'format')")") || exit $?
+	done
+	# ### START: UGLY CODE BLOCK ###
+	# ### This just creates formatted/padded labels for the menu options
+	# ### menu keys will be the partitions, like '/dev/sda1'
+	# ###
+	# loop input/config items, create formatted/padded strings for the menu
+	if [ "${#PARTITIONS[@]}" -gt 0 ]; then
+
+		# loop partitions and init menu items array
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			# add to menu items
+			MENU_ITEMS+=("${PARTITIONS[$TMP_ITEM]}" "") || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
+		# construct formatted string
+		# padd all strings
+		# mountpoint
+		MAXLEN=$(partition_getlistmaxlength "$(echo ${MOUNTPOINTS[@]})") || exit $?
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${MOUNTPOINTS[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="mountpoint=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
+		# filesystem
+		MAXLEN=$(partition_getlistmaxlength "$(echo ${FILESYSTEMS[@]})") || exit $?
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${FILESYSTEMS[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="filesystem=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
+		# crypttypes
+		MAXLEN=$(partition_getlistmaxlength "$(echo ${CRYPTTYPES[@]})") || exit $?
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${CRYPTTYPES[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="encryption=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
+		# format
+		MENU_STRING="${MENU_STRING}format="
+		MAXLEN=$(partition_getlistmaxlength "$(echo ${FORMATS[@]})") || exit $?
+		TMP_ITEM=0
+		while [ "${TMP_ITEM}" -lt "${#PARTITIONS[@]}" ]; do
+			TMPSTRING="${FORMATS[$TMP_ITEM]}" || exit $?
+			# append spaces so all items have same length + 4 for padding
+			TMPSTRING="${TMPSTRING}$(printf ' %.0s' $(eval echo {1..$((MAXLEN+4-${#TMPSTRING}))}))" || exit $?
+			# store in menu items array
+			MENU_ITEMS[$((TMP_ITEM * 2 + 1))]+="format=${TMPSTRING}" || exit $?
+			# increment for next partition
+			TMP_ITEM=$((TMP_ITEM+1))
+		done
+
+	fi
+	# ###
+	# ### END: UGLY CODE BLOCK ###
+	# Add other options: ADD, DONE
+	MENU_ITEMS+=("ADD" "Add another partition") || exit $?
+	MENU_ITEMS+=("DONE" "Save changes") || exit $?
+	# expand menu items array below
+	SELECTION=$(show_dialog --menu "Please select partitions to edit or add a new partition." \
+		0 0 0 "${MENU_ITEMS[@]}") || exit $?
+	# evaluate answer
+	case "${SELECTION}" in
+		'ADD')
+			TMP_ITEM="$("${SHAREDIR}"/FSspec add "${CONFIG_LIST}")"
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ]; then
+				# merge/check config list
+				CONFIG_LIST="$("${SHAREDIR}"/FSspec merge "${CONFIG_LIST}" "${TMP_ITEM}")" || exit $?
+			fi
+			;;
+		'DONE')
+			# print result to STDOUT
+			echo "${CONFIG_LIST}"
+			exit 0
+			;;
+		*)
+			# find config of selected item
+			TMP_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'partition' "${SELECTION}")" || exit $?
+			# open submenu
+			TMP_ITEM="$("${SHAREDIR}"/FSspec edit "${TMP_ITEM}" "${CONFIG_LIST}")"
+			RETSUB=$?
+			if [ "${RETSUB}" -eq 0 ]; then
+				# item was removed
+				if [ -z "${TMP_ITEM}" ]; then
+					# delete item from config list
+					CONFIG_LIST="$("${SHAREDIR}"/FSspec del_keyvalue "${CONFIG_LIST}" 'partition' "${SELECTION}")" || exit $?
+				else
+					# merge/check config list
+					CONFIG_LIST="$("${SHAREDIR}"/FSspec merge "${CONFIG_LIST}" "${TMP_ITEM}")" || exit $?
+				fi
+			fi
+			;;
+	esac
+	# handle errors from sub-script/functions using a common utility function
+	catch_menuerror "$(basename $0)" "${SELECTION}" "${RETSUB}"
+done
