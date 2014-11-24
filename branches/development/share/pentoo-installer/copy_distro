@@ -72,11 +72,11 @@ auto_dmcrypt() {
 				case "${_CRYPTTYPE}" in
 					'luks-gpg')
 						# key is in base64 format
-						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/boot/key.gpg" || return $?
+						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/boot/${_CRYPTNAME}.gpg" || return $?
 						;;
 					'luks')
 						# Info: this should not be possible for root partition and actually is disabled in the menu
-						echo "${_CRYPTKEY}" >"${DESTDIR}/boot/key.gpg" || return $?
+						echo "${_CRYPTKEY}" >"${DESTDIR}/boot/${_CRYPTNAME}.key" || return $?
 						;;
 				esac
 			fi
