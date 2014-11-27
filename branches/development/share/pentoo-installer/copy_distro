@@ -148,8 +148,6 @@ auto_fstab() {
 	local _PARTPATH=
 	# sort by mountpoint
 	_CONF_LIST="$("${SHAREDIR}"/FSspec sort "${_CONF_LIST}" 'mountpoint' 0)" || return $?
-	# comment out stray /dev entries in fstab
-	# sed -i 's/^\/dev/#\/dev/g' "${DESTDIR}/etc/fstab" || return $?
 	# comment out anything not commented out
 	sed -r -i 's/^[^#]/#&/' "${DESTDIR}/etc/fstab" || return $?
 	# append entries from new configuration
