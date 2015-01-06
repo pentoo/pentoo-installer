@@ -1,0 +1,167 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# partition_autoprepare
+# apply preconfigured partition layout
+# parameters: none
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+#
+# prints result to STDOUT
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source partitioning commons
+source "${SHAREDIR}"/partition_common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+# printk()
+# parameters (required)
+#  on|off
+#
+printk() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	case $1 in
+		"on") echo 4 >/proc/sys/kernel/printk || return $? ;;
+		"off") echo 0 >/proc/sys/kernel/printk || return $? ;;
+		*) return 1 ;;
+	esac
+	return 0
+}
+
+# partition_getpartitionsize()
+# asks user for size and prints result to STDOUT
+#
+# parameters (required)
+#  _MOUNTPOINT: Mountpoint of the partition
+#  _DISC_SIZE: Remaining space on disc in MiB
+#  _MIN_SIZE: Minimal size in MiB
+#  _SUGGESTED_SIZE: Suggested size in MiB
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+partition_getpartitionsize() {
+	# check input
+	check_num_args "${FUNCNAME}" 4 $# || return $?
+	local _MOUNTPOINT="$1"
+	local _DISC_SIZE="$2"
+	local _MIN_SIZE="$3"
+	local _SUGGESTED_SIZE="$4"
+	local _PART_SIZE=
+	while true; do
+		_PART_SIZE="$(show_dialog --inputbox "Enter the size (MiB) of your ${_MOUNTPOINT} partition. Minimum value is ${_MIN_SIZE} MiB\n\nDisk space left: ${_DISC_SIZE} MiB" \
+			0 0 "${_SUGGESTED_SIZE}")" || return $?
+		if ! [[ ${_PART_SIZE} =~ ${ISNUMBER} ]]; then
+			show_dialog --msgbox "ERROR: You have entered an invalid size, please enter again." 0 0
+		elif [ "${_PART_SIZE}" -ge "${_DISC_SIZE}" -o "${_PART_SIZE}" -eq "${_DISC_SIZE}" ]; then
+				show_dialog --msgbox "ERROR: You have entered a too large size, please enter again." 0 0
+		elif [ "${_PART_SIZE}" -eq "0" -o "${_PART_SIZE}" -lt "${_MIN_SIZE}" ]; then
+				show_dialog --msgbox "ERROR: You have entered a too small size, please enter again." 0 0
+		else
+			# everyhing ok, print ot STDOUT and return
+			echo "${_PART_SIZE}"
+			return $?
+		fi
+	done
+	return 0
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+BOOT_PART_SIZE=""
+DISC=""
+CURRENT_PARTITIONTABLE=
+DISC_SIZE=""
+ROOT_PART_SET=""
+SFDISK_INPUT=""
+SUGGESTED_SWAP_SIZE=""
+SWAP_PART_SIZE=""
+FSSPEC=""
+
+# let user select a disc
+DISC=$(partition_selectdisk) || exit $?
+# disk size in MiB
+DISC_SIZE=$(($(partition_getdisccapacity ${DISC}) / 2**20)) || exit $?
+# boot partition size
+BOOT_PART_SIZE=$(partition_getpartitionsize "/boot" "${DISC_SIZE}" 32 128) || exit $?
+# calc remaining disk size
+DISC_SIZE=$((${DISC_SIZE}-${BOOT_PART_SIZE})) || exit $?
+# swap partition size
+SUGGESTED_SWAP_SIZE=$(awk '/MemTotal/ {printf( "%.0f\n", int ( $2 / 1024 ) + 1)}' /proc/meminfo) || exit $?
+#the line above is confusing mceditor. Close it: '
+SWAP_PART_SIZE=$(partition_getpartitionsize "swap" "${DISC_SIZE}" 1 "${SUGGESTED_SWAP_SIZE}") || exit $?
+# calc remaining disk size
+DISC_SIZE=$((${DISC_SIZE}-${SWAP_PART_SIZE})) || exit $?
+# root partition size info
+if [ "${DISC_SIZE}" -lt "12000" ]; then
+	show_dialog --msgbox "Pentoo requires at least 12GB for / and you don't have that much left, aborting partitioning" 0 0
+	exit "${ERROR_CANCEL}"
+elif [ "${DISC_SIZE}" -lt "24000" ]; then
+	show_dialog --msgbox "Pentoo *suggests* using at least 24GB for your / partition but you don't have that much left. You have been warned." 0 0
+fi
+show_dialog --msgbox "${DISC_SIZE} MiB will be used for your / partition." 0 0
+# Check current partition layout
+CURRENT_PARTITIONTABLE='unknown'
+# this can fail, for ex. on a virgin HD with no partition table
+CURRENT_PARTITIONTABLE=$(parted "${DISC}" print -s 2>/dev/null | sed -nr 's/^Partition Table:\s(.*)/\1/p')
+if [ "${CURRENT_PARTITIONTABLE}" != 'msdos' ]; then
+	show_dialog --defaultno --yesno "${DISC} currently has a '${CURRENT_PARTITIONTABLE}' partition layout.\nThis will be changed to 'msdos'!\nAre you absolutely sure?" 0 0 \
+		|| exit "${ERROR_CANCEL}"
+	parted -s "${DISC}" mklabel 'msdos' || exit $?
+fi
+show_dialog --defaultno --yesno "${DISC} will be COMPLETELY ERASED! Are you absolutely sure?" \
+	0 0 || exit "${ERROR_CANCEL}"
+# umount and swapoff all partitions of the disc
+mount_umountall "${DISC}" || exit $?
+# prepare sfdisk input
+# boot partition
+SFDISK_INPUT=",${BOOT_PART_SIZE},,*"
+# swap partition
+SFDISK_INPUT="${SFDISK_INPUT}\n,${SWAP_PART_SIZE},S"
+# root partition
+SFDISK_INPUT="${SFDISK_INPUT}\n,,"
+SFDISK_INPUT="${SFDISK_INPUT}\n"
+SFDISK_INPUT=$(printf "${SFDISK_INPUT}") || exit $?
+# invoke sfdisk
+printk off || exit $?
+show_dialog --infobox "Partitioning ${DISC}" 0 0
+sync
+# run sfdisk with prepared input
+sfdisk ${DISC} -uM >>"${LOG}" 2>&1 <<EOF
+${SFDISK_INPUT}
+EOF
+if [ $? -gt 0 ]; then
+	show_dialog --msgbox "Error partitioning ${DISC} (see ${LOG} for details)" 0 0
+	printk on || exit $?
+	exit 1
+fi
+printk on
+sync
+show_dialog --msgbox "Auto-prepare was successful" 0 0
+# construct FSspec for each used device and print result to STDOUT
+# boot partition
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}1" "/boot" "ext2" "" "1")" || exit $?
+echo -n "${FSSPEC}"
+echo -n ' '
+# swap partition
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}2" "" "swap" "" "1")" || exit $?
+echo -n "${FSSPEC}"
+echo -n ' '
+# root partition
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}3" "/" "ext4" "" "1")" || exit $?
+echo "${FSSPEC}"

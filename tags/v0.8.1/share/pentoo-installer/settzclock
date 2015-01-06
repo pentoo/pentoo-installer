@@ -1,0 +1,84 @@
+#!/bin/bash
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# settzclock
+# prompts user to set hardware clock and timezone
+# sets hwclock, timezone and system time
+# params: none
+
+# writes 3 lines to STDOUT
+# Example:
+# hwclock=[UTC|localtime]
+# timezone=Europe/Zurich
+# date=2014-11-27 14:23:46 CET
+
+# writes menus and noise to STDERR
+
+# returns 0 on success
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source common variables, functions and error handling
+source "${SHAREDIR}"/common.sh || exit $?
+
+# utc or local?
+HARDWARECLOCK="$(show_dialog --menu "Is your hardware clock in UTC or time?" 0 0 2 \
+	"utc" "UTC time" \
+	"localtime" "local time")" \
+	|| exit $?
+
+# write to STDERR
+echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
+/sbin/hwclock --hctosys --"${HARDWARECLOCK}" --noadjfile || exit $?
+
+# TODO: write to /etc/conf.d/hwclock for chroot
+
+# timezone?
+# TIMEZONE="$(tzselect)" || exit $?
+# replace tzselect with a patched version
+# which does essentially the same but uses dialog/Xdialog
+# see https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
+# the sed commands make the few necessary changes
+cp /usr/bin/tzselect /tmp/tzselect.patched \
+	&& sed -i 's#^\t+#\t*#' /tmp/tzselect.patched \
+	&& patch --silent /tmp/tzselect.patched < <( 
+		cat "${SHAREDIR}"/timezone-data-2014j-dialog.patch \
+		| sed \
+			-e 's/tzselect.ksh/tzselect.patched/g' \
+			-e 's#`pwd`#/usr/share/zoneinfo#g'
+	) \
+	&& TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched 2>/dev/null)" \
+	&& rm /tmp/tzselect.patched \
+	|| exit $?
+
+# TODO: this should happen in chroot only, then the echo can go be removed
+# or am I wrong?
+if [ "${TIMEZONE}" != "" -a -e "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+	echo "setting timezone to: ${TIMEZONE}" 1>&2
+	rm -f /etc/localtime 1>&2 || exit $?
+	cp "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime 1>&2 || exit $?
+fi
+
+# display and ask to set date/time
+DATE="$(show_dialog --calendar "Set the date.\nUse <TAB> to navigate and arrow keys to change values." 0 0 0 0 0)" || exit $?
+TIME="$(show_dialog --timebox "Set the time.\nUse <TAB> to navigate and up/down to change values." 0 0)" || exit $?
+
+# save the time
+# DD/MM/YYYY hh:mm:ss -> YYYY-MM-DD hh:mm:ss
+DATETIME="$(echo "${DATE}" "${TIME}" | sed 's#\(..\)/\(..\)/\(....\) \(..\):\(..\):\(..\)#\3-\2-\1 \4:\5:\6#g')" || exit $?
+
+echo "setting date to: ${DATETIME}" 1>&2
+
+# write to STDOUT, might be useful
+echo "hwclock=${HARDWARECLOCK}"
+echo "timezone=${TIMEZONE}"
+
+# date writes to STDOUT
+echo -n "date="
+date -s "${DATETIME}" +'%F %T %Z' || exit $?
+/sbin/hwclock --systohc --"${HARDWARECLOCK}" --noadjfile 1>&2 || exit $?
