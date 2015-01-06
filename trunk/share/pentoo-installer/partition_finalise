@@ -141,10 +141,8 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	PARTPATH="${PARTITION}"
 	# encrypted
 	if [ "${CRYPTTYPE}" != '' ]; then
-		# use 'basename $PARTITION' as name in cryptsetup, for ex. sda2
-		# CRYPTNAME="$(basename "${PARTITION}")" || exit $?
-		# changed: use uuid as crypt name
-		CRYPTNAME="$(uuidgen)" || exit $?
+		# define cryptname
+		CRYPTNAME="luks_$(basename "${PARTITION}")" || exit $?
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptname' "${CRYPTNAME}")" || exit $?
 		# create crypt-key and use cryptsetup
 		CRYPTKEY="$(partition_crypt_setup "${PARTITION}" "${CRYPTNAME}" "${CRYPTTYPE}")" || exit $?
