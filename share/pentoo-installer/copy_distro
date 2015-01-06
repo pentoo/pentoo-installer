@@ -238,7 +238,7 @@ chroot_mount || exit $?
 
 # remove livecd stuff
 sed -i '/aufs bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
-chroot "${DESTDIR}" emerge -C app-misc/livecd-tools pentoo/pentoo-livecd
+chroot "${DESTDIR}" emerge -C app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer
 
 mknod -m666 "${DESTDIR}"/dev/zero c 1 5
 mknod -m666 "${DESTDIR}"/dev/null c 1 3
