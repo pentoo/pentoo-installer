@@ -142,7 +142,11 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	# encrypted
 	if [ "${CRYPTTYPE}" != '' ]; then
 		# define cryptname
-		CRYPTNAME="luks_$(basename "${PARTITION}")" || exit $?
+		if [ "${MOUNTPOINT}" != '/' ]; then
+			CRYPTNAME="luks_$(basename "${PARTITION}")" || exit $?
+		else
+			CRYPTNAME='root'
+		fi
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptname' "${CRYPTNAME}")" || exit $?
 		# create crypt-key and use cryptsetup
 		CRYPTKEY="$(partition_crypt_setup "${PARTITION}" "${CRYPTNAME}" "${CRYPTTYPE}")" || exit $?
@@ -153,6 +157,7 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	# format partition
 	if [ "${FORMAT}" -eq 1 ]; then
 		case ${FILESYSTEM} in
+			btrfs)		mkfs.btrfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			xfs)		mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			jfs)		mkfs.jfs -q ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			reiserfs)	mkreiserfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?r;;
