@@ -142,7 +142,11 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	# encrypted
 	if [ "${CRYPTTYPE}" != '' ]; then
 		# define cryptname
-		CRYPTNAME="luks_$(basename "${PARTITION}")" || exit $?
+		if [ "${MOUNTPOINT}" != '/' ]; then
+			CRYPTNAME="luks_$(basename "${PARTITION}")" || exit $?
+		else
+			CRYPTNAME='root'
+		fi
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptname' "${CRYPTNAME}")" || exit $?
 		# create crypt-key and use cryptsetup
 		CRYPTKEY="$(partition_crypt_setup "${PARTITION}" "${CRYPTNAME}" "${CRYPTTYPE}")" || exit $?
