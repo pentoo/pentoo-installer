@@ -38,7 +38,7 @@ FSspec_hasluks() {
 	# check input
 	check_num_args "${FUNCNAME}" 1 $# || return $?
 	case "${1}" in
-		'ext3'|'ext4'|'reiserfs')
+		'ext3'|'ext4'|'reiserfs'|'btrfs')
 			return 0 ;;
 	esac
 	return 1
