@@ -43,10 +43,14 @@ echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
 # replace tzselect with a patched version
 # which does essentially the same but uses dialog/Xdialog
 # see https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
+# the sed commands make the few necessary changes
 cp /usr/bin/tzselect /tmp/tzselect.patched \
+	&& sed -i 's#^\t+#\t*#' /tmp/tzselect.patched \
 	&& patch --silent /tmp/tzselect.patched < <( 
 		cat "${SHAREDIR}"/timezone-data-2014j-dialog.patch \
-		| sed -e 's/tzselect.ksh/tzselect.patched/g' -e 's#`pwd`#/usr/share/zoneinfo#g'
+		| sed \
+			-e 's/tzselect.ksh/tzselect.patched/g' \
+			-e 's#`pwd`#/usr/share/zoneinfo#g'
 	) \
 	&& TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched 2>/dev/null)" \
 	&& rm /tmp/tzselect.patched \
