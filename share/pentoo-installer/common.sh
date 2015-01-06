@@ -155,6 +155,7 @@ check_num_args() {
 get_supportedFS() {
 	echo -n 'ext2 ext3 ext4'
 	[ "$(which mkreiserfs 2>/dev/null)" ]	&& echo -n ' reiserfs'
+	[ "$(which btrfs 2>/dev/null)" ]	&& echo -n ' btrfs'
 	[ "$(which mkfs.xfs 2>/dev/null)" ]		&& echo -n ' xfs'
 	[ "$(which mkfs.jfs 2>/dev/null)" ]		&& echo -n ' jfs'
 	[ "$(which mkfs.vfat 2>/dev/null)" ]	&& echo -n ' vfat'
