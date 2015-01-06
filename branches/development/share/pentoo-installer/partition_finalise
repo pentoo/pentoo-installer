@@ -153,6 +153,7 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	# format partition
 	if [ "${FORMAT}" -eq 1 ]; then
 		case ${FILESYSTEM} in
+			btrfs)		mkfs.btrfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			xfs)		mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			jfs)		mkfs.jfs -q ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			reiserfs)	mkreiserfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?r;;
