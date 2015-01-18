@@ -18,7 +18,7 @@
 #  Options: menu-options, only for types menu and yesno
 
 # location of other scripts to source
-readonly SHAREDIR="$(dirname ${0})" || exit $?
+readonly SHAREDIR="$(dirname ${0})/.." || exit $?
 
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
