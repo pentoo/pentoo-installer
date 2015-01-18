@@ -52,7 +52,7 @@ cp /usr/bin/tzselect /tmp/tzselect.patched \
 			-e 's/tzselect.ksh/tzselect.patched/g' \
 			-e 's#`pwd`#/usr/share/zoneinfo#g'
 	) \
-	&& TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched 2>/dev/null)" \
+	&& TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched)" \
 	&& rm /tmp/tzselect.patched \
 	|| exit $?
 
