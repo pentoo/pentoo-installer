@@ -17,8 +17,7 @@
 readonly SHAREDIR="$(dirname ${0})/../share/pentoo-installer"
 
 # source common variables, functions and error handling
-# also get functions to save settings
-source "${SHAREDIR}"/save_settings.sh || exit $?
+source "${SHAREDIR}"/common.sh || exit $?
 
 #####################
 ## begin execution ##
@@ -35,8 +34,6 @@ WHICHDIALOG="$(get_dialog)"
 show_dialog --textbox "${SHAREDIR}/welcome.${WHICHDIALOG}.txt" 0 0 || exit $?
 
 # 'controller' vars
-# CONFIG_LIST: One string with 0 or more items of defined FSspec:
-CONFIG_LIST=
 MAXSELECTION=0
 SELECTION=0
 
@@ -44,32 +41,6 @@ SELECTION=0
 NEWSELECTION=
 RETSUB=
 MENU_ITEMS=
-
-# check for settings from previous installation attempt
-if settings_check; then
-	# ask if old settings should be loaded
-	NEWSELECTION="$(show_dialog \
-		--menu "Settings from previously aborted installation detected.\nDo you want to load them?" \
-		0 0 0 \
-		'No' 'Start from scratch' \
-		'Yes' 'Load settings (you might have to enter passwords)')"
-	RETSUB=$?
-	if [ "${RETSUB}" -eq 0 ] && [ "${NEWSELECTION}" = 'Yes' ]; then
-		# extra check, pass menu-index of 'Prepare hard drive'
-		if ! settings_checkmount 1; then
-			show_dialog --msgbox "ERROR: Unable to load old settings." 0 0
-			# settings_shred || exit $?
-		# load 'controller' vars'
-		else
-			SELECTION="$(settings_read 1)" || exit $?
-			MAXSELECTION="$(settings_read 2)" || exit $?
-			CONFIG_LIST="$(settings_read 3)" || exit $?
-		fi
-	# else
-		# remove old files
-		# settings_shred || exit $?
-	fi
-fi
 
 while [ true ]; do
 	# define menu items
@@ -107,36 +78,34 @@ while [ true ]; do
 	# call subscript by selected item
 	case "${NEWSELECTION}" in
 		"0")
-			"${SHAREDIR}"/settzclock
+			"${SHAREDIR}"/time/settzclock
 			RETSUB=$?
 			;;
 		"1")
 			# prepares (encrypted) partitions and returns a list of partition configs
-			CONFIG_LIST="$("${SHAREDIR}"/partition_mainmenu)"
+			"${SHAREDIR}"/partition_mainmenu
 			RETSUB=$?
 			;;
 		"2")
-			"${SHAREDIR}"/copy_distro "${CONFIG_LIST}"
+			"${SHAREDIR}"/copy_distro
 			RETSUB=$?
 			;;
 		"3")
-			"${SHAREDIR}"/setprofile "${CONFIG_LIST}"
+			"${SHAREDIR}"/setprofile
 			RETSUB=$?
 			;;
 		"4")
-			"${SHAREDIR}"/configure_system "${CONFIG_LIST}"
+			"${SHAREDIR}"/configure_system
 			RETSUB=$?
 			;;
 		"5")
-			"${SHAREDIR}"/bootloader_mainmenu "${CONFIG_LIST}"
+			"${SHAREDIR}"/bootloader_mainmenu
 			RETSUB=$?
 			;;
 		"6")
 			# umount all again and close cryptsetup
-			"${SHAREDIR}"/FSspec umountall "${CONFIG_LIST}"
+			"${SHAREDIR}"/FSspec umountall
 			RETSUB=$?
-			# shred temp config file, it might contain encryption keys
-			settings_shred
 			if [ "${RETSUB}" -eq 0 ]; then
 				echo ""
 				echo "If the install finished successfully, you can now type 'reboot'"
@@ -161,7 +130,5 @@ while [ true ]; do
 		if [ "${MAXSELECTION}" -lt "${SELECTION}" ]; then
 			MAXSELECTION="${SELECTION}"
 		fi
-		# write settings to temp file
-		settings_write "${SELECTION}" "${MAXSELECTION}" "${CONFIG_LIST}" || exit $?
 	fi
 done

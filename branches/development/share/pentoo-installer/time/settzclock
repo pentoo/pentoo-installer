@@ -21,7 +21,7 @@
 # reason: show_dialog() needs a way to exit "Cancel"
 
 # location of other scripts to source
-readonly SHAREDIR="$(dirname ${0})" || exit $?
+readonly SHAREDIR="$(dirname ${0})/.." || exit $?
 
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
@@ -47,12 +47,12 @@ echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
 cp /usr/bin/tzselect /tmp/tzselect.patched \
 	&& sed -i 's#^\t+#\t*#' /tmp/tzselect.patched \
 	&& patch --silent /tmp/tzselect.patched < <( 
-		cat "${SHAREDIR}"/timezone-data-2014j-dialog.patch \
+		cat "${SHAREDIR}"/time/timezone-data-2014j-dialog.patch \
 		| sed \
 			-e 's/tzselect.ksh/tzselect.patched/g' \
 			-e 's#`pwd`#/usr/share/zoneinfo#g'
 	) \
-	&& TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched 2>/dev/null)" \
+	&& TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/time/tzselect_dialog /tmp/tzselect.patched)" \
 	&& rm /tmp/tzselect.patched \
 	|| exit $?
 
@@ -74,11 +74,13 @@ DATETIME="$(echo "${DATE}" "${TIME}" | sed 's#\(..\)/\(..\)/\(....\) \(..\):\(..
 
 echo "setting date to: ${DATETIME}" 1>&2
 
-# write to STDOUT, might be useful
-echo "hwclock=${HARDWARECLOCK}"
-echo "timezone=${TIMEZONE}"
+# store result in $STORDIR
+{
+	echo "hwclock=${HARDWARECLOCK}"
+	echo "timezone=${TIMEZONE}"
 
-# date writes to STDOUT
-echo -n "date="
-date -s "${DATETIME}" +'%F %T %Z' || exit $?
-/sbin/hwclock --systohc --"${HARDWARECLOCK}" --noadjfile 1>&2 || exit $?
+	# date writes to STDOUT
+	echo -n "date="
+	date -s "${DATETIME}" +'%F %T %Z' || exit $?
+	/sbin/hwclock --systohc --"${HARDWARECLOCK}" --noadjfile 1>&2 || exit $?
+} | storage_write work/data/time || exit $?
