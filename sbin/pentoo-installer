@@ -38,6 +38,7 @@ MAXSELECTION=0
 SELECTION=0
 
 # other vars
+EDITOR=
 NEWSELECTION=
 RETSUB=
 MENU_ITEMS=
@@ -46,26 +47,29 @@ while [ true ]; do
 	# define menu items
 	MENU_ITEMS=()
 	# enable only valid menu items
-	# 0 - Set Clock
-	[ "${MAXSELECTION}" -le 1 ] && MENU_ITEMS+=('0') || MENU_ITEMS+=('')
-	MENU_ITEMS+=("Set Clock")
-	# 1 - Prepare Hard Drive
+	# 0 - Set Editor
+	[ "${MAXSELECTION}" -eq 0 ] && MENU_ITEMS+=('0') || MENU_ITEMS+=('')
+	MENU_ITEMS+=("Set Editor")
+	# 1 - Set Clock
 	[ "${MAXSELECTION}" -eq 1 ] && MENU_ITEMS+=('1') || MENU_ITEMS+=('')
-	MENU_ITEMS+=("Prepare Hard Drive")
-	# 2 - Copy the Distribution
+	MENU_ITEMS+=("Set Clock")
+	# 2 - Prepare Hard Drive
 	[ "${MAXSELECTION}" -eq 2 ] && MENU_ITEMS+=('2') || MENU_ITEMS+=('')
+	MENU_ITEMS+=("Prepare Hard Drive")
+	# 3 - Copy the Distribution
+	[ "${MAXSELECTION}" -eq 3 ] && MENU_ITEMS+=('3') || MENU_ITEMS+=('')
 	MENU_ITEMS+=("Copy the Distribution")
-	# 3 - Select Profile
-	[ "${MAXSELECTION}" -ge 3 -a "${MAXSELECTION}" -le 5 ] && MENU_ITEMS+=('3') || MENU_ITEMS+=('')
+	# 4 - Select Profile
+	[ "${MAXSELECTION}" -ge 4 -a "${MAXSELECTION}" -le 6 ] && MENU_ITEMS+=('4') || MENU_ITEMS+=('')
 	MENU_ITEMS+=("Select Profile")
-	# 4 - Configure System
-	[ "${MAXSELECTION}" -ge 4 -a "${MAXSELECTION}" -le 5 ] && MENU_ITEMS+=('4') || MENU_ITEMS+=('')
+	# 5 - Configure System
+	[ "${MAXSELECTION}" -ge 5 -a "${MAXSELECTION}" -le 6 ] && MENU_ITEMS+=('5') || MENU_ITEMS+=('')
 	MENU_ITEMS+=("Configure System")
-	# 5 - Install Bootloader
-	[ "${MAXSELECTION}" -eq 5 ] && MENU_ITEMS+=('5') || MENU_ITEMS+=('')
-	MENU_ITEMS+=("Install Bootloader")
-	# 6 - Exit Install
+	# 6 - Install Bootloader
 	[ "${MAXSELECTION}" -eq 6 ] && MENU_ITEMS+=('6') || MENU_ITEMS+=('')
+	MENU_ITEMS+=("Install Bootloader")
+	# 7 - Exit Install
+	[ "${MAXSELECTION}" -eq 7 ] && MENU_ITEMS+=('7') || MENU_ITEMS+=('')
 	MENU_ITEMS+=("Exit Install")
 	# expand menu items array below
 	NEWSELECTION="$(show_dialog --default-item "${SELECTION}" \
@@ -78,31 +82,35 @@ while [ true ]; do
 	# call subscript by selected item
 	case "${NEWSELECTION}" in
 		"0")
-			"${SHAREDIR}"/time/settzclock
+			editor_set
 			RETSUB=$?
 			;;
 		"1")
+			"${SHAREDIR}"/time/settzclock
+			RETSUB=$?
+			;;
+		"2")
 			# prepares (encrypted) partitions and returns a list of partition configs
 			"${SHAREDIR}"/partition_mainmenu
 			RETSUB=$?
 			;;
-		"2")
+		"3")
 			"${SHAREDIR}"/copy_distro
 			RETSUB=$?
 			;;
-		"3")
+		"4")
 			"${SHAREDIR}"/setprofile
 			RETSUB=$?
 			;;
-		"4")
+		"5")
 			"${SHAREDIR}"/configure_system
 			RETSUB=$?
 			;;
-		"5")
+		"6")
 			"${SHAREDIR}"/bootloader_mainmenu
 			RETSUB=$?
 			;;
-		"6")
+		"7")
 			# umount all again and close cryptsetup
 			"${SHAREDIR}"/FSspec umountall
 			RETSUB=$?

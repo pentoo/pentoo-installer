@@ -9,7 +9,7 @@
 
 # writes 3 lines to STDOUT
 # Example:
-# hwclock=[UTC|localtime]
+# hwclock=[UTC|local]
 # timezone=Europe/Zurich
 # date=2014-11-27 14:23:46 CET
 
@@ -26,17 +26,16 @@ readonly SHAREDIR="$(dirname ${0})/.." || exit $?
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
 
-# utc or local?
+# UTC or local?
 HARDWARECLOCK="$(show_dialog --menu "Is your hardware clock in UTC or time?" 0 0 2 \
-	"utc" "UTC time" \
-	"localtime" "local time")" \
+	"UTC" "UTC time" \
+	"local" "local time")" \
 	|| exit $?
 
-# write to STDERR
-echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
-/sbin/hwclock --hctosys --"${HARDWARECLOCK}" --noadjfile || exit $?
-
-# TODO: write to /etc/conf.d/hwclock for chroot
+echo "setting hwclock to: ${HARDWARECLOCK,,}" 1>&2
+# UTC to lower case (bash 4.0)
+sed -i "s/^clock=.*$/clock=\"${HARDWARECLOCK}\"/" /etc/conf.d/hwclock || exit $?
+hwclock --hctosys --"${HARDWARECLOCK,,}" --noadjfile || exit $?
 
 # timezone?
 # TIMEZONE="$(tzselect)" || exit $?
@@ -56,13 +55,11 @@ cp /usr/bin/tzselect /tmp/tzselect.patched \
 	&& rm /tmp/tzselect.patched \
 	|| exit $?
 
-# TODO: this should happen in chroot only, then the echo can go be removed
-# or am I wrong?
-if [ "${TIMEZONE}" != "" -a -e "/usr/share/zoneinfo/${TIMEZONE}" ]; then
-	echo "setting timezone to: ${TIMEZONE}" 1>&2
-	rm -f /etc/localtime 1>&2 || exit $?
-	cp "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime 1>&2 || exit $?
-fi
+# set timezone in host/LiveISO system
+echo "setting timezone to: ${TIMEZONE}" 1>&2
+echo "${TIMEZONE}" > /etc/timezone || exit $?
+# this sets /etc/localtime
+emerge --config sys-libs/timezone-data || exit $?
 
 # display and ask to set date/time
 DATE="$(show_dialog --calendar "Set the date.\nUse <TAB> to navigate and arrow keys to change values." 0 0 0 0 0)" || exit $?
@@ -74,13 +71,12 @@ DATETIME="$(echo "${DATE}" "${TIME}" | sed 's#\(..\)/\(..\)/\(....\) \(..\):\(..
 
 echo "setting date to: ${DATETIME}" 1>&2
 
-# store result in $STORDIR
-{
-	echo "hwclock=${HARDWARECLOCK}"
-	echo "timezone=${TIMEZONE}"
+echo "hwclock=${HARDWARECLOCK}"
+echo "timezone=${TIMEZONE}"
+# date writes to STDOUT
+echo -n "date="
+date -s "${DATETIME}" +'%F %T %Z' || exit $?
+# UTC to lower case (bash 4.0)
+hwclock --systohc --"${HARDWARECLOCK,,}" --noadjfile 1>&2 || exit $?
 
-	# date writes to STDOUT
-	echo -n "date="
-	date -s "${DATETIME}" +'%F %T %Z' || exit $?
-	/sbin/hwclock --systohc --"${HARDWARECLOCK}" --noadjfile 1>&2 || exit $?
-} | storage_write work/data/time || exit $?
+exit 0
