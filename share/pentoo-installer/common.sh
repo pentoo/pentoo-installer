@@ -282,7 +282,6 @@ EOF
 	return 0
 }
 
-
 # geteditor()
 # get system editor from chroot, prints to SDTOUT
 # if not set: asks user to choose one
