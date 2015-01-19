@@ -90,6 +90,55 @@ check_num_args() {
 	return 0
 }
 
+# editor_get()
+# get system editor from host/LiveISO, prints to SDTOUT
+#
+# parameters (none)
+#
+# returns $ERROR_CANCEL=64 when editor is not set
+# anything else is a real error
+#
+editor_get(){
+	# check input
+	check_num_args "${FUNCNAME}" 0 $# || return $?
+	local _EDITOR=
+	# read current editor
+	_EDITOR="$(eselect editor show | tail -n +2 | sed -e 's/^[[:space:]]*//g' -e 's/[[:space:]]*$//g' -e 's/[[:space:]]*$//g')" || return $?
+	# check if not set
+	if [ "${_EDITOR}" = '(none)' ]; then
+		return ${ERROR_CANCEL}
+	fi
+	# print editor to STDOUT
+	echo "${_EDITOR}"
+	return 0
+}
+
+# editor_set()
+# sets a system editor in host/LiveISO environment
+#
+# parameters (none)
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to return "Cancel"
+#
+editor_set(){
+	# check input
+	check_num_args "${FUNCNAME}" 0 $# || return $?
+	local _EDITOR=
+	local _MENU_ITEMS=()
+	local _RET_SUB=
+	# parse the output of 'eselect editor list' so it can be used as menu options
+	_MENU_ITEMS=("$(eselect editor list | tail -n +2 | grep -v '\(free form\)' | sed -r 's/[[:space:]]+\*[[:space:]]*$//' | sed -r -e 's/^[[:space:]]*//g' -e "s/\[([[:digit:]]+)\][[:space:]]+/\1 /" | tr '\n' ' ')") || return $?
+	# ask user for editor
+	_EDITOR="$(show_dialog --menu "Select a text editor to use (nano is easier)" \
+		0 0 0 ${_MENU_ITEMS[@]})" \
+		|| return $?
+	# set new editor
+	eselect editor set "${_EDITOR}" 1>&2 || return $?
+	return 0
+}
+
 # get_dialog()
 # prints used dialog programm: 'dialog' or 'Xdialog'
 #
