@@ -54,7 +54,7 @@ echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
 #	) \
 	TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /usr/bin/tzselect)" \
 #	&& rm /tmp/tzselect.patched \
-	|| exit $?
+	exit $?
 
 # TODO: this should happen in chroot only, then the echo can go be removed
 # or am I wrong?
