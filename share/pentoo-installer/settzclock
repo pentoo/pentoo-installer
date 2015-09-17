@@ -52,7 +52,7 @@ echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
 #			-e 's/tzselect.ksh/tzselect.patched/g' \
 #			-e 's#`pwd`#/usr/share/zoneinfo#g'
 #	) \
-	TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched)" \
+	TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /usr/bin/tzselect)" \
 #	&& rm /tmp/tzselect.patched \
 	|| exit $?
 
