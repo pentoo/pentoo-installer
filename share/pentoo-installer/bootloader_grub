@@ -147,6 +147,10 @@ fi
 # remove default entries
 sed -i 's/^#splashimage/splashimage/' "${GRUBMENU}" || exit $?
 sed -i '/^#/d' "${GRUBMENU}" || exit $?
+# set pentoo bootsplash
+if [ -f "${DISTDIR}"/boot/grub/pentoo.xpm.gz ]; then
+	sed -i 's/splash.xpm.gz/pentoo.xpm.gz/' "${GRUBMENU}" || exit $?
+fi
 # write new grubmenu
 cat >>${GRUBMENU} <<EOF
 
