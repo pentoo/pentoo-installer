@@ -88,7 +88,6 @@ partition_findpartitions() {
 			_PART="$(basename ${_PARTPATH})" || return $?
 			# check if not already assembled to a raid device
 			# TODO: fdisk output for gpt is completely different
-			# TODO: original installer uses sfdisk !!!!!
 			if ! cat /proc/mdstat 2>/dev/null | grep -q "${_PART}" \
 				&& ! file -s /dev/"${_PART}" | grep -qi lvm2 \
 				&& ! fdisk -l /dev/"${_DISC}" | grep "^/dev/${_PART}[[:space:]]" | sed 's/ \* /   /' | awk '{print $5}' | grep -q 5 \
