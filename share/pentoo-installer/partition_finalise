@@ -161,9 +161,11 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 			xfs)		mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			jfs)		mkfs.jfs -q ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			reiserfs)	mkreiserfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?r;;
-			ext2)		mke2fs "${PARTPATH}" -F >>"${LOG}" 2>&1 || exit $? ;;
-			ext3)		mke2fs -j ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
+			# Pulling out ext2 and ext3 since no sane person wants this
+			#ext2)		mke2fs "${PARTPATH}" -F >>"${LOG}" 2>&1 || exit $? ;;
+			#ext3)		mke2fs -j ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
 			ext4)		mke2fs -t ext4 ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
+			ext4-nojournal)	mke2fs -t ext4 -O ^has_journal ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
 			vfat)		mkfs.vfat ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			# swap
 			swap)		mkswap ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;

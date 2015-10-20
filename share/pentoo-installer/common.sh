@@ -153,7 +153,7 @@ check_num_args() {
 # anything else is a real error
 #
 get_supportedFS() {
-	echo -n 'ext2 ext3 ext4'
+	echo -n 'ext4 ext4-nojournal'
 	[ "$(which mkreiserfs 2>/dev/null)" ]	&& echo -n ' reiserfs'
 	[ "$(which btrfs 2>/dev/null)" ]	&& echo -n ' btrfs'
 	[ "$(which mkfs.xfs 2>/dev/null)" ]		&& echo -n ' xfs'
