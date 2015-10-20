@@ -142,6 +142,7 @@ printk off || exit $?
 show_dialog --infobox "Partitioning ${DISC}" 0 0
 sync
 # run fdisk with prepared input (-c and -u are intentionally redundantly redundant "just in case")
+# 'a' toggles bootable (which isn't set by default)
 fdisk -c -u ${DISC}  >>"${LOG}" 2>&1 <<EOF
 new
 primary
@@ -157,6 +158,9 @@ new
 primary
 2
 
+
+a
+1
 
 write
 EOF
