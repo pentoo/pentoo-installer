@@ -114,17 +114,20 @@ elif [ "${DISC_SIZE}" -lt "24000" ]; then
 	show_dialog --msgbox "Pentoo *suggests* using at least 24GB for your / partition but you don't have that much left. You have been warned." 0 0
 fi
 show_dialog --msgbox "${DISC_SIZE} MiB will be used for your / partition." 0 0
-# Check current partition layout
-CURRENT_PARTITIONTABLE='unknown'
-# this can fail, for ex. on a virgin HD with no partition table
-CURRENT_PARTITIONTABLE=$(parted "${DISC}" print -s 2>/dev/null | sed -nr 's/^Partition Table:\s(.*)/\1/p')
-if [ "${CURRENT_PARTITIONTABLE}" != 'msdos' ]; then
-	show_dialog --defaultno --yesno "${DISC} currently has a '${CURRENT_PARTITIONTABLE}' partition layout.\nThis will be changed to 'msdos'!\nAre you absolutely sure?" 0 0 \
-		|| exit "${ERROR_CANCEL}"
-	parted -s "${DISC}" mklabel 'msdos' || exit $?
-fi
 show_dialog --defaultno --yesno "${DISC} will be COMPLETELY ERASED! Are you absolutely sure?" \
 	0 0 || exit "${ERROR_CANCEL}"
+#blow away partition table (this negates the check for partition table type below)
+dd if=/dev/zero of="${DISC}" bs=512 count=1 conv=notrunc
+parted -s "${DISC}" mklabel 'msdos' || exit $?
+# Check current partition layout
+#CURRENT_PARTITIONTABLE='unknown'
+# this can fail, for ex. on a virgin HD with no partition table
+#CURRENT_PARTITIONTABLE=$(parted "${DISC}" print -s 2>/dev/null | sed -nr 's/^Partition Table:\s(.*)/\1/p')
+#if [ "${CURRENT_PARTITIONTABLE}" != 'msdos' ]; then
+#	show_dialog --defaultno --yesno "${DISC} currently has a '${CURRENT_PARTITIONTABLE}' partition layout.\nThis will be changed to 'msdos'!\nAre you absolutely sure?" 0 0 \
+#		|| exit "${ERROR_CANCEL}"
+#	parted -s "${DISC}" mklabel 'msdos' || exit $?
+#fi
 # umount and swapoff all partitions of the disc
 mount_umountall "${DISC}" || exit $?
 # prepare fdisk input
