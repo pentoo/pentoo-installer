@@ -158,6 +158,10 @@ auto_fstab() {
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_PARTPATH="${_PARTITION}"
+		# normalize ext4-nojournal
+		if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
+			_FILESYSTEM="ext4"
+		fi
 		if [ "${_CRYPTTYPE}" != '' ]; then
 			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
 		fi
