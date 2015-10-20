@@ -84,8 +84,8 @@ if [ "${FILESYSTEM}" != 'swap' ]; then
 			show_dialog --msgbox "ERROR: Mountpoint ${MOUNTPOINT} is already configured!" 0 0
 			exit "${ERROR_CANCEL}"
 		fi
-		# set ext4-nojournal for /boot
-		[ "${MOUNTPOINT}" = '/boot' ] && FILESYSTEM='ext4-nojournal'
+		# set ext4(-nojournal) for /boot
+		[ "${MOUNTPOINT}" = '/boot' ] && FILESYSTEM='ext4'
 	fi
 fi
 # everything ok, create new FSspec string
