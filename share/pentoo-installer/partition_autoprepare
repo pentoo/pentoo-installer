@@ -107,8 +107,8 @@ SWAP_PART_SIZE=$(partition_getpartitionsize "swap" "${DISC_SIZE}" 1 "${SUGGESTED
 # calc remaining disk size
 DISC_SIZE=$((${DISC_SIZE}-${SWAP_PART_SIZE})) || exit $?
 # root partition size info
-if [ "${DISC_SIZE}" -lt "35000" ]; then
-	show_dialog --msgbox "Pentoo requires at least 35GB for / and you don't have that much left, aborting partitioning" 0 0
+if [ "${DISC_SIZE}" -lt "20000" ]; then
+	show_dialog --msgbox "Pentoo requires at least 20GB for / and you don't have that much left, aborting partitioning" 0 0
 	exit "${ERROR_CANCEL}"
 elif [ "${DISC_SIZE}" -lt "43000" ]; then
 	show_dialog --msgbox "Pentoo *suggests* using at least 43GB for your / partition but you don't have that much left. You have been warned." 0 0
