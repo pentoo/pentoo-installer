@@ -619,6 +619,10 @@ FSspec_mountall() {
 			if ! mount | grep -q -e "^${_PARTPATH} on $(echo "${DESTDIR}${_MOUNTPOINT}" | sed 's/\/$//') "; then
 				# create our mount directory
 				mkdir -p "${DESTDIR}${_MOUNTPOINT}" || return $?
+				# normalize ext4-nojournal
+				if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
+					_FILESYSTEM="ext4"
+				fi
 				# mount the bad boy
 				mount -t "${_FILESYSTEM}" "${_PARTPATH}" "${DESTDIR}${_MOUNTPOINT}" >>"${LOG}" 2>&1 || return $?
 			fi

@@ -181,6 +181,10 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	if [ "${FILESYSTEM}" != 'swap' ]; then
 		# create our mount directory
 		mkdir -p "${DESTDIR}${MOUNTPOINT}" || exit $?
+		# normalize ext4-nojournal
+		if [ "${FILESYSTEM}" = "ext4-nojournal" ]; then
+			FILESYSTEM="ext4"
+		fi
 		# mount the bad boy
 		mount -t "${FILESYSTEM}" "${PARTPATH}" "${DESTDIR}${MOUNTPOINT}" >>"${LOG}" 2>&1 || exit $?
 	else
