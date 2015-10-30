@@ -544,97 +544,97 @@ FSspec_sort() {
 #
 # exits: !=1 is an error
 #
-FSspec_mountall() {
-	# check input
-	check_num_args "${FUNCNAME}" 1 $# || return $?
-	local _CONFIG_LIST="${1}"
-	local _CONFIG_ITEM=
-	local _PARTITION=
-	local _MOUNTPOINT=
-	local _FILESYSTEM=
-	local _CRYPTTYPE=
-	local _FORMAT=
-	local _CRYPTNAME=
-	local _PARTUUID=
-	local _CRYPTKEY=
-	local _PARTPATH=
-	local _UUID=
-	_UUID="$(uuidgen)" || return $?
-	# check if mountpoint '/' exists
-	if ! FSspec_list_haskeyvalue "${_CONFIG_LIST}" 'mountpoint' '/'; then
-		echo "ERROR: Root partition (with mountpoint '/') not found." 1>&2
-		return 1
-	fi
-	# sort by mountpoint
-	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
-	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
-		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
-		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
-		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
-		_FORMAT="$(FSspec_parse "${_CONFIG_ITEM}" 'format')" || return $?
-		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
-		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
-		_PARTUUID="$(FSspec_parse "${_CONFIG_ITEM}" 'partuuid')" || return $?
-		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
-		_PARTPATH="${_PARTITION}"
-		# check format flag
-		if [ "${_FORMAT}" -ne 0 ]; then
-			echo "ERROR: Format flag for ${_PARTITION} should be 0 to mount, something is wrong!" 1>&2
-			return 1
-		fi
-		# check partuuid
-		if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
-			echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
-			return 1
-		fi
-		if [ "${_CRYPTTYPE}" != '' ]; then
-			# use /dev/mapper
-			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
-			# check if cryptsetup is already open
-			if ! cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
-				# write key to temp file
-				echo -n "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
-				case "${_CRYPTTYPE}" in
-					'swap')
-						cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
-						;;
-					'luks-gpg')
-						# key is in base64 format
-						base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
-						gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
-						# clean up
-						rm /tmp/"${_UUID}".asc || return $?
-						;;
-					'luks')
-						cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
-						;;
-				esac
-				# clean up
-				rm /tmp/"${_UUID}" || return $?
-			fi
-		fi
-		# mount actions
-		if [ "${_FILESYSTEM}" != 'swap' ]; then
-			# check if already mounted
-			if ! mount | grep -q -e "^${_PARTPATH} on $(echo "${DESTDIR}${_MOUNTPOINT}" | sed 's/\/$//') "; then
-				# create our mount directory
-				mkdir -p "${DESTDIR}${_MOUNTPOINT}" || return $?
-				# normalize ext4-nojournal
-				if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
-					_FILESYSTEM="ext4"
-				fi
-				# mount the bad boy
-				mount -t "${_FILESYSTEM}" "${_PARTPATH}" "${DESTDIR}${_MOUNTPOINT}" >>"${LOG}" 2>&1 || return $?
-			fi
-		else
-			# check if already swapped on
-			if ! swapon -s | grep -q -e "$(readlink -f "${_PARTPATH}")"; then
-				# swapon the bad boy 1>&2
-				swapon "${_PARTPATH}" >>"${LOG}" 2>&1 || return $?
-			fi
-		fi
-	done
-}
+#FSspec_mountall() {
+#	# check input
+#	check_num_args "${FUNCNAME}" 1 $# || return $?
+#	local _CONFIG_LIST="${1}"
+#	local _CONFIG_ITEM=
+#	local _PARTITION=
+#	local _MOUNTPOINT=
+#	local _FILESYSTEM=
+#	local _CRYPTTYPE=
+#	local _FORMAT=
+#	local _CRYPTNAME=
+#	local _PARTUUID=
+#	local _CRYPTKEY=
+#	local _PARTPATH=
+#	local _UUID=
+#	_UUID="$(uuidgen)" || return $?
+#	# check if mountpoint '/' exists
+#	if ! FSspec_list_haskeyvalue "${_CONFIG_LIST}" 'mountpoint' '/'; then
+#		echo "ERROR: Root partition (with mountpoint '/') not found." 1>&2
+#		return 1
+#	fi
+#	# sort by mountpoint
+#	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
+#	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
+#		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
+#		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
+#		_FILESYSTEM="$(FSspec_parse "${_CONFIG_ITEM}" 'filesystem')" || return $?
+#		_FORMAT="$(FSspec_parse "${_CONFIG_ITEM}" 'format')" || return $?
+#		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
+#		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
+#		_PARTUUID="$(FSspec_parse "${_CONFIG_ITEM}" 'partuuid')" || return $?
+#		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
+#		_PARTPATH="${_PARTITION}"
+#		# check format flag
+#		if [ "${_FORMAT}" -ne 0 ]; then
+#			echo "ERROR: Format flag for ${_PARTITION} should be 0 to mount, something is wrong!" 1>&2
+#			return 1
+#		fi
+#		# check partuuid
+#		if [ "${_PARTUUID}" != "$(blkid -s PARTUUID -o value "${_PARTITION}")" ]; then
+#			echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
+#			return 1
+#		fi
+#		if [ "${_CRYPTTYPE}" != '' ]; then
+#			# use /dev/mapper
+#			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
+#			# check if cryptsetup is already open
+#			if ! cryptsetup status "${_CRYPTNAME}" &>/dev/null; then
+#				# write key to temp file
+#				echo -n "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
+#				case "${_CRYPTTYPE}" in
+#					'swap')
+#						cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" #"${_CRYPTNAME}" || return $?
+#						;;
+#					'luks-gpg')
+#						# key is in base64 format
+#						base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
+#						gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+#						# clean up
+#						rm /tmp/"${_UUID}".asc || return $?
+#						;;
+#					'luks')
+#						cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+#						;;
+#				esac
+#				# clean up
+#				rm /tmp/"${_UUID}" || return $?
+#			fi
+#		fi
+#		# mount actions
+#		if [ "${_FILESYSTEM}" != 'swap' ]; then
+#			# check if already mounted
+#			if ! mount | grep -q -e "^${_PARTPATH} on $(echo "${DESTDIR}${_MOUNTPOINT}" | sed 's/\/$//') "; then
+#				# create our mount directory
+#				mkdir -p "${DESTDIR}${_MOUNTPOINT}" || return $?
+#				# normalize ext4-nojournal
+#				if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
+#					_FILESYSTEM="ext4"
+#				fi
+#				# mount the bad boy
+#				mount -t "${_FILESYSTEM}" "${_PARTPATH}" "${DESTDIR}${_MOUNTPOINT}" >>"${LOG}" 2>&1 || return $?
+#			fi
+#		else
+#			# check if already swapped on
+#			if ! swapon -s | grep -q -e "$(readlink -f "${_PARTPATH}")"; then
+#				# swapon the bad boy 1>&2
+#				swapon "${_PARTPATH}" >>"${LOG}" 2>&1 || return $?
+#			fi
+#		fi
+#	done
+#}
 
 # FSspec_umountall()
 # umount all items and close cryptsetup
