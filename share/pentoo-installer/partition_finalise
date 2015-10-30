@@ -97,7 +97,7 @@ partition_crypt_setup() {
 check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 # sort by mountpoint
-CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'mountpoint' 0)" || exit $?
+CONFIG_LIST="$("${SHAREDIR}"/FSspec sort "${CONFIG_LIST}" 'mountpoint' 1)" || exit $?
 CONFIG_ARRAY=(${CONFIG_LIST}) || exit $?
 CONFIG_INDEX=0
 
