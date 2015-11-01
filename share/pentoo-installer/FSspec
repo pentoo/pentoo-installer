@@ -566,7 +566,7 @@ FSspec_mountall() {
 		return 1
 	fi
 	# sort by mountpoint
-	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
+	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
 		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?
