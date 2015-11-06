@@ -313,7 +313,7 @@ geteditor(){
 #
 get_dialog() {
 	# let's support Xdialog for the fun of it
-	#if [ ! $(type "Xdialog" &> /dev/null) ] && [ -v 'DISPLAY' ] && [ -n "${DISPLAY}" ]; then
+	#if [ ! $(type "Xdialog" &> /dev/null) ] && [ -n "${DISPLAY}" ]; then
 	#	echo 'Xdialog'
 	#else
 		echo 'dialog'
