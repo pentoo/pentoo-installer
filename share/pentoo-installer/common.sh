@@ -325,7 +325,6 @@ get_dialog() {
 # uses dialogSTDOUT
 # an el-cheapo dialog wrapper
 # parameters: see dialog(1) and Xdialog(1
-# STDOUT and STDERR is switched compared to 'dialog' and 'Xdialog'
 # usage: MYVAR="$(show_dialog .......)"
 # returns:
 # - 0 for Ok, result is written to STDOUT
@@ -408,8 +407,8 @@ show_dialog() {
 			*) ;;
 		esac
 	fi
-	# switch STDOUT and STDERR and execute 'dialog' or Xdialog'
-	_ANSWER=$("${_WHICHDIALOG}" "${_ARGUMENTS[@]}" 3>&1 1>&2 2>&3)
+	#not sure how this redirection will work for Xdialog, but for now this makes catching logs perfect
+	_ANSWER=$("${_WHICHDIALOG}" "${_ARGUMENTS[@]}" 2>&1 >/dev/tty)
 	_DIALOGRETURN=$?
 	# check if user clicked cancel or closed the box
 	if [ "${_DIALOGRETURN}" -eq "1" ] || [ "${_DIALOGRETURN}" -eq "255" ]; then
