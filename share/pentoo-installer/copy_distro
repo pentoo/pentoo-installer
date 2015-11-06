@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 # This script is released under the GNU General Public License 3.0
 # Check the COPYING file included with this distribution
 
