@@ -244,6 +244,10 @@ chroot_mount || exit $?
 sed -i '/aufs bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
 chroot "${DESTDIR}" emerge -C app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer
 
+#prevent livecd bashrc from being on install
+rm -f "${DESTDIR}"/root/.bashrc
+[ -w "${DESTDIR}"/home/pentoo/.bashrc ] && rm -f "${DESTDIR}"/home/pentoo/.bashrc
+
 mknod -m666 "${DESTDIR}"/dev/zero c 1 5
 mknod -m666 "${DESTDIR}"/dev/null c 1 3
 mknod -m600 "${DESTDIR}"/dev/console c 5 1
