@@ -102,7 +102,7 @@ while true; do
 			;;
 		# root password
 		"Root-Password")
-			setpassword 'root'
+			setpassword 'root' 2> /dev/null
 			# capture sub script exit
 			RETSUB=$?
 			;;
@@ -115,7 +115,7 @@ while true; do
 			# run rsync with nice dialog
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
 				&& chroot ${DESTDIR} useradd -m -G users,wheel,audio,cdrom,video,cdrw,usb,plugdev,wireshark,kismet,android ${USERNAME} \
-				&& setpassword "${USERNAME}" \
+				&& setpassword "${USERNAME}" 2> /dev/null \
 				&& show_dialog_rsync '-r --progress --exclude=.svn --exclude=.subversion' \
 					"${DESTDIR}"'/root/.[!.]*' \
 					"${DESTDIR}/home/${USERNAME}/" \
