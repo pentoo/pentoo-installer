@@ -63,6 +63,18 @@ partition_finddisks() {
 			echo "/dev/ida/${_DEV}"
 		done
 	fi
+	# emmc
+	for _DEV in $(ls /sys/block | egrep '^mmcblk'); do
+		if [ "$(grep -c 'DEVTYPE=disk' ${_DEV}/uevent)" = "1" ]; then
+			echo "/dev/${_DEV}"
+		fi
+	done
+	# NVMe
+	for _DEV in $(ls /sys/block | egrep '^nvme'); do
+		if [ "$(grep -c 'DEVTYPE=disk' ${_DEV}/uevent)" = "1" ]; then
+			echo "/dev/${_DEV}"
+		fi
+	done
 	return 0
 }
 # end of partition_finddisks()
@@ -120,6 +132,14 @@ partition_findpartitions() {
 			echo "/dev/ida/${_DEV}"
 		done
 	fi
+	#emmc
+	for _DEVPATH in $(ls /dev/mmcblk | egrep 'p'); do
+		echo "/dev/${_DEVPATH}"
+	done
+	#NVMe
+	for _DEVPATH in $(ls /dev/nvme | egrep 'p'); do
+		echo "/dev/${_DEVPATH}"
+	done
 	return 0
 }
 # end of partition_findpartitions()
