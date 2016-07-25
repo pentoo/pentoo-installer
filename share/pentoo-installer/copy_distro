@@ -151,6 +151,10 @@ auto_fstab() {
 	# comment out anything not commented out
 	sed -r -i 's/^[^#]/#&/' "${DESTDIR}/etc/fstab" || return $?
 	# append entries from new configuration
+	if [ -n "${_CONF_LIST}" ]; then
+		#clear out the scary warnings about this being the fstab on a livecd
+		rm -f ${DESTDIR}/etc/fstab
+	fi
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
