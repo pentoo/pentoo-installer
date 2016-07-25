@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=pentoo-installer
+Comment=Install Pentoo!
+Exec=sudo /usr/sbin/pentoo-installer
+Icon=pentoo
+Path=/root/
+Terminal=true
+StartupNotify=false
