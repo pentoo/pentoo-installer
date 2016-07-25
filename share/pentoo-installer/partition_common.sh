@@ -47,7 +47,7 @@ partition_finddisks() {
 	#virtual devices
 	for _DEV in $(ls /sys/block | egrep '^vd'); do
 		# TODO: how to check if this is really a disk?
-		if [ "$(grep -c 'DEVTYPE=disk' ${_DEV}/uevent)" = "1" ]; then
+		if [ "$(grep -c 'DEVTYPE=disk' /sys/block/${_DEV}/uevent)" = "1" ]; then
 			echo "/dev/${_DEV}"
 		fi
 	done
@@ -65,13 +65,13 @@ partition_finddisks() {
 	fi
 	# emmc
 	for _DEV in $(ls /sys/block | egrep '^mmcblk'); do
-		if [ "$(grep -c 'DEVTYPE=disk' ${_DEV}/uevent)" = "1" ]; then
+		if [ "$(grep -c 'DEVTYPE=disk' /sys/block/${_DEV}/uevent)" = "1" ]; then
 			echo "/dev/${_DEV}"
 		fi
 	done
 	# NVMe
 	for _DEV in $(ls /sys/block | egrep '^nvme'); do
-		if [ "$(grep -c 'DEVTYPE=disk' ${_DEV}/uevent)" = "1" ]; then
+		if [ "$(grep -c 'DEVTYPE=disk' /sys/block/${_DEV}/uevent)" = "1" ]; then
 			echo "/dev/${_DEV}"
 		fi
 	done
@@ -133,11 +133,11 @@ partition_findpartitions() {
 		done
 	fi
 	#emmc
-	for _DEVPATH in $(ls /dev/mmcblk | egrep 'p'); do
+	for _DEVPATH in $(ls /dev/mmcblk* | egrep 'p'); do
 		echo "/dev/${_DEVPATH}"
 	done
 	#NVMe
-	for _DEVPATH in $(ls /dev/nvme | egrep 'p'); do
+	for _DEVPATH in $(ls /dev/nvme* | egrep 'p'); do
 		echo "/dev/${_DEVPATH}"
 	done
 	return 0
