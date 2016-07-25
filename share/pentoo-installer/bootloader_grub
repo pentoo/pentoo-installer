@@ -80,8 +80,8 @@ mapdev() {
 	_DISK="$(get_parent_disk "${_PARTITION}")" || return $?
 	# /dev/sdaXY
 	_PNUM="${_PARTITION#"${_DISK}"}"
-	# -1 (grub starts counting at 1)
-	_PNUM=$((${_PNUM}-1)) || return $?
+	# -1 (grub starts counting at 0), cut p off partition number if it exists
+	_PNUM=$((${_PNUM#p}-1)) || return $?
 	_DISK_GRUB="$(sed -r -e 's/[\(\)]//g' -e 's/[[:blank:]]+/ /g' "${DESTDIR}/boot/grub/device.map" | grep " ${_DISK}$" | cut -d' ' -f1)" || return $?
 	if [ -n "${_DISK_GRUB}" ] && [ -n "${_PNUM}" ]; then
 		echo -n "(${_DISK_GRUB},${_PNUM})"
