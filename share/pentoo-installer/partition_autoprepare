@@ -154,6 +154,10 @@ primary
 3
 
 +${SWAP_PART_SIZE}M
+type
+3
+82
+
 new
 primary
 2
