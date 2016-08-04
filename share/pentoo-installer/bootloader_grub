@@ -34,7 +34,7 @@ get_grub_map() {
 	check_num_args "${FUNCNAME}" 0 $# || return $?
 	[ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
 	show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
-	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
+	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >>/tmp/grub.log 2>&1 <<EOF
 quit
 EOF
 }
@@ -136,6 +136,26 @@ KERNEL_PARAMS="$(getkernelparams "${PART_ROOT}" "${PART_BOOT}" "${CRYPTTYPE}" "$
 
 GRUBMENU="${DESTDIR}/boot/grub/grub.conf"
 rm "${DESTDIR}"/boot/grub/menu.lst
+
+# write new grubmenu
+cat >>${GRUBMENU} <<EOF
+splashimage=${PART_GRUB}/${SUBDIR}/grub/splash.xpm.gz
+
+# (0) Pentoo
+title  Pentoo
+root   ${PART_GRUB}
+kernel ${SUBDIR}/kernel-genkernel${KERNVER} ${KERNEL_PARAMS}
+initrd ${SUBDIR}/initramfs-genkernel${KERNVER}
+
+# (2) Windows
+#title Windows
+#rootnoverify (hd0,0)
+#makeactive
+#chainloader +1
+EOF
+#RET_SUB=$?
+#[ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
+
 # TODO: I dont like this ln
 ln -s ./grub.conf "${DESTDIR}/boot/grub/menu.lst"
 # sanity check
@@ -151,23 +171,6 @@ sed -i '/^#/d' "${GRUBMENU}" || exit $?
 if [ -f "${DESTDIR}"/boot/grub/pentoo.xpm.gz ]; then
 	sed -i 's/splash.xpm.gz/pentoo.xpm.gz/' "${GRUBMENU}" || exit $?
 fi
-# write new grubmenu
-cat >>${GRUBMENU} <<EOF
-
-# (0) Pentoo
-title  Pentoo
-root   ${PART_GRUB}
-kernel ${SUBDIR}/kernel-genkernel${KERNVER} ${KERNEL_PARAMS}
-initrd ${SUBDIR}/initramfs-genkernel${KERNVER}
-
-# (2) Windows
-#title Windows
-#rootnoverify (hd0,0)
-#makeactive
-#chainloader +1
-EOF
-RET_SUB=$?
-[ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
 
 # inform user about target disk, partitions and such, last chance to abort ;)
 show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BOOT}'.\nPlease confirm this.\n\nYou will then be put into the editor to review the GRUB configuration file.\nInstallation will continue after you exit the editor." 0 0 || exit $?
@@ -194,8 +197,8 @@ if [ -x /usr/sbin/xfs_freeze ]; then
 	done
 fi
 
-/sbin/grub-install --no-floppy --recheck --grub-shell="${DESTDIR}/sbin/grub" --root-directory="${DESTDIR}" "${DISK_BOOT}" >/tmp/grub.log 2>&1
-cat /tmp/grub.log >"${LOG}"
+/sbin/grub-install --no-floppy --recheck --grub-shell="${DESTDIR}/sbin/grub" --root-directory="${DESTDIR}" "${DISK_BOOT}" >>/tmp/grub.log 2>&1
+cat /tmp/grub.log >>"${LOG}"
 
 # unfreeze xfs filesystems
 if [ -x /usr/sbin/xfs_freeze ]; then
