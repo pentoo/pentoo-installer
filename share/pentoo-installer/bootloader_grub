@@ -34,7 +34,7 @@ get_grub_map() {
 	check_num_args "${FUNCNAME}" 0 $# || return $?
 	[ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
 	show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
-	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >>/tmp/grub.log 2>&1 <<EOF
+	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >> /tmp/grub.log 2>&1 <<EOF
 quit
 EOF
 }
@@ -197,8 +197,8 @@ if [ -x /usr/sbin/xfs_freeze ]; then
 	done
 fi
 
-/sbin/grub-install --no-floppy --recheck --grub-shell="${DESTDIR}/sbin/grub" --root-directory="${DESTDIR}" "${DISK_BOOT}" >>/tmp/grub.log 2>&1
-cat /tmp/grub.log >>"${LOG}"
+/sbin/grub-install --no-floppy --recheck --grub-shell="${DESTDIR}/sbin/grub" --root-directory="${DESTDIR}" "${DISK_BOOT}" >> /tmp/grub.log 2>&1
+cat /tmp/grub.log >> "${LOG}"
 
 # unfreeze xfs filesystems
 if [ -x /usr/sbin/xfs_freeze ]; then
