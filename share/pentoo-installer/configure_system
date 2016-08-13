@@ -82,8 +82,9 @@ MENU_ITEMS=("Editor"					"System Editor" \
 			"/etc/hosts"				"Network Hosts" \
 			"/etc/locale.gen"			"Glibc Locales" \
 			"Root-Password"				"Set the root password" \
-			"add-user"					"Add a new user" \
+			"change-username"				"Change your username from pentoo" \
 			"DONE"						"Return to Main Menu" )
+#			"add-user"					"Add a new user" \
 
 while true; do
 	# expand menu items array below
@@ -104,6 +105,13 @@ while true; do
 		"Root-Password")
 			setpassword 'root' 2> /dev/null
 			# capture sub script exit
+			RETSUB=$?
+			;;
+		"change-user")
+			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
+				&& usermod -l ${USERNAME} pentoo >> ${LOG} \
+				&& usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
+				&& setpassword "${USERNAME}" 2> /dev/null
 			RETSUB=$?
 			;;
 		# add user
