@@ -120,7 +120,7 @@ if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; 
 	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
 	PART_BOOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
 	PART_GRUB="$(mapdev ${PART_BOOT})" || exit $?
-	SUBDIR=
+	SUBDIR=""
 	DISK_BOOT="$(get_parent_disk "${PART_BOOT}")" || exit $?
 else
 	PART_GRUB="$(mapdev ${PART_ROOT})" || exit $?
@@ -139,7 +139,7 @@ rm "${DESTDIR}"/boot/grub/menu.lst
 
 # write new grubmenu
 cat >>${GRUBMENU} <<EOF
-splashimage=${PART_GRUB}/${SUBDIR}/grub/splash.xpm.gz
+splashimage=${PART_GRUB}${SUBDIR}/grub/splash.xpm.gz
 
 # (0) Pentoo
 title  Pentoo
