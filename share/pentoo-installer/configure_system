@@ -107,10 +107,10 @@ while true; do
 			# capture sub script exit
 			RETSUB=$?
 			;;
-		"change-user")
+		"change-username")
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
-				&& usermod -l ${USERNAME} pentoo >> ${LOG} \
-				&& usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
+				&& chroot "${DESTDIR}" usermod -l ${USERNAME} pentoo >> ${LOG} \
+				&& chroot "${DESTDIR}" usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
 				&& setpassword "${USERNAME}" 2> /dev/null
 			RETSUB=$?
 			;;
@@ -122,7 +122,7 @@ while true; do
 			# 4. copy root profile
 			# run rsync with nice dialog
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
-				&& chroot ${DESTDIR} useradd -m -G users,wheel,audio,cdrom,video,cdrw,usb,plugdev,wireshark,kismet,android ${USERNAME} \
+				&& chroot "${DESTDIR}" useradd -m -G users,wheel,audio,cdrom,video,cdrw,usb,plugdev,wireshark,kismet,android ${USERNAME} \
 				&& setpassword "${USERNAME}" 2> /dev/null \
 				&& show_dialog_rsync '-r --progress --exclude=.svn --exclude=.subversion' \
 					"${DESTDIR}"'/root/.[!.]*' \
