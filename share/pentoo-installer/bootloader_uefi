@@ -99,6 +99,9 @@ if [ $? -ne 0 ]; then
 	show_dialog --msgbox "Error: Couldn't write to UEFI!" 0 0
 	return 1
 fi
+
+chroot "${DESTDIR}" emerge --noreplace sys-boot/efibootmgr
+
 show_dialog --msgbox "Success: Direct UEFI booting installed!" 0 0
 
 exit 0

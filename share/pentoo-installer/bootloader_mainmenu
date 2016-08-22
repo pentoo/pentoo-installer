@@ -39,24 +39,30 @@ RETSUB=
 # mount everything, including cryptsetup
 "${SHAREDIR}"/FSspec mountall "${CONFIG_LIST}" || exit $?
 
-# TODO: enable uefi options once they are implemented
-# SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub is the Pentoo default." \
-	# 0 0 4 \
-	# "GRUB" "Use the GRUB bootloader (default)" \
-	# "UEFI-GRUB" "Use GRUB2 and UEFI (unsupported)" \
-	# "UEFI" "Boot kernel directly by UEFI (unsupported)" \
-	# "None" "Warning: you must install your own bootloader!")" \
-	# || exit $?
-SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub is the Pentoo default." \
-	0 0 4 \
-	"GRUB" "Use the GRUB bootloader (default)" \
-	"None" "Warning: you must install your own bootloader!")" \
-	|| exit $?
+
+if [ -d /sys/firmware/efi ]; then
+	SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub2 is the Pentoo default." \
+		0 0 4 \
+		"GRUB2-UEFI" "Use GRUB2 and UEFI (unsupported)" \
+		"UEFI" "Boot kernel directly by UEFI (unsupported)" \
+		"None" "Warning: you must install your own bootloader!")" \
+		|| exit $?
+else
+	SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub2 is the Pentoo default." \
+		0 0 4 \
+		"GRUB2" "Use grub2 in legacy bios mode (default)" \
+		"GRUB-legacy" "Use the GRUB bootloader (very outdated)" \
+		"None" "Warning: you must install your own bootloader!")" \
+		|| exit $?
+fi
 case "${SELECTION}" in
-	"GRUB")
+	"GRUB-legacy")
 		"${SHAREDIR}"/bootloader_grub "${CONFIG_LIST}" || exit $?
 		;;
-	"UEFI-GRUB")
+	"GRUB2")
+		"${SHAREDIR}"/bootloader_grub2 "${CONFIG_LIST}" || exit $?
+		;;
+	"GRUB2-UEFI")
 		"${SHAREDIR}"/bootloader_uefigrub "${CONFIG_LIST}" || exit $?
 		;;
 	"UEFI")
