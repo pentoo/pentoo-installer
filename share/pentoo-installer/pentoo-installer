@@ -25,6 +25,17 @@ source "${SHAREDIR}"/save_settings.sh || exit $?
 #####################
 ## begin execution ##
 
+if ! grep -q verify /proc/cmdline; then
+	VERIFY="$(show_dialog \
+		--menu "This boot was not verified, it is HIGHLY suggested that you abort and boot with the verify option to ensure integrity. Abort?" \
+		0 0 0 \
+		'Yes' 'I will reboot and select verify from the boot menu' \
+		'No' 'I will continue and do not care about the risks')"
+	if [ "${VERIFY}" = "yes" ]; then
+		printf "Installation aborted, please reboot and choose \"verify\" from the boot menu\n"
+		exit 1
+        fi
+fi
 ## start by exiting if the user doesn't have enough RAM for the install to work
 RAMSIZE=$(awk '/MemTotal/ {printf( "%.0f\n", int ( $2 / 1024 ) + 1)}' /proc/meminfo)
 if [ "${RAMSIZE}" -le "1500" ]; then
