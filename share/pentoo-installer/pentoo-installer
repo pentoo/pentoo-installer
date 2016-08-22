@@ -25,6 +25,7 @@ source "${SHAREDIR}"/save_settings.sh || exit $?
 #####################
 ## begin execution ##
 
+# check if this boot was verified and warn the user to verify the checksums if not
 if ! grep -q verify /proc/cmdline; then
 	VERIFY="$(show_dialog \
 		--menu "This boot was not verified, it is HIGHLY suggested that you abort and boot with the verify option to ensure integrity. Abort?" \
@@ -36,11 +37,39 @@ if ! grep -q verify /proc/cmdline; then
 		exit 1
         fi
 fi
+
 ## start by exiting if the user doesn't have enough RAM for the install to work
 RAMSIZE=$(awk '/MemTotal/ {printf( "%.0f\n", int ( $2 / 1024 ) + 1)}' /proc/meminfo)
 if [ "${RAMSIZE}" -le "1500" ]; then
 	show_dialog --msgbox "The Pentoo Installer requires a minimum of 1.5GB of RAM to run. Failing safe." 0 0
 	exit 1
+fi
+
+# check if the installer has been updated and warn the user they may wish to do so
+if ! grep -q "completed emerge (.*) pentoo/pentoo-installer-99999999"; then
+	UPDATE_WARNING="true"
+else
+	updated_at=$(grep "completed emerge (.*) pentoo/pentoo-installer-99999999" | tail -n1 | awk -F: '{print $1}')
+	current=$(date +%s)
+	delta=$((${current} - ${updated_at}))
+	if [ ${delta} -ge 86400 ]; then
+		UPDATE_WARNING="true"
+	else
+		UPDATE_WARNING="false"
+	fi
+fi
+
+if [ "${UPDATE_WARNING}" = "true" ]; then
+	UPDATE_NOW=$(show_dialog \
+		--menu "pentoo-installer gets constant updates to improve experience and fix bugs, would you like to update now?" \
+		0 0 0 \
+		'Yes' 'I would like to update pentoo-installer to get the latest fixes' \
+		'No' 'Why bother to get the latest fixes? I am elite enough to fix it all myself')"
+	if [ "${UPDATE_NOW}" = "Yes" ]; then
+		printf "Installation aborted. Please ensure you are connected to the internet (see motd)\n"
+		printf "then run 'emerge -1 pentoo-installer' and re-run the installer after it is up to date.\n"
+		exit 1
+	fi
 fi
 
 # display welcome txt depending on used dialog
