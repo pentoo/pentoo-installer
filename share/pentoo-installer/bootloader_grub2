@@ -29,14 +29,14 @@ source "${SHAREDIR}"/bootloader_common.sh || exit $?
 #
 # parameters (none)
 #
-get_grub_map() {
-	# check input
-	check_num_args "${FUNCNAME}" 0 $# || return $?
-	[ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
-	show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
-	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
-quit
-EOF
+#get_grub_map() {
+#	# check input
+#	check_num_args "${FUNCNAME}" 0 $# || return $?
+#	[ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
+#	show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
+#	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
+#quit
+#EOF
 }
 
 # get_parent_disk()
