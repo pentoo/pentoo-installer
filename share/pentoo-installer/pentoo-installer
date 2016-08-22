@@ -46,10 +46,10 @@ if [ "${RAMSIZE}" -le "1500" ]; then
 fi
 
 # check if the installer has been updated and warn the user they may wish to do so
-if ! grep -q "completed emerge (.*) pentoo/pentoo-installer-99999999"; then
+if ! grep -q "completed emerge (.*) pentoo/pentoo-installer-99999999" /var/log/emerge.log; then
 	UPDATE_WARNING="true"
 else
-	updated_at=$(grep "completed emerge (.*) pentoo/pentoo-installer-99999999" | tail -n1 | awk -F: '{print $1}')
+	updated_at=$(grep "completed emerge (.*) pentoo/pentoo-installer-99999999" /var/log/emerge.log | tail -n1 | awk -F: '{print $1}')
 	current=$(date +%s)
 	delta=$((${current} - ${updated_at}))
 	if [ ${delta} -ge 86400 ]; then
