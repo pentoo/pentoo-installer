@@ -31,7 +31,7 @@ if ! grep -q verify /proc/cmdline; then
 		0 0 0 \
 		'Yes' 'I will reboot and select verify from the boot menu' \
 		'No' 'I will continue and do not care about the risks')"
-	if [ "${VERIFY}" = "yes" ]; then
+	if [ "${VERIFY}" = "Yes" ]; then
 		printf "Installation aborted, please reboot and choose \"verify\" from the boot menu\n"
 		exit 1
         fi
