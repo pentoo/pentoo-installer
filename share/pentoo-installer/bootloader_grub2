@@ -37,7 +37,7 @@ source "${SHAREDIR}"/bootloader_common.sh || exit $?
 #	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
 #quit
 #EOF
-}
+#}
 
 # get_parent_disk()
 # Gets the parent disk of a partition, prints to STDOUT
@@ -83,7 +83,7 @@ mapdev() {
 	# -1 (grub starts counting at 0), cut p off partition number if it exists
 	#_PNUM=$((${_PNUM#p}-1)) || return $?
 	#_DISK_GRUB="$(sed -r -e 's/[\(\)]//g' -e 's/[[:blank:]]+/ /g' "${DESTDIR}/boot/grub/device.map" | grep " ${_DISK}$" | cut -d' ' -f1)" || return $?
-	if [ -n "${_DISK}" ]
+	if [ -n "${_DISK}" ]; then
 		echo -n "${_DISK}"
 		return 0
 	else
