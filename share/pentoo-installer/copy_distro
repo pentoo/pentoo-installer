@@ -267,6 +267,9 @@ rc-update add fcron default # || exit $?
 if [ -r /etc/inittab.old ]; then
   mv /etc/inittab.old /etc/inittab # || exit $?
 fi
+if [ -r /etc/issue.old ]; then
+  mv /etc/issue.old /etc/issue
+fi
 mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh # || exit $?
 EOF
 RET_SUB=$?
