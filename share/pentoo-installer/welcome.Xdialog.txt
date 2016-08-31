@@ -5,6 +5,6 @@
   unfamiliar with partitioning/making filesystems, you may want to
   consult some documentation before continuing.
 
-  You can view all output from commands by switching to tty8:
-  alt-f8/alt-f1 from a console
-  ctrl+alt+f8/ctrl+alt+f7 from a X terminal
+  You can view all output from commands by checking the logs:
+  /tmp/pentoo-installer.log <- main pentoo-installer log file
+  /tmp/pentoo-installer-callbacks.log <- log from some external

@@ -12,7 +12,7 @@ readonly DESTDIR="/mnt/gentoo"
 readonly ERROR_CANCEL=64
 readonly ISNUMBER='^[0-9]+$'
 # use the first VT not dedicated to a running console
-readonly LOG="/dev/tty8"
+readonly LOG="/tmp-installer-callbacks.log"
 readonly TITLE="Pentoo Installation"
 ## END: define constants ##
 ############################
