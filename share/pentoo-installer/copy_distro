@@ -236,6 +236,8 @@ else
 		'/etc/*' "${DESTDIR}/etc/" "Syncing /etc ..." || exit $?
 	show_dialog_rsync '-av --progress --exclude=/root/.bashrc' \
 		'/root/*' "${DESTDIR}/root/" "Syncing /root ..." || exit $?
+	show_dialog_rsync '-av --progress --exclude=/home/pentoo/.bashrc' \
+		'/home/pentoo/*' "${DESTDIR}/home/pentoo/" "Syncing /home/pentoo ..." || exit $?
 	show_dialog_rsync '-av --progress' \
 		"/lib/modules/$(uname -r)/*" "${DESTDIR}/lib/modules/$(uname -r)/" "Syncing kernel modules ..." || exit $?
 fi
