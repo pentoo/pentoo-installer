@@ -229,7 +229,7 @@ RET_SUB=$?
 
 # run rsync with nice dialog
 if [ "${RET_SUB}" = "0" ]; then
-	show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run --exclude=/newroot --exclude=/tmp --exclude=/var/tmp' \
+	show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run --exclude=/newroot --exclude=/tmp --exclude=/var/tmp --exclude=/var/run --exclude=/var/lock' \
 		'/*' "${DESTDIR}/" "Syncing / ..." || exit $?
 else
 	show_dialog_rsync '-av --progress' \
