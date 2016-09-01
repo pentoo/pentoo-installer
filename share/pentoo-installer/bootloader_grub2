@@ -74,8 +74,8 @@ mapdev() {
 	check_num_args "${FUNCNAME}" 1 $# || return $?
 	local _PARTITION="$1"
 	local _DISK=
-	local _PNUM=
-	local _DISK_GRUB=
+	#local _PNUM=
+	#local _DISK_GRUB=
 	# get parent (/dev/sda)
 	_DISK="$(get_parent_disk "${_PARTITION}")" || return $?
 	# /dev/sdaXY
@@ -102,7 +102,7 @@ mapdev() {
 check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 CONFIG_ITEM=
-RET_SUB=
+#RET_SUB=
 
 # write grub device map to "${DESTDIR}/boot/grub/device.map"
 #get_grub_map
@@ -120,17 +120,17 @@ if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; 
 	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
 	PART_BOOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
 	#PART_GRUB="$(mapdev ${PART_BOOT})" || exit $?
-	SUBDIR=
+	#SUBDIR=
 	DISK_BOOT="$(get_parent_disk "${PART_BOOT}")" || exit $?
 else
 	#PART_GRUB="$(mapdev ${PART_ROOT})" || exit $?
-	SUBDIR="/boot"
+	#SUBDIR="/boot"
 	DISK_BOOT="$(get_parent_disk "${PART_ROOT}")" || exit $?
 fi
 
 KERNEL_PARAMS=
 # get kernel version
-KERNVER="$(getkernelversion)" || exit $?
+#KERNVER="$(getkernelversion)" || exit $?
 # get kernel params
 KERNEL_PARAMS="$(getkernelparams "${PART_ROOT}" "${PART_BOOT}" "${CRYPTTYPE}" "${CRYPTNAME}")" || exit $?
 
@@ -139,7 +139,7 @@ GRUBCONFIG="${DESTDIR}/etc/default/grub"
 
 #setup /etc/default/grub
 #sed -i "/^# *GRUB_CMDLINE_LINUX_DEFAULT=/s/^# *//" "${GRUBCONFIG}"
-sed -i "s/#GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"${KERNEL_PARAMS}\"/" "${GRUBCONFIG}"
+sed -i "s/#GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"${KERNEL_PARAMS}\"/" "${GRUBCONFIG}" || exit $?
 #add "resume=/dev/swappartition?"
 
 #rm "${DESTDIR}"/boot/grub/menu.lst
