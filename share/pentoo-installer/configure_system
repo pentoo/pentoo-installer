@@ -116,7 +116,7 @@ while true; do
 			RETSUB=$?
 			;;
     "Change-Hostname")
-      HOSTNAME="$(show_dialog --inputbox "Enter a hostname 17 70)" \
+      HOSTNAME="$(show_dialog --inputbox "Enter a hostname" 17 70)" \
         && sed -i "s/pentoo/${USERNAME}/" /etc/conf.d/hostname \
         && sed -i "s/pentoo/${USERNAME}/" /etc/hosts
       RETSUB=$?
