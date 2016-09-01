@@ -229,7 +229,7 @@ RET_SUB=$?
 
 # run rsync with nice dialog
 if [ "${RET_SUB}" = "0" ]; then
-	show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run' \
+	show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run --exclude=/newroot --exclude=/tmp --exclude=/var/tmp' \
 		'/*' "${DESTDIR}/" "Syncing / ..." || exit $?
 else
 	show_dialog_rsync '-av --progress' \
@@ -269,7 +269,11 @@ rc-update add fcron default # || exit $?
 if [ -r /etc/inittab.old ]; then
   mv /etc/inittab.old /etc/inittab # || exit $?
 fi
-if [ -r /etc/issue.old ]; then
+if [ -r /etc/issue.pentoo.logo ]; then
+  mv /etc/issue.pentoo.logo /etc/issue
+elif [ -r /etc/issue.logo ]; then
+  mv /etc/issue.logo /etc/issue
+elif [ -r /etc/issue.old ]; then
   mv /etc/issue.old /etc/issue
 fi
 mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh # || exit $?
