@@ -82,7 +82,8 @@ MENU_ITEMS=("Editor"					"System Editor" \
 			"/etc/hosts"				"Network Hosts" \
 			"/etc/locale.gen"			"Glibc Locales" \
 			"Root-Password"				"Set the root password" \
-			"change-username"				"Change your username from pentoo" \
+			"Set-Username"				"Change your username from pentoo" \
+      "Change-Hostname"     "Change your hostname from pentoo" \
 			"DONE"						"Return to Main Menu" )
 #			"add-user"					"Add a new user" \
 
@@ -107,13 +108,19 @@ while true; do
 			# capture sub script exit
 			RETSUB=$?
 			;;
-		"change-username")
+		"Set-Username")
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
 				&& chroot "${DESTDIR}" usermod -l ${USERNAME} pentoo >> ${LOG} \
 				&& chroot "${DESTDIR}" usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
 				&& setpassword "${USERNAME}" 2> /dev/null
 			RETSUB=$?
 			;;
+    "Change-Hostname")
+      HOSTNAME="$(show_dialog --inputbox "Enter a hostname 17 70)" \
+        && sed -i "s/pentoo/${USERNAME}/" /etc/conf.d/hostname \
+        && sed -i "s/pentoo/${USERNAME}/" /etc/hosts
+      RETSUB=$?
+      ;;
 		# add user
 		"add-user")
 			# 1. ask for user name
