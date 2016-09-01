@@ -139,7 +139,7 @@ GRUBCONFIG="${DESTDIR}/etc/default/grub"
 
 #setup /etc/default/grub
 #sed -i "/^# *GRUB_CMDLINE_LINUX_DEFAULT=/s/^# *//" "${GRUBCONFIG}"
-sed -i "s/#GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"${KERNEL_PARAMS}\"/" "${GRUBCONFIG}" || exit $?
+sed -i "s@#GRUB_CMDLINE_LINUX=\"\"@GRUB_CMDLINE_LINUX=\"${KERNEL_PARAMS}\"@" "${GRUBCONFIG}" || exit $?
 #add "resume=/dev/swappartition?"
 
 #rm "${DESTDIR}"/boot/grub/menu.lst
