@@ -117,8 +117,8 @@ while true; do
 			;;
     "Change-Hostname")
       HOSTNAME="$(show_dialog --inputbox "Enter a hostname" 17 70)" \
-        && chroot "${DESTDIR}" sed -i "s/pentoo/${USERNAME}/" /etc/conf.d/hostname \
-        && chroot "${DESTDIR}" sed -i "s/pentoo/${USERNAME}/" /etc/hosts
+        && chroot "${DESTDIR}" sed -i "s/pentoo/${HOSTNAME}/" /etc/conf.d/hostname \
+        && chroot "${DESTDIR}" sed -i "s/pentoo/${HOSTNAME}/" /etc/hosts
       RETSUB=$?
       ;;
 		# add user
