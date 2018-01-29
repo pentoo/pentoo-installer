@@ -49,7 +49,7 @@ cp /usr/bin/tzselect /tmp/tzselect.patched \
 	&& patch --silent /tmp/tzselect.patched -i "${SHAREDIR}"/timezone-data-2015e-dialog.patch
 	TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched)" \
 	&& rm /tmp/tzselect.patched \
-	exit $?
+	|| exit $?
 
 # TODO: this should happen in chroot only, then the echo can go be removed
 # or am I wrong?
