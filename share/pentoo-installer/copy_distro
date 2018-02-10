@@ -181,17 +181,22 @@ auto_fstab() {
 		# add filesystem
 		_FSTAB_ITEM="${_FSTAB_ITEM} ${_FILESYSTEM}"
 		# add options
-		# TODO: should boot partition '/boot' and swap be different?
-		_FSTAB_ITEM="${_FSTAB_ITEM} defaults"
+		if [ "${_MOUNTPOINT}" = "/boot" ]; then
+			_FSTAB_ITEM="${_FSTAB_ITEM} defaults,noauto"
+		else
+			_FSTAB_ITEM="${_FSTAB_ITEM} defaults"
+		fi
 		# add dump flag
 		# TODO: should boot partition '/boot' be different?
 		_FSTAB_ITEM="${_FSTAB_ITEM} 0"
 		# add pass
 		# TODO: should boot partition '/boot' and root partition '/' be different?
-		if [ "${_FILESYSTEM}" != 'swap' ]; then
+		if [ "${_FILESYSTEM}" = 'swap' ] || [ "${_FILESYSTEM}" = 'btrfs' ]; then
+			_FSTAB_ITEM="${_FSTAB_ITEM} 0"
+		elif [ "${_MOUNTPOINT}" = '/' ]; then
 			_FSTAB_ITEM="${_FSTAB_ITEM} 1"
 		else
-			_FSTAB_ITEM="${_FSTAB_ITEM} 0"
+			_FSTAB_ITEM="${_FSTAB_ITEM} 2"
 		fi
 		# add to fstab
 		echo "${_FSTAB_ITEM}" >>${DESTDIR}/etc/fstab || return $?
