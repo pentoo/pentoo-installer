@@ -200,7 +200,7 @@ EDITOR="$(geteditor)" || exit $?
 "${EDITOR}" "${GRUBCONFIG}" || exit $?
 
 chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
-cat "${DESTDIR}"/tmp/grub.log >"${LOG}"
+cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
 chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg
 chroot_umount || exit $?
 
