@@ -102,7 +102,7 @@ chroot_mount() {
 	fi
 	mount -t sysfs sysfs "${DESTDIR}/sys" || return $?
 	mount -t proc proc "${DESTDIR}/proc" || return $?
-	mount -o bind /dev "${DESTDIR}/dev" || return $?
+	mount --rbind --make-rslave /dev "${DESTDIR}/dev" || return $?
 	return 0
 }
 
@@ -118,7 +118,7 @@ chroot_umount() {
 		umount ${DESTDIR}/sys || return $?
 	fi
 	if mount | grep -q "${DESTDIR}/dev "; then
-		umount ${DESTDIR}/dev || return $?
+		umount -R ${DESTDIR}/dev || return $?
 	fi
 	return 0
 }
