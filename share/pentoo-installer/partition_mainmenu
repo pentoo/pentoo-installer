@@ -51,7 +51,11 @@ while true; do
 	case "${NEWSELECTION}" in
 		# autoprepare
 		"0")
-			CONFIG_LIST_NEW="$("${SHAREDIR}"/partition_autoprepare)"
+			if [ -d /sys/firmware/efi ]; then
+				CONFIG_LIST_NEW="$("${SHAREDIR}"/partition_autoprepare_uefi)"
+			else
+				CONFIG_LIST_NEW="$("${SHAREDIR}"/partition_autoprepare)"
+			fi
 			# capture sub script exit
 			RETSUB=$?
 			if [ "${RETSUB}" -eq 0 ]; then

@@ -167,6 +167,7 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 			ext4)		mke2fs -t ext4 ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
 			ext4-nojournal)	mke2fs -t ext4 -O ^has_journal ${PARTPATH} -F >>"${LOG}" 2>&1 || exit $? ;;
 			vfat)		mkfs.vfat ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			fat32)		mkfs.fat -F32 ${PARTPATH} || exit $? ;;
 			# swap
 			swap)		mkswap ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			*)

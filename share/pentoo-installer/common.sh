@@ -159,6 +159,7 @@ get_supportedFS() {
 	[ "$(which mkfs.xfs 2>/dev/null)" ]		&& echo -n ' xfs'
 	[ "$(which mkfs.jfs 2>/dev/null)" ]		&& echo -n ' jfs'
 	[ "$(which mkfs.vfat 2>/dev/null)" ]	&& echo -n ' vfat'
+	[ "$(which mkfs.fat 2>/dev/null)" ]	&& echo -n ' fat32'
 	return 0
 }
 

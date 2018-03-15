@@ -118,7 +118,7 @@ show_dialog --defaultno --yesno "${DISC} will be COMPLETELY ERASED! Are you abso
 	0 0 || exit "${ERROR_CANCEL}"
 #blow away partition table (this negates the check for partition table type below)
 dd if=/dev/zero of="${DISC}" bs=512 count=1 conv=notrunc
-parted -s "${DISC}" mklabel 'msdos' || exit $?
+parted "${DISC}" --script -- mklabel 'msdos' || exit $?
 # Check current partition layout
 #CURRENT_PARTITIONTABLE='unknown'
 # this can fail, for ex. on a virgin HD with no partition table
