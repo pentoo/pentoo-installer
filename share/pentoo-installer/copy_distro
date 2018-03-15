@@ -253,7 +253,7 @@ chroot_mount || exit $?
 
 # remove livecd stuff
 sed -i '/aufs bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
-chroot "${DESTDIR}" emerge -C app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer
+chroot "${DESTDIR}" emerge -C app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer app-admin/pwgen
 rm -f "${DESTDIR}/home/pentoo/Desktop/pentoo-installer.desktop"
 
 #prevent livecd bashrc from being on install
