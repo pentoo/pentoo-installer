@@ -34,7 +34,7 @@ CONFIG_LIST_NEW=
 while true; do
 	# define menu items
 	MENU_ITEMS=("0" "Auto-Prepare (erases the ENTIRE hard drive)" \
-		"1" "Manually partition hard drives" \
+		"1" "Manually partition hard drives (possibly broken)" \
 		"2" "Fine-tune partition setup (add, edit, delete, encryption)"
 		)
 	# check if root partition is defined
