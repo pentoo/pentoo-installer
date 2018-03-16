@@ -117,7 +117,7 @@ show_dialog --msgbox "${DISC_SIZE} MiB will be used for your / partition." 0 0
 show_dialog --defaultno --yesno "${DISC} will be COMPLETELY ERASED! Are you absolutely sure?" \
 	0 0 || exit "${ERROR_CANCEL}"
 #blow away partition table (this negates the check for partition table type below)
-dd if=/dev/zero of="${DISC}" bs=512 count=1 conv=notrunc
+dd if=/dev/zero of="${DISC}" bs=5M count=1 conv=notrunc
 #parted "${DISC}" --script -- mklabel gpt || exit $?
 # Check current partition layout
 #CURRENT_PARTITIONTABLE='unknown'
