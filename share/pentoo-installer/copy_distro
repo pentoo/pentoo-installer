@@ -255,7 +255,7 @@ chroot_mount || exit $?
 
 # remove livecd stuff
 sed -i '/aufs bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
-chroot "${DESTDIR}" emerge -C app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer app-admin/pwgen
+chroot "${DESTDIR}" emerge --rage-clean app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer app-admin/pwgen
 rm -f "${DESTDIR}/home/pentoo/Desktop/pentoo-installer.desktop"
 
 #prevent livecd bashrc from being on install
@@ -272,6 +272,7 @@ rc-update del autoconfig default # || exit $?
 rc-update del binary-driver-handler # || exit $?
 rc-update del firmware boot # || exit $?
 rc-update del fixinittab default # || exit $?
+rc-update del pwgen default # || exit $?
 rc-update add keymaps default # || exit $?
 rc-update add fcron default # || exit $?
 if [ -r /etc/inittab.old ]; then
