@@ -162,9 +162,11 @@ auto_fstab() {
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_PARTPATH="${_PARTITION}"
-		# normalize ext4-nojournal
+		# normalize filesystem
 		if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
 			_FILESYSTEM="ext4"
+		elif [ "${_FILESYSTEM}" = "fat32" ]; then
+			_FILESYSTEM="vfat"
 		fi
 		if [ "${_CRYPTTYPE}" != '' ]; then
 			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
