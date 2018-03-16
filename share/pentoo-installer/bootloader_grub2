@@ -3,7 +3,7 @@
 # Check the COPYING file included with this distribution
 
 # bootloader_grub
-# installs traditional Grub
+# installs Grub2
 #
 # parameters (required)
 #  CONFIG_LIST: One string items of defined FSspec
@@ -199,9 +199,24 @@ EDITOR="$(geteditor)" || exit $?
 # let user edit grub menu file
 "${EDITOR}" "${GRUBCONFIG}" || exit $?
 
-chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+#this screams "add more safety checks", but who cares?
+if [ -d /sys/firmware/efi ]; then
+	if [ -w /sys/firmware/efi/efivars ]; then
+		efiwriteable="1"
+	else
+		efiwriteable="0"
+		mount -o remount,rw /sys/firmware/efi/efivars
+	fi
+	[ ! -d "${DESTDIR}"/boot/efi ] && mkdir -p "${DESTDIR}"/boot/efi
+	#stat -f -c %T "${DESTDIR}"/boot/efi
+	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot/efi --bootloader-id=Pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+	[ "${efiwriteable}" = "0" ] && mount -o remount,ro /sys/firmware/efi/efivars
+else
+	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
 chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg
+sync
 chroot_umount || exit $?
 
 # unfreeze xfs filesystems

@@ -63,7 +63,7 @@ case "${SELECTION}" in
 		"${SHAREDIR}"/bootloader_grub2 "${CONFIG_LIST}" || exit $?
 		;;
 	"GRUB2-UEFI")
-		"${SHAREDIR}"/bootloader_uefigrub "${CONFIG_LIST}" || exit $?
+		"${SHAREDIR}"/bootloader_grub2 "${CONFIG_LIST}" || exit $?
 		;;
 	"UEFI")
 		"${SHAREDIR}"/bootloader_uefi "${CONFIG_LIST}" || exit $?
