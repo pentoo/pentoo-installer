@@ -160,6 +160,8 @@ get_supportedFS() {
 	[ "$(which mkfs.jfs 2>/dev/null)" ]		&& echo -n ' jfs'
 	[ "$(which mkfs.vfat 2>/dev/null)" ]	&& echo -n ' vfat'
 	[ "$(which mkfs.fat 2>/dev/null)" ]	&& echo -n ' fat32'
+	[ "$(which mkfs.f2fs 2>/dev/null)" ] && echo -n ' f2fs'
+	[ "$(which mkfs.reiserfs 2>/dev/null)" ] && echo -n ' reiserfs'
 	return 0
 }
 
