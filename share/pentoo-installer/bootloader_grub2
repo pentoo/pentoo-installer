@@ -208,11 +208,16 @@ if [ -d /sys/firmware/efi ]; then
 		mount -o remount,rw /sys/firmware/efi/efivars
 	fi
 	[ ! -d "${DESTDIR}"/boot/efi ] && mkdir -p "${DESTDIR}"/boot/efi
+	#this check is super loose, since we actually are putting all of /boot in ESP for simplicity
 	if [ "$(stat -f -c %T "${DESTDIR}"/boot/efi)" != "msdos" ]; then
 		show_dialog --msgbox "/boot/efi *MUST* be formatted FAT, aborting." 0 0
 		exit 1
 	fi
-	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot/efi --bootloader-id=Pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+	#so uefi implementations suck, like lots of them.  So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
+	mkdir "${DESTDIR}"/boot/efi/boot
+	cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/bootx64.efi
+	#end uefi fallback handling
 	[ "${efiwriteable}" = "0" ] && mount -o remount,ro /sys/firmware/efi/efivars
 else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
