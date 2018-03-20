@@ -226,27 +226,53 @@ MODULE=
 
 # squashfs files created by flushchanges are ignored - they may contain whiteout files!
 # filenames used by flushchanged (old/new syntax): z_changes-* zz_changes-*
-for MODULE in $(ls -1 --color=never /mnt/cdrom/modules/*.lzm | grep -Ev '/z?z_changes-[^/]+$'); do
+for MODULE in $(ls -1 --color=never /mnt/cdrom/modules/*.lzm); do
 	"${SHAREDIR}"/gauge_unsquashfs "${MODULE}" "${DESTDIR}" "Uncompressing ${MODULE%.lzm}" || exit $?
 done
+# Unconditionally rsync the minimum we expect for a working system
+show_dialog_rsync '-av --progress' \
+  '/etc/*' "${DESTDIR}/etc/" "Syncing /etc ..." || exit $?
+show_dialog_rsync '-av --progress --exclude=/root/.bashrc' \
+  '/root/*' "${DESTDIR}/root/" "Syncing /root ..." || exit $?
+show_dialog_rsync '-av --progress --exclude=/home/pentoo/.bashrc' \
+  '/home/pentoo/*' "${DESTDIR}/home/pentoo/" "Syncing /home/pentoo ..." || exit $?
+show_dialog_rsync '-av --progress' \
+  "/lib/modules/$(uname -r)/*" "${DESTDIR}/lib/modules/$(uname -r)/" "Syncing kernel modules ..." || exit $?
 
-# TODO: add option not to rsync anything, plain LiveCD files
-show_dialog --defaultno --yesno "Would you like to sync unsaved changes to your new install?\nAll modules are automatically synced, but saying yes to this question\nwill also sync changes made during this session which have not been saved\nwith flushchanges or makemo.\nSay no, and only a small set of essentials will be synced;\nsay yes, and everything will be synced, but it may take much longer." 0 0
-RET_SUB=$?
+# check if we need to prompt user about syncing more things
+unsyncd=""
+tmp_unsyncd=""
+for i in $(ls -1 /mnt/overlay/.upper); do
+  [ "${i}" = "root" ] && continue
+  [ "${i}" = "etc" ] && continue
+  [ "${i}" = "mnt" ] && continue
+  [ "${i}" = "proc" ] && continue
+  [ "${i}" = "dev" ] && continue
+  [ "${i}" = "sys" ] && continue
+  [ "${i}" = "run" ] && continue
+  [ "${i}" = "newroot" ] && continue
+  [ "${i}" = "tmp" ] && continue
+  if [ "${i}" = "var" ]; then
+    tmp_unsyncd=$(du -sh --exclude=tmp --exclude=run "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
+  elif [ "${i}" = "home" ]; then
+    tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
+  else
+    tmp_unsyncd=$(du -sh "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
+  fi
+  if [ -n "${tmp_unsyncd}" ]; then
+    unsyncd="${unsyncd}${tmp_unsyncd}\n"
+  fi
+done
 
-# run rsync with nice dialog
-if [ "${RET_SUB}" = "0" ]; then
-	show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run --exclude=/newroot --exclude=/tmp --exclude=/var/tmp --exclude=/var/run --exclude=/var/lock' \
-		'/*' "${DESTDIR}/" "Syncing / ..." || exit $?
-else
-	show_dialog_rsync '-av --progress' \
-		'/etc/*' "${DESTDIR}/etc/" "Syncing /etc ..." || exit $?
-	show_dialog_rsync '-av --progress --exclude=/root/.bashrc' \
-		'/root/*' "${DESTDIR}/root/" "Syncing /root ..." || exit $?
-	show_dialog_rsync '-av --progress --exclude=/home/pentoo/.bashrc' \
-		'/home/pentoo/*' "${DESTDIR}/home/pentoo/" "Syncing /home/pentoo ..." || exit $?
-	show_dialog_rsync '-av --progress' \
-		"/lib/modules/$(uname -r)/*" "${DESTDIR}/lib/modules/$(uname -r)/" "Syncing kernel modules ..." || exit $?
+if [ -n "${unsyncd}" ]; then
+  show_dialog --defaultno --yesno "The following unsaved changes to the running livecd have been detected:\n${unsyncd}\nWould you like to sync unsaved changes to your new install?" 0 0
+  RET_SUB=$?
+
+  # run rsync with nice dialog
+  if [ "${RET_SUB}" = "0" ]; then
+    show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run --exclude=/newroot --exclude=/tmp --exclude=/var/tmp --exclude=/var/run --exclude=/var/lock' \
+      '/*' "${DESTDIR}/" "Syncing / ..." || exit $?
+  fi
 fi
 
 # pre-configure systems, these steps should happen only once
