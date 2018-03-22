@@ -65,6 +65,7 @@ partition_finddisks() {
 	fi
 	# emmc
 	for _DEV in $(ls /sys/block | egrep '^mmcblk'); do
+		[ "${_DEV}" = "mmcblk0rpmb" ] && continue #this is a gross hack which shouldn't be needed
 		if [ "$(grep -c 'DEVTYPE=disk' /sys/block/${_DEV}/uevent)" = "1" ]; then
 			echo "/dev/${_DEV}"
 		fi
