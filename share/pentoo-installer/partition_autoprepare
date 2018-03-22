@@ -179,7 +179,7 @@ show_dialog --msgbox "Auto-prepare was successful" 0 0
 
 #oh the humanity, here we hack ${DISK} to add a p for disk types that label partitions like that
 #yucky bash
-if $(echo ${DISC} | egrep -q 'nvme|emmc'); then
+if $(echo ${DISC} | egrep -q 'nvme|mmc'); then
 	DISC=${DISC}p
 fi
 
