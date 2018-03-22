@@ -146,8 +146,8 @@ sed -i "s@#GRUB_CMDLINE_LINUX=\"\"@GRUB_CMDLINE_LINUX=\"${KERNEL_PARAMS}\"@" "${
 cp /mnt/cdrom/isolinux/pentoosplash.png "${DESTDIR}"/boot/grub/
 # set pentoo bootsplash
 if [ -f "${DESTDIR}"/boot/grub/pentoosplash.png ]; then
-  sed -i 's/^#GRUB_BACKGROUND/GRUB_BACKGROUND/' "${GRUBMENU}" || exit $?
-  sed -i 's/mybackground/pentoosplash/' "${GRUBMENU}" || exit $?
+  sed -i 's/^#GRUB_BACKGROUND/GRUB_BACKGROUND/' "${GRUBCONFIG}" || exit $?
+  sed -i 's/mybackground/pentoosplash/' "${GRUBCONFIG}" || exit $?
 fi
 
 # inform user about target disk, partitions and such, last chance to abort ;)
