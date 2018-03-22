@@ -148,6 +148,7 @@ cp /mnt/cdrom/isolinux/pentoosplash.png "${DESTDIR}"/boot/grub/
 if [ -f "${DESTDIR}"/boot/grub/pentoosplash.png ]; then
   sed -i 's/^#GRUB_BACKGROUND/GRUB_BACKGROUND/' "${GRUBCONFIG}" || exit $?
   sed -i 's/mybackground/pentoosplash/' "${GRUBCONFIG}" || exit $?
+  sed -i 's/Gentoo/Pentoo/' "${GRUBCONFIG}" || exit $?
 fi
 
 # inform user about target disk, partitions and such, last chance to abort ;)
