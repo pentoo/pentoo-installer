@@ -43,7 +43,7 @@ RETSUB=
 if [ -d /sys/firmware/efi ]; then
 	SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub2 is the Pentoo default." \
 		0 0 4 \
-		"GRUB2-UEFI" "Use GRUB2 and UEFI (unsupported)" \
+		"GRUB2-UEFI" "Use GRUB2 and UEFI (default)" \
 		"UEFI" "Boot kernel directly by UEFI (unsupported)" \
 		"None" "Warning: you must install your own bootloader!")" \
 		|| exit $?
