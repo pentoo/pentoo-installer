@@ -45,30 +45,33 @@ if [ "${RAMSIZE}" -le "1500" ]; then
 	exit 1
 fi
 
-# check if the installer has been updated and warn the user they may wish to do so
-if ! grep -q "completed emerge (.*) pentoo/pentoo-installer-99999999" /var/log/emerge.log; then
-	UPDATE_WARNING="true"
-else
-	updated_at=$(grep "completed emerge (.*) pentoo/pentoo-installer-99999999" /var/log/emerge.log | tail -n1 | awk -F: '{print $1}')
-	current=$(date +%s)
-	delta=$((${current} - ${updated_at}))
-	if [ ${delta} -ge 86400 ]; then
+if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pentoo-installer-99999999" ]; then
+
+	# check if the installer has been updated and warn the user they may wish to do so
+	if ! grep -q "completed emerge (.*) pentoo/pentoo-installer-99999999" /var/log/emerge.log; then
 		UPDATE_WARNING="true"
 	else
-		UPDATE_WARNING="false"
+		updated_at=$(grep "completed emerge (.*) pentoo/pentoo-installer-99999999" /var/log/emerge.log | tail -n1 | awk -F: '{print $1}')
+		current=$(date +%s)
+		delta=$((${current} - ${updated_at}))
+		if [ ${delta} -ge 86400 ]; then
+			UPDATE_WARNING="true"
+		else
+			UPDATE_WARNING="false"
+		fi
 	fi
-fi
 
-if [ "${UPDATE_WARNING}" = "true" ]; then
-	UPDATE_NOW="$(show_dialog \
-		--menu "pentoo-installer gets constant updates to improve experience and fix bugs, would you like to update now?" \
-		0 0 0 \
-		'Yes' 'I would like to exit and update pentoo-installer to get the latest fixes' \
-		'No' 'Why bother to get the latest fixes? I am elite enough to fix it.')"
-	if [ "${UPDATE_NOW}" = "Yes" ]; then
-		printf "Installation aborted. Please ensure you are connected to the internet (see motd)\n"
-		printf "then run 'emerge -1 pentoo-installer' and re-run pentoo-installer after it is up to date.\n"
-		exit 1
+	if [ "${UPDATE_WARNING}" = "true" ]; then
+		UPDATE_NOW="$(show_dialog \
+			--menu "pentoo-installer gets constant updates to improve experience and fix bugs, would you like to update now?" \
+			0 0 0 \
+			'Yes' 'I would like to exit and update pentoo-installer to get the latest fixes' \
+			'No' 'Why bother to get the latest fixes? I am elite enough to fix it.')"
+		if [ "${UPDATE_NOW}" = "Yes" ]; then
+			printf "Installation aborted. Please ensure you are connected to the internet (see motd)\n"
+			printf "then run 'emerge -1 pentoo-installer' and re-run pentoo-installer after it is up to date.\n"
+			exit 1
+		fi
 	fi
 fi
 
