@@ -112,18 +112,20 @@ while true; do
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
 				&& chroot "${DESTDIR}" usermod -l ${USERNAME} pentoo >> ${LOG} \
 				&& chroot "${DESTDIR}" usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
-				&& setpassword "${USERNAME}" 2> /dev/null \
-				&& sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks" \
-				&& sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/icons.*.rc" \
-				&& sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/*.xml"
+				&& setpassword "${USERNAME}" 2> /dev/null
+				RETSUB=$?
+				if [ "${RETSUB}" = 0 ]; then
+					[ -w "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks" ] && sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks"
+					[ -d "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/" ] && sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/icons.*.rc"
+					[ -d "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/" ] && sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/*.xml"
+				fi
+			;;
+		"Change-Hostname")
+			HOSTNAME="$(show_dialog --inputbox "Enter a hostname" 17 70)" \
+				&& chroot "${DESTDIR}" sed -i "s/pentoo/${HOSTNAME}/" /etc/conf.d/hostname \
+				&& chroot "${DESTDIR}" sed -i "s/pentoo/${HOSTNAME}/" /etc/hosts
 			RETSUB=$?
 			;;
-    "Change-Hostname")
-      HOSTNAME="$(show_dialog --inputbox "Enter a hostname" 17 70)" \
-        && chroot "${DESTDIR}" sed -i "s/pentoo/${HOSTNAME}/" /etc/conf.d/hostname \
-        && chroot "${DESTDIR}" sed -i "s/pentoo/${HOSTNAME}/" /etc/hosts
-      RETSUB=$?
-      ;;
 		# add user
 		"add-user")
 			# 1. ask for user name
