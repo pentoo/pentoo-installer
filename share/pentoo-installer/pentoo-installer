@@ -63,7 +63,7 @@ if [ "${UPDATE_WARNING}" = "true" ]; then
 	UPDATE_NOW="$(show_dialog \
 		--menu "pentoo-installer gets constant updates to improve experience and fix bugs, would you like to update now?" \
 		0 0 0 \
-		'Yes' 'I would like to update pentoo-installer to get the latest fixes' \
+		'Yes' 'I would like to exit and update pentoo-installer to get the latest fixes' \
 		'No' 'Why bother to get the latest fixes? I am elite enough to fix it.')"
 	if [ "${UPDATE_NOW}" = "Yes" ]; then
 		printf "Installation aborted. Please ensure you are connected to the internet (see motd)\n"
