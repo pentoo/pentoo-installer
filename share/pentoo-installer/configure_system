@@ -112,7 +112,10 @@ while true; do
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
 				&& chroot "${DESTDIR}" usermod -l ${USERNAME} pentoo >> ${LOG} \
 				&& chroot "${DESTDIR}" usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
-				&& setpassword "${USERNAME}" 2> /dev/null
+				&& setpassword "${USERNAME}" 2> /dev/null \
+				&& sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks" \
+				&& sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/icons.*.rc" \
+				&& sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/*.xml"
 			RETSUB=$?
 			;;
     "Change-Hostname")
