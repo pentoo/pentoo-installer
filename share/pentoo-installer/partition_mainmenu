@@ -39,7 +39,7 @@ while true; do
 		)
 	# check if root partition is defined
 	if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
-		MENU_ITEMS+=("3" "Finish partition setup")
+		MENU_ITEMS+=("3" "Finish partition setup and format partitions")
 	else
 		[ "${MAXSELECTION}" -ge 3 ] && MAXSELECTION=2
 	fi
