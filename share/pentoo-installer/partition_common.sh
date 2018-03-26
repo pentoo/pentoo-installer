@@ -31,49 +31,51 @@ partition_finddisks() {
 	# check input
 	check_num_args "${FUNCNAME}" 0 $# || return $?
 	local _DEV=""
+	local _bootdev="$(mount | grep '/mnt/cdrom ' | awk '{print $1}')"
+	#[ -n "${_bootdev##*$_DEV*}" ] checks if _bootdev is on _DEV to avoid breaking our live device
 	# ide devices
 	for _DEV in $(ls /sys/block | egrep '^hd'); do
 		if [ "$(cat /sys/block/${_DEV}/device/media)" = "disk" ]; then
-			echo "/dev/${_DEV}"
+			[ -n "${_bootdev##*$_DEV*}" ] && echo "/dev/${_DEV}"
 		fi
 	done
 	#scsi/sata devices
 	for _DEV in $(ls /sys/block | egrep '^sd'); do
 		# TODO: what is the significance of 5?
 		if ! [ "$(cat /sys/block/${_DEV}/device/type)" = "5" ]; then
-			echo "/dev/${_DEV}"
+			[ -n "${_bootdev##*$_DEV*}" ] && echo "/dev/${_DEV}"
 		fi
 	done
 	#virtual devices
 	for _DEV in $(ls /sys/block | egrep '^vd'); do
 		# TODO: how to check if this is really a disk?
 		if [ "$(grep -c 'DEVTYPE=disk' /sys/block/${_DEV}/uevent)" = "1" ]; then
-			echo "/dev/${_DEV}"
+			[ -n "${_bootdev##*$_DEV*}" ] && echo "/dev/${_DEV}"
 		fi
 	done
 	# cciss controllers
 	if [ -d /dev/cciss ] ; then
 		for _DEV in $(ls /dev/cciss | egrep -v 'p'); do
-			echo "/dev/cciss/${_DEV}"
+			[ -n "${_bootdev##*$_DEV*}" ] && echo "/dev/cciss/${_DEV}"
 		done
 	fi
 	# Smart 2 controllers
 	if [ -d /dev/ida ] ; then
 		for _DEV in $(ls /dev/ida | egrep -v 'p'); do
-			echo "/dev/ida/${_DEV}"
+			[ -n "${_bootdev##*$_DEV*}" ] && echo "/dev/ida/${_DEV}"
 		done
 	fi
 	# emmc
 	for _DEV in $(ls /sys/block | egrep '^mmcblk'); do
 		[ "${_DEV}" = "mmcblk0rpmb" ] && continue #this is a gross hack which shouldn't be needed
 		if [ "$(grep -c 'DEVTYPE=disk' /sys/block/${_DEV}/uevent)" = "1" ]; then
-			echo "/dev/${_DEV}"
+			[ -n "${_bootdev##*$_DEV*}" ] && echo "/dev/${_DEV}"
 		fi
 	done
 	# NVMe
 	for _DEV in $(ls /sys/block | egrep '^nvme'); do
 		if [ "$(grep -c 'DEVTYPE=disk' /sys/block/${_DEV}/uevent)" = "1" ]; then
-			echo "/dev/${_DEV}"
+			[ -n "${_bootdev##*$_DEV*}" ] && echo "/dev/${_DEV}"
 		fi
 	done
 	return 0
