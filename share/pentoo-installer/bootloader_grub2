@@ -216,6 +216,7 @@ if grep -q 'Error [0-9]*: ' "${DESTDIR}"/tmp/grub.log; then
 fi
 
 chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2
+chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:0
 
 show_dialog --msgbox "GRUB was successfully installed." 0 0
 exit 0
