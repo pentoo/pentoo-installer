@@ -142,13 +142,18 @@ GRUBCONFIG="${DESTDIR}/etc/default/grub"
 sed -i "s@#GRUB_CMDLINE_LINUX=\"\"@GRUB_CMDLINE_LINUX=\"${KERNEL_PARAMS}\"@" "${GRUBCONFIG}" || exit $?
 #add "resume=/dev/swappartition?"
 
-# HACKY HACK HACK XXX
-cp /mnt/cdrom/isolinux/pentoosplash.png "${DESTDIR}"/boot/grub/
 # set pentoo bootsplash
+# all
+sed -i 's/Gentoo/Pentoo/' "${GRUBCONFIG}" || exit $?
+# old
 if [ -f "${DESTDIR}"/boot/grub/pentoosplash.png ]; then
   sed -i 's/^#GRUB_BACKGROUND/GRUB_BACKGROUND/' "${GRUBCONFIG}" || exit $?
   sed -i 's/mybackground/pentoosplash/' "${GRUBCONFIG}" || exit $?
-  sed -i 's/Gentoo/Pentoo/' "${GRUBCONFIG}" || exit $?
+fi
+# new
+if [ -f "${DESTDIR}"/usr/share/grub/themes/pentoo/pentoosplash.png ]; then
+  sed -i 's/^#GRUB_THEME/GRUB_THEME/' "${GRUBCONFIG}" || exit $?
+  sed -i 's/starfield/pentoo/' "${GRUBCONFIG}" || exit $?
 fi
 
 # inform user about target disk, partitions and such, last chance to abort ;)
