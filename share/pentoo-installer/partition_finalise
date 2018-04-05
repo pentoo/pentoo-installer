@@ -59,11 +59,11 @@ partition_crypt_setup() {
 		'luks-gpg')
 			show_dialog --msgbox "We will now generate a GPG-encrypted luks key for ${_PARTITION}" 0 0 || return $?
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
-			gpg --symmetric --cipher-algo aes256 --armor /tmp/"${_UUID}" || return $?
-			gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
+			su pentoo -c "gpg --symmetric --cipher-algo aes256 --armor /tmp/\"${_UUID}\"" || return $?
+			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
 			# TODO, is this needed? Seems not
 			# show_dialog --msgbox "Please enter the GPG key for ${_PARTITION} (last time :-)" 0 0 || return $?
-			gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}".asc | base64 -w0 || return $?
 			# clean up

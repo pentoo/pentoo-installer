@@ -116,6 +116,13 @@ if settings_check; then
 	fi
 fi
 
+#set pinentry just in case user wants to encrypt
+if [ -n "${DISPLAY}" ]; then
+	eselect pinentry set pinentry-gtk-2
+else
+	eselect pinentry set pinentry-curses
+fi
+
 while [ true ]; do
 	# define menu items
 	MENU_ITEMS=()
