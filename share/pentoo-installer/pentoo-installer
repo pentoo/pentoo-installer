@@ -117,11 +117,7 @@ if settings_check; then
 fi
 
 #set pinentry just in case user wants to encrypt
-if [ -n "${DISPLAY}" ]; then
-	eselect pinentry set pinentry-gtk-2
-else
-	eselect pinentry set pinentry-curses
-fi
+eselect pinentry set pinentry-gtk-2 || eselect pinentry set pinentry-curses
 
 while [ true ]; do
 	# define menu items
