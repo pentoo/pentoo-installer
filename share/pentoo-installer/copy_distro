@@ -242,6 +242,10 @@ show_dialog_rsync '-av --progress' \
   "/var/lib/portage/*" "${DESTDIR}/var/lib/portage/" "Syncing portage information ..." || exit $?
 show_dialog_rsync '-av --progress' \
   "/var/log/*" "${DESTDIR}/var/log/" "Syncing logs ..." || exit $?
+if [ -d "/var/lib/NetworkManager" ]; then
+  show_dialog_rsync '-av --progress' \
+    "/var/lib/NetworkManager/*" "${DESTDIR}/var/lib/NetworkManager/" "Syncing NetworkManager config ..." || exit $?
+fi
 
 # check if we need to prompt user about syncing more things
 unsyncd=""
@@ -257,7 +261,7 @@ for i in $(ls -1 /mnt/overlay/.upper); do
   [ "${i}" = "newroot" ] && continue
   [ "${i}" = "tmp" ] && continue
   if [ "${i}" = "var" ]; then
-    tmp_unsyncd=$(du -sh --exclude=tmp --exclude=run --exclude=log --exclude=lib/portage --exclude=lib/blueman/network.state --exclude=lib/misc/random-seed --exclude=lib/syslog-ng/syslog-ng.persist "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
+    tmp_unsyncd=$(du -sh --exclude=tmp --exclude=run --exclude=log --exclude=lib/portage --exclude=lib/blueman/network.state --exclude=lib/misc/random-seed --exclude=lib/NetworkManager --exclude=lib/syslog-ng/syslog-ng.persist "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
   elif [ "${i}" = "home" ]; then
     tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
   elif [ "${i}" = "lib" ] || [ "${i}" = "lib64" ]; then
