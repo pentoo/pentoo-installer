@@ -261,11 +261,11 @@ for i in $(ls -1 /mnt/overlay/.upper); do
   [ "${i}" = "newroot" ] && continue
   [ "${i}" = "tmp" ] && continue
   if [ "${i}" = "var" ]; then
-    tmp_unsyncd=$(du -sh --exclude=tmp --exclude=run --exclude=log --exclude=lib/portage --exclude=lib/blueman/network.state --exclude=lib/misc/random-seed --exclude=lib/NetworkManager --exclude=lib/syslog-ng/syslog-ng.persist "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
+    tmp_unsyncd=$(du -sh --exclude=cache --exclude=tmp --exclude=run --exclude=log --exclude=lib/portage --exclude=lib/blueman/network.state --exclude=lib/misc/random-seed --exclude=lib/NetworkManager --exclude=lib/syslog-ng/syslog-ng.persist "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
   elif [ "${i}" = "home" ]; then
     tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
   elif [ "${i}" = "lib" ] || [ "${i}" = "lib64" ]; then
-    tmp_unsyncd=$(du -sh --exclude=modules/$(uname -r)/build --exclude=modules/$(uname -r)/source "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
+    tmp_unsyncd=$(du -sh --exclude=modules/$(uname -r)/build --exclude=modules/$(uname -r)/source --exclude=rc/console/unicode "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
   else
     tmp_unsyncd=$(du -sh "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0')
   fi
