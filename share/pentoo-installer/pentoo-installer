@@ -22,6 +22,102 @@ readonly SHAREDIR="/usr/share/pentoo-installer"
 # also get functions to save settings
 source "${SHAREDIR}"/save_settings.sh || exit $?
 
+checkvm() {
+	#this entire section of code is completely stolen from Carlos Perez's work in checkvm.rb for metasploit and rewritten (poorly) in sh
+	#check loaded modules
+	if [ -x "$(command -v lsmod 2>&1)" ]; then
+		lsmod_data="$(lsmod 2>&1 | awk '{print $1}')"
+		if [ -n "${lsmod}" ]; then
+			printf "${lsmod_data}" | grep -iqE "vboxsf|vboxguest" 2> /dev/null && vm="VirtualBox"
+			printf "${lsmod_data}" | grep -iqE "vmw_ballon|vmxnet|vmw" 2> /dev/null && vm="VMware"
+			printf "${lsmod_data}" | grep -iqE "xen-vbd|xen-vnif" 2> /dev/null && vm="Xen"
+			printf "${lsmod_data}" | grep -iqE "virtio_pci|virtio_net" 2> /dev/null && vm="Qemu/KVM"
+			printf "${lsmod_data}" | grep -iqE "hv_vmbus|hv_blkvsc|hv_netvsc|hv_utils|hv_storvsc" && vm="MS Hyper-V"
+			[ -n "${vm}" ] && vm_from="lsmod"
+		fi
+	fi
+
+	#check scsi driver
+	if [ -z "${vm_from}" ]; then
+		if [ -r /proc/scsi/scsi ]; then
+			grep -iq "vmware" /proc/scsi/scsi 2> /dev/null && vm="VMware"
+			grep -iq "vbox" /proc/scsi/scsi 2> /dev/null && vm="VirtualBox"
+			[ -n "${vm}" ] && vm_from="/pro/scsi/scsi"
+		fi
+	fi
+
+	# Check IDE Devices
+	if [ -z "${vm_from}" ];	then
+		if [ -d /proc/ide ]; then
+			ide_model="$(cat /proc/ide/hd*/model)"
+			printf "${ide_model}" | grep -iq "vbox" 2> /dev/null && vm="VirtualBox"
+			printf "${ide_model}" | grep -iq "vmware" 2> /dev/null && vm="VMware"
+			printf "${ide_model}" | grep -iq "qemu" 2> /dev/null && vm="Qemu/KVM"
+			printf "${ide_model}" | grep -iqE "virtual (hd|cd)" 2> /dev/null && vm="Hyper-V/Virtual PC"
+			[ -n "${vm}" ] && vm_from="ide_model"
+		fi
+	fi
+
+	# Check using lspci
+	if [ -z "${vm_from}" ] && [ "${LSPCI}" = "1" ]; then
+			lspci_data="$(lspci 2>&1)"
+			printf "${lspci_data}" | grep -iq "vmware" 2> /dev/null && vm="VMware"
+			printf "${lspci_data}" | grep -iq "virtualbox" 2> /dev/null && vm="VirtualBox"
+			[ -n "${vm}" ] && vm_from="lspci"
+	fi
+
+	# Xen bus check
+	## XXX: Removing unsafe check
+	# this check triggers if CONFIG_XEN_PRIVILEGED_GUEST=y et al are set in kconfig (debian default) even in not actually a guest
+	#if [ -z ${vm} ]
+	#then
+	#	ls -1 /sys/bus | grep -iq "xen" 2> /dev/null && vm="Xen"
+	#	vm_from="/sys/bus/xen"
+	#fi
+
+	# Check using lscpu
+	if [ -z "${vm_from}" ]; then
+		if [ -x "$(command -v lscpu 2>&1)" ]; then
+                        lscpu_data="$(lscpu 2>&1)"
+			printf "${lscpu_data}" | grep -iq "Xen" 2> /dev/null && vm="Xen"
+			printf "${lscpu_data}" | grep -iq "KVM" 2> /dev/null && vm="KVM"
+			printf "${lscpu_data}" | grep -iq "Microsoft" 2> /dev/null && vm="MS Hyper-V"
+			[ -n "${vm}" ] && vm_from="lscpu"
+		fi
+	fi
+
+	#Check vmnet
+	if [ -z "${vm_from}" ]; then
+		if [ -e /dev/vmnet ]; then
+			vm="VMware"
+			vm_from="/dev/vmnet"
+		fi
+	fi
+
+	#Check dmi info
+	if [ -z "${vm_from}" ]; then
+		if [ -x "$(command -v dmidecode 2>&1)" ]; then
+			dmidecode 2>&1 | grep -iq "microsoft corporation" 2> /dev/null && vm="MS Hyper-V"
+			dmidecode 2>&1 | grep -iq "vmware" 2> /dev/null && vm="VMware"
+			dmidecode 2>&1 | grep -iq "virtualbox" 2> /dev/null && vm="VirtualBox"
+			dmidecode 2>&1 | grep -iq "qemu" 2> /dev/null && vm="Qemu/KVM"
+			dmidecode 2>&1 | grep -iq "domu" 2> /dev/null && vm="Xen"
+			[ -n "${vm}" ] && vm_from="dmi_info"
+		fi
+	fi
+
+	# Check dmesg Output
+	if [ -z "${vm_from}" ]; then
+		if [ -x "$(command -v dmesg 2>&1)" ]; then
+			dmesg | grep -iqE "vboxbios|vboxcput|vboxfacp|vboxxsdt|(vbox cd-rom)|(vbox harddisk)" && vm="VirtualBox"
+			dmesg | grep -iqE "(vmware virtual ide)|(vmware pvscsi)|(vmware virtual platform)" && vm="VMware"
+			dmesg | grep -iqE "(xen_mem)|(xen-vbd)" && vm="Xen"
+			dmesg | grep -iqE "(qemu virtual cpu version)" && vm="Qemu/KVM"
+			[ -n "${vm}" ] && vm_from="dmesg"
+		fi
+	fi
+}
+
 #####################
 ## begin execution ##
 
@@ -40,9 +136,14 @@ fi
 
 ## start by exiting if the user doesn't have enough RAM for the install to work
 RAMSIZE=$(awk '/MemTotal/ {printf( "%.0f\n", int ( $2 / 1024 ) + 1)}' /proc/meminfo)
+export RAMSIZE
 if [ "${RAMSIZE}" -le "1500" ]; then
-	show_dialog --msgbox "The Pentoo Installer requires a minimum of 1.5GB of RAM to run. Failing safe." 0 0
-	exit 1
+  checkvm
+  if [ -n "${vm}" ]; then
+    show_dialog --msgbox "WARNING: You appear to be running Pentoo in a VM with almost no RAM.  Performance will suffer and so will you. Please give your VM an appropriate amount of RAM for $(date +%Y).  If you continue, the install speed will be greatly reduced due to the low RAM limit." 0 0
+  else
+    show_dialog --msgbox "WARNING: the install speed will be reduced due to the low system RAM." 0 0
+  fi
 fi
 
 if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pentoo-installer-99999999" ]; then

@@ -32,6 +32,11 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
 
+#we export RAMSIZE from pentoo-installer, so hopefully we can use it here
+if [ "${RAMSIZE}" -le "1500" ]; then
+  procarg="-p 1"
+fi
+
 # Trap the killer signals so that we can kill child background processes
 trap 'killall unsquashfs;' SIGHUP
 # unsquashfs ignores SIGINT ...
@@ -63,7 +68,7 @@ echo 1 > /tmp/.unsquashfs-retcode
 	echo >> /tmp/unsquashfs.log; \
 	# unsquash and output to file used for gauge dialog
 	# also write filtered output to $LOG
-	unsquashfs -f -d "${DESTINATION}" "${SOURCE}" 2>&1 \
+	unsquashfs ${procarg} -f -d "${DESTINATION}" "${SOURCE}" 2>&1 \
 		| tee -a /tmp/unsquashfs.log \
 		| tr '\r' '\n' | grep -Ev '[[:blank:]][0-9]+/[0-9]+[[:blank:]]+[0-9]+\%$' >>"${LOG}"
 	echo $? > /tmp/.unsquashfs-retcode
