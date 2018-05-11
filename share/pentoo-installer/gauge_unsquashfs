@@ -33,6 +33,7 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 source "${SHAREDIR}"/common.sh || exit $?
 
 #we export RAMSIZE from pentoo-installer, so hopefully we can use it here
+procarg=
 if [ "${RAMSIZE}" -le "1500" ]; then
   procarg="-p 1"
 fi
