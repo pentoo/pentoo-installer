@@ -35,6 +35,8 @@ source "${SHAREDIR}"/common.sh || exit $?
 #we export RAMSIZE from pentoo-installer, so hopefully we can use it here
 if [ "${RAMSIZE}" -le "1500" ]; then
   procarg="-p 1"
+else
+  procarg=""
 fi
 
 # Trap the killer signals so that we can kill child background processes
