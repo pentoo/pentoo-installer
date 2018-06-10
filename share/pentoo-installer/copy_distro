@@ -279,7 +279,7 @@ for i in $(ls -1 /mnt/overlay/.upper); do
   if [ "${i}" = "var" ]; then
     tmp_unsyncd=$(du -sh --exclude=cache --exclude=tmp --exclude=run --exclude=log --exclude=db/pkg/pentoo/pentoo-installer-* --exclude=lib/portage --exclude=lib/blueman/network.state --exclude=lib/misc/random-seed --exclude=lib/NetworkManager --exclude=lib/gentoo/news --exclude=lib/dhcpcd --exclude=lib/syslog-ng/syslog-ng.persist --exclude=lib/layman "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
   elif [ "${i}" = "home" ]; then
-    tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v '^0|^4\.0K')
+    tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
   elif [ "${i}" = "lib" ] || [ "${i}" = "lib64" ]; then
     tmp_unsyncd=$(du -sh --exclude=modules/$(uname -r)/build --exclude=modules/$(uname -r)/source --exclude=rc/console/unicode "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
   elif [ "${i}" = "sbin" ]; then
