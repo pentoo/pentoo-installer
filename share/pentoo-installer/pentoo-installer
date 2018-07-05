@@ -179,6 +179,7 @@ fi
 # display welcome txt depending on used dialog
 WHICHDIALOG="$(get_dialog)"
 show_dialog --textbox "${SHAREDIR}/welcome.${WHICHDIALOG}.txt" 0 0 || exit $?
+[ -n "${DISPLAY}" ] && wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz #if we are running in X, maximize
 
 # 'controller' vars
 # CONFIG_LIST: One string with 0 or more items of defined FSspec:
