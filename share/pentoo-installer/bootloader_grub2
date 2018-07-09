@@ -201,17 +201,17 @@ if [ -d /sys/firmware/efi ]; then
     chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=x86_64-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
     cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
     efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8)
-    efibootmgr --create --disk "${DISK_BOOT}" --part 1 --loader '/EFI/Pentoo/grubx64.efi' --label "Pentoo" --verbose
+    efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/grubx64.efi' --label "Pentoo" --verbose
   elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
     chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=i386-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
     cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/boot/BOOTIA32.EFI || exit $?
     efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8)
-    efibootmgr --create --disk "${DISK_BOOT}" --part 1 --loader '/EFI/Pentoo/grubia32.efi' --label "Pentoo" --verbose
+    efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/grubia32.efi' --label "Pentoo" --verbose
   else
     chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
     cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
     efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8)
-    efibootmgr --create --disk "${DISK_BOOT}" --part 1 --loader '/EFI/Pentoo/grubx64.efi' --label "Pentoo" --verbose
+    efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/grubx64.efi' --label "Pentoo" --verbose
   fi
   #so uefi implementations suck, like lots of them.  So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
   mkdir "${DESTDIR}"/boot/efi/boot || exit $?
