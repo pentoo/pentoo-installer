@@ -181,23 +181,49 @@ EDITOR="$(geteditor)" || exit $?
 
 #maybe move the stat check a LOT earlier?
 if [ -d /sys/firmware/efi ]; then
-	if [ -w /sys/firmware/efi/efivars ]; then
-		efiwriteable="1"
-	else
-		efiwriteable="0"
-		mount -o remount,rw /sys/firmware/efi/efivars
-	fi
-	[ ! -d "${DESTDIR}"/boot/efi ] && mkdir -p "${DESTDIR}"/boot/efi
-	#this check is super loose, since we actually are putting all of /boot in ESP for simplicity
-	if [ "$(stat -f -c %T "${DESTDIR}"/boot/efi)" != "msdos" ]; then
-		show_dialog --msgbox "/boot/efi *MUST* be formatted FAT, aborting." 0 0
-		exit 1
-	fi
-	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
-	#so uefi implementations suck, like lots of them.  So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
-	mkdir "${DESTDIR}"/boot/efi/boot || exit $?
-	cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/bootx64.efi || exit $?
-	#end uefi fallback handling
+  if [ -w /sys/firmware/efi/efivars ]; then
+    efiwriteable="1"
+  else
+    efiwriteable="0"
+    mount -o remount,rw /sys/firmware/efi/efivars
+  fi
+  [ ! -d "${DESTDIR}"/boot/efi ] && mkdir -p "${DESTDIR}"/boot/efi
+  #this check is super loose, since we actually are putting all of /boot in ESP for simplicity
+  if [ "$(stat -f -c %T "${DESTDIR}"/boot/efi)" != "msdos" ]; then
+    show_dialog --msgbox "/boot/efi *MUST* be formatted FAT, aborting." 0 0
+    exit 1
+  fi
+  #run grub2-install
+  #copy shim into place
+  #remove efi boot to grub
+  #tell efi to boot shim (which boots grub)
+  if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
+    chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=x86_64-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
+    efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8)
+    efibootmgr --create --disk "${DISK_BOOT}" --part 1 --loader '/EFI/Pentoo/grubx64.efi' --label "Pentoo" --verbose
+  elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
+    chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=i386-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+    cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/boot/BOOTIA32.EFI || exit $?
+    efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8)
+    efibootmgr --create --disk "${DISK_BOOT}" --part 1 --loader '/EFI/Pentoo/grubia32.efi' --label "Pentoo" --verbose
+  else
+    chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
+    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
+    efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8)
+    efibootmgr --create --disk "${DISK_BOOT}" --part 1 --loader '/EFI/Pentoo/grubx64.efi' --label "Pentoo" --verbose
+  fi
+  #so uefi implementations suck, like lots of them.  So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
+  mkdir "${DESTDIR}"/boot/efi/boot || exit $?
+  cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/grubx64.efi || exit $?
+  #add shim for secure boot to the fallback location
+  if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
+    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
+  elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
+    cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/boot/BOOTIA32.EFI || exit $?
+  else
+    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
+  fi
 	[ "${efiwriteable}" = "0" ] && mount -o remount,ro /sys/firmware/efi/efivars
 else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
