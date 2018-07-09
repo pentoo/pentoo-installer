@@ -224,6 +224,8 @@ if [ -d /sys/firmware/efi ]; then
   else
     cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
   fi
+  #clearing the mok password forces the user to set one at boot
+  mokutil --clear-password
 	[ "${efiwriteable}" = "0" ] && mount -o remount,ro /sys/firmware/efi/efivars
 else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
