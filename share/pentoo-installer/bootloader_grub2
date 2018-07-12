@@ -24,6 +24,25 @@ source "${SHAREDIR}"/bootloader_common.sh || exit $?
 #########################################
 ## START: dialog functions/definitions ##
 
+# confirm_overwrite_OSloader()
+# if target file exists, user is asked if he wants to overwrite it
+#
+# parameters (required)
+#  _SOURCE: The path to the source file
+#  _TARGET: The path to the target file
+#
+confirm_overwrite_OSloader() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local _SOURCE="$1"
+	local _TARGET="$2"
+	if [ ! -e "${_TARGET}" ] || \
+		show_dialog --defaultno --yesno "An OS loader already exists at the standardized file path:\n${_TARGET}\nSome UEFI implementations boot from that file.\nDo you want to overwrite it?" 0 0; then
+		cp "${_SOURCE}" "${_TARGET}" || return $?
+	fi
+	return 0
+}
+
 # get_grub_map()
 # prints grub device map to "${DESTDIR}/boot/grub/device.map"
 #
@@ -217,19 +236,20 @@ if [ -d /sys/firmware/efi ]; then
     efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTX64.EFI' --label "Pentoo" --verbose
   fi
   #so uefi implementations suck, like lots of them.  So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
-  mkdir "${DESTDIR}"/boot/efi/boot || exit $?
+  mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
   cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/grubx64.efi || exit $?
   #add shim for secure boot to the fallback location
   if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
-    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
+    confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
   elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
-    cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/boot/BOOTIA32.EFI || exit $?
+    confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/boot/BOOTIA32.EFI || exit $?
   else
-    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
+    confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
   fi
   #clearing the mok password forces the user to set one at boot
   mokutil --clear-password
-	[ "${efiwriteable}" = "0" ] && mount -o remount,ro /sys/firmware/efi/efivars
+    [ "${efiwriteable}" = "0" ] || exit $?
+  mount -o remount,ro /sys/firmware/efi/efivars || exit $?
 else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
 fi
