@@ -244,7 +244,7 @@ show_dialog_rsync '-av --progress' \
   "/var/log/*" "${DESTDIR}/var/log/" "Syncing logs ..." || exit $?
 if [ -d "/mnt/overlay/.upper/var/lib/NetworkManager" ]; then
   show_dialog_rsync '-av --progress' \
-    "/var/lib/NetworkManager/" "${DESTDIR}/var/lib/" "Syncing NetworkManager config ..." || exit $?
+    "/var/lib/NetworkManager" "${DESTDIR}/var/lib/" "Syncing NetworkManager config ..." || exit $?
 fi
 if [ -d "/mnt/overlay/.upper/var/lib/gentoo/news" ]; then
   show_dialog_rsync '-av --progress' \
