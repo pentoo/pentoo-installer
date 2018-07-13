@@ -35,8 +35,8 @@ HARDWARECLOCK="$(show_dialog --menu "Is your hardware clock in UTC or time?" 0 0
 # write to STDERR
 echo "setting hwclock to: ${HARDWARECLOCK}" 1>&2
 /sbin/hwclock --hctosys --"${HARDWARECLOCK}" --noadjfile || exit $?
-
-# TODO: write to /etc/conf.d/hwclock for chroot
+# this will be copied to chroot later
+sed -Ei 's#^clock="[^"]*"$#clock="'"${HARDWARECLOCK:0:5}"'"#' /etc/conf.d/hwclock || exit $?
 
 # timezone?
 # TIMEZONE="$(tzselect)" || exit $?
@@ -51,12 +51,10 @@ cp /usr/bin/tzselect /tmp/tzselect.patched \
 	&& rm /tmp/tzselect.patched \
 	|| exit $?
 
-# TODO: this should happen in chroot only, then the echo can go be removed
-# or am I wrong?
+# this will be copied to chroot later
 if [ "${TIMEZONE}" != "" -a -e "/usr/share/zoneinfo/${TIMEZONE}" ]; then
 	echo "setting timezone to: ${TIMEZONE}" 1>&2
-	rm -f /etc/localtime 1>&2 || exit $?
-	cp "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime 1>&2 || exit $?
+	echo "${TIMEZONE}" > /etc/timezone
 fi
 
 # display and ask to set date/time
