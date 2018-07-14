@@ -244,15 +244,15 @@ show_dialog_rsync '-av --progress' \
   "/var/log/*" "${DESTDIR}/var/log/" "Syncing logs ..." || exit $?
 if [ -d "/mnt/overlay/.upper/var/lib/NetworkManager" ]; then
   show_dialog_rsync '-av --progress' \
-    "/var/lib/NetworkManager/" "${DESTDIR}/var/lib/" "Syncing NetworkManager config ..." || exit $?
+    "/var/lib/NetworkManager" "${DESTDIR}/var/lib/" "Syncing NetworkManager config ..." || exit $?
 fi
 if [ -d "/mnt/overlay/.upper/var/lib/gentoo/news" ]; then
   show_dialog_rsync '-av --progress' \
-    "/var/lib/gentoo/news/" "${DESTDIR}/var/lib/gentoo/" "Syncing Gentoo News ..." || exit $?
+    "/var/lib/gentoo/news" "${DESTDIR}/var/lib/gentoo/" "Syncing Gentoo News ..." || exit $?
 fi
 if [ -d "/mnt/overlay/.upper/var/lib/dhcpcd" ]; then
   show_dialog_rsync '-av --progress' \
-    "/var/lib/dhcpcd/" "${DESTDIR}/var/lib/" "Syncing dhcpcd config ..." || exit $?
+    "/var/lib/dhcpcd" "${DESTDIR}/var/lib/" "Syncing dhcpcd config ..." || exit $?
 fi
 if [ -d "/mnt/overlay/.upper/usr/portage" ]; then
   show_dialog_rsync '-av --progress' \
