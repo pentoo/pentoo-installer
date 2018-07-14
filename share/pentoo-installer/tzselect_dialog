@@ -34,7 +34,7 @@ MENU_ITEMS=(0 0)
 RET_DIALOG=
 
 case "${TYPE}" in
-	# prepare arguments to dialog/Xdialog --menu
+	# prepare arguments to dialog --menu
 	menu)
 		# add menu-height: auto
 		MENU_ITEMS+=(0)
@@ -45,7 +45,7 @@ case "${TYPE}" in
 		done ;;
 esac
 
-# use dialog/Xdialog
+# use dialog
 ANSWER=$(show_dialog \
 	--no-cancel \
 	"--${TYPE}" \

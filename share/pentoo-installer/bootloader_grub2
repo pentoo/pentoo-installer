@@ -43,21 +43,6 @@ confirm_overwrite_OSloader() {
 	return 0
 }
 
-# get_grub_map()
-# prints grub device map to "${DESTDIR}/boot/grub/device.map"
-#
-# parameters (none)
-#
-#get_grub_map() {
-#	# check input
-#	check_num_args "${FUNCNAME}" 0 $# || return $?
-#	[ -e "${DESTDIR}/boot/grub/device.map" ] && rm "${DESTDIR}/boot/grub/device.map"
-#	show_dialog --infobox "Generating GRUB device map...\nThis could take a while.\n\n Please be patient." 0 0
-#	${DESTDIR}/sbin/grub --no-floppy --device-map "${DESTDIR}/boot/grub/device.map" >/tmp/grub.log 2>&1 <<EOF
-#quit
-#EOF
-#}
-
 # get_parent_disk()
 # Gets the parent disk of a partition, prints to STDOUT
 #
@@ -83,7 +68,6 @@ get_parent_disk() {
 
 # mapdev()
 # maps a partition to a grub device
-# uses "${DESTDIR}/boot/grub/device.map" from get_grub_map()
 #
 # parameters (required)
 #  _PARTITION: The partition
@@ -122,9 +106,6 @@ check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 CONFIG_ITEM=
 #RET_SUB=
-
-# write grub device map to "${DESTDIR}/boot/grub/device.map"
-#get_grub_map
 
 # get root partition
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
