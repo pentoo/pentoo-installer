@@ -232,7 +232,7 @@ if [ -d /sys/firmware/efi ]; then
   fi
   #clearing the mok password forces the user to set one at boot
   mokutil --clear-password || exit $?
-  [ "${efiwriteable}" = "0" ] || ( mount -o remount,ro /sys/firmware/efi/efivars || exit $? )
+  [ "${efiwriteable}" = "0" ] && ( mount -o remount,ro /sys/firmware/efi/efivars || exit $? )
 else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
 fi
