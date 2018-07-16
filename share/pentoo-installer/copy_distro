@@ -263,10 +263,6 @@ if [ -d "/mnt/overlay/.upper/var/lib/layman" ]; then
     "/var/lib/layman/*" "${DESTDIR}/var/lib/layman/" "Syncing pentoo overlay ..." || exit $?
 fi
 
-# copy hwclock and timezone
-cp -f /etc/conf.d/hwclock "${DESTDIR}/etc/conf.d/hwclock" || exit $?
-cp -f /etc/timezone "${DESTDIR}/etc/timezone" || exit $?
-
 # check if we need to prompt user about syncing more things
 unsyncd=""
 tmp_unsyncd=""
