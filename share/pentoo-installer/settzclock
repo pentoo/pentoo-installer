@@ -41,7 +41,7 @@ sed -Ei 's#^clock="[^"]*"$#clock="'"${HARDWARECLOCK:0:5}"'"#' /etc/conf.d/hwcloc
 # timezone?
 # TIMEZONE="$(tzselect)" || exit $?
 # replace tzselect with a patched version
-# which does essentially the same but uses dialog
+# which does essentially the same but uses dialog/Xdialog
 # see https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
 # the sed commands make the few necessary changes
 cp /usr/bin/tzselect /tmp/tzselect.patched \

@@ -8,7 +8,7 @@
 ## START: define constants ##
 readonly DESTDIR="/mnt/gentoo"
 # This error code will be used when the user cancels a process
-# dialog uses 1 for cancel
+# dialog and Xdialog use 1 for cancel, Xdialog returns 255 upon closing of the box
 readonly ERROR_CANCEL=64
 readonly ISNUMBER='^[0-9]+$'
 # use the first VT not dedicated to a running console
@@ -312,17 +312,22 @@ geteditor(){
 }
 
 # get_dialog()
-# prints used dialog programm: 'dialog'
+# prints used dialog programm: 'dialog' or 'Xdialog'
 #
 get_dialog() {
-	echo 'dialog'
+	# let's support Xdialog for the fun of it
+	#if [ ! $(type "Xdialog" &> /dev/null) ] && [ -n "${DISPLAY}" ]; then
+	#	echo 'Xdialog'
+	#else
+		echo 'dialog'
+	#fi
 	return 0
 }
 
 # show_dialog()
 # uses dialogSTDOUT
 # an el-cheapo dialog wrapper
-# parameters: see dialog(1)
+# parameters: see dialog(1) and Xdialog(1
 # usage: MYVAR="$(show_dialog .......)"
 # returns:
 # - 0 for Ok, result is written to STDOUT
@@ -330,7 +335,7 @@ get_dialog() {
 # - anything else is a real error
 #
 show_dialog() {
-	# this script supports dialog but writes result to STDOUT
+	# this script supports dialog and Xdialog but writes result to STDOUT
 	# returns 64 if user cancels or closes the box!
 	# detect auto-width and auto-height
 	local _ARGUMENTS=
@@ -341,13 +346,71 @@ show_dialog() {
 	local _WHICHDIALOG=
 	local ANSWER=
 	local _DIALOGRETURN=
+	local _XDIALOG_AUTOSIZE_PERCENTAGE=33
 	# copy array of arguments so we can write to it
 	# also prepend our own arguments
 	_ARGUMENTS=("$@") || return $?
 	_ARGUMENTS=( '--backtitle' "${TITLE}" '--aspect' '15' "$@") || return $?
 	# decide which dialog to use
 	_WHICHDIALOG="$(get_dialog)"
-	# for now this makes catching logs perfect
+	# for Xdialog: autosize does not work well with a title, use percentage of max-size
+	if [ "${_WHICHDIALOG}" = 'Xdialog' ]; then
+		# loop arguments and search for the box option
+		# also swap --title and --backtitle
+		while [ "${_INDEX}" -lt "${#_ARGUMENTS[@]}" ]; do
+			case "${_ARGUMENTS[$_INDEX]}" in
+				# all of these have the format: --<boxoption> text height width
+				'--calendar' | '--checklist' | '--dselect' | '--editbox' | '--form' | '--fselect' | '--gauge' | '--infobox' | '--inputbox' | '--inputmenu' | '--menu' | '--mixedform' | '--mixedgauge' | '--msgbox' | '--passwordbox' | '--passwordform' | '--pause' | '--progressbox' | '--radiolist' | '--tailbox' | '--tailboxbg' | '--textbox' | '--timebox' | '--yesno')
+					# prevent multiple box options
+					[ -n "${_BOXOPTION_INDEX}" ] && return 1
+					_BOXOPTION_INDEX="${_INDEX}"
+					;;
+				# swap title and backtitle for Xdialog
+				'--title')
+					_ARGUMENTS[${_INDEX}]='--backtitle'
+					;;
+				# swap title and backtitle for Xdialog
+				'--backtitle')
+					_ARGUMENTS[${_INDEX}]='--title'
+					;;
+				*) ;;
+			esac
+			_INDEX="$((_INDEX+1))" || return $?
+		done
+		# check if box option was found
+		if [ -z "${_BOXOPTION_INDEX}" ]; then
+			echo "ERROR: Cannot find box option. Exiting with an error!" 1>&2
+			return 1
+		fi
+		if [ "$((${_BOXOPTION_INDEX}+3))" -ge "${#_ARGUMENTS[@]}" ]; then
+			echo "ERROR: cannot find height and width for box option '"${_ARGUMENTS[${_BOXOPTION_INDEX}]}"'. Exiting with an error!" 1>&2
+			return 1
+		fi
+		# only fix width/height for these box options
+		case "${_ARGUMENTS[${_BOXOPTION_INDEX}]}" in
+			'--menu' | '--gauge')
+				_HEIGHT="${_ARGUMENTS[$((_BOXOPTION_INDEX+2))]}" || return $?
+				_WIDTH="${_ARGUMENTS[$((_BOXOPTION_INDEX+3))]}" || return $?
+				# check if width/height were found
+				if [ -z "${_HEIGHT}" ] || [ -z "${_WIDTH}" ]; then
+					echo "ERROR: Did not find box option with height/width. Exiting with an error" 1>&2
+					return 1
+				fi
+				# use defined percentage of max-size
+				if [ "${_HEIGHT}" -eq 0 ] && [ "${_WIDTH}" -eq 0 ]; then
+					_HEIGHT=$("${_WHICHDIALOG}" --print-maxsize 2>&1 | tr -d ',' | cut -d ' ' -f2) || return $?
+					_WIDTH=$("${_WHICHDIALOG}" --print-maxsize 2>&1 | tr -d ',' | cut -d ' ' -f3) || return $?
+					_HEIGHT=$((${_HEIGHT} * ${_XDIALOG_AUTOSIZE_PERCENTAGE} / 100)) || return $?
+					_WIDTH=$((${_WIDTH} * ${_XDIALOG_AUTOSIZE_PERCENTAGE} / 100)) || return $?
+					# write new values to copy of arguments array
+					_ARGUMENTS[$((_BOXOPTION_INDEX+2))]="${_HEIGHT}" || return $?
+					_ARGUMENTS[$((_BOXOPTION_INDEX+3))]="${_WIDTH}" || return $?
+				fi
+				;;
+			*) ;;
+		esac
+	fi
+	#not sure how this redirection will work for Xdialog, but for now this makes catching logs perfect
 	_ANSWER=$("${_WHICHDIALOG}" "${_ARGUMENTS[@]}" 2>&1 >/dev/tty)
 	_DIALOGRETURN=$?
 	# check if user clicked cancel or closed the box
