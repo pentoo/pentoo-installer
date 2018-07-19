@@ -42,8 +42,9 @@ setpassword(){
 	local _PASSWORD=
 	local _RET_SUB=
 	_PASSWORD="$(show_dialog --clear --insecure --passwordbox "Enter a password for user '${_USERNAME}'" 17 70)" || return $?
+	_PASSWORD2="$(show_dialog --clear --insecure --passwordbox "Confirm password for user '${_USERNAME}'" 17 70)" || return $?
 	chroot "${DESTDIR}" /bin/bash <<EOF
-echo -e "${_PASSWORD}\n${_PASSWORD}" | passwd "${_USERNAME}" || exit $?
+echo -e "${_PASSWORD}\n${_PASSWORD2}" | passwd "${_USERNAME}" || exit $?
 EOF
 	_RET_SUB=$?
 	_PASSWORD=
