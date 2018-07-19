@@ -159,6 +159,7 @@ fi
 # inform user about target disk, partitions and such, last chance to abort ;)
 show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BOOT}'.\nPlease confirm this.\n\nYou will then be put into the editor to review the GRUB configuration file.\nInstallation will continue after you exit the editor." 0 0 || exit $?
 
+show_dialog --infobox "Grub bootloader is being installed and prepared for booting. Please stand by..." 4 70
 #show_dialog --infobox "Installing the GRUB bootloader..." 0 0
 #if [ -d "${DESTDIR}"/usr/lib/grub/i386-pc ]; then
 #	cp -a "${DESTDIR}"/usr/lib/grub/i386-pc/* "${DESTDIR}"/boot/grub/ || exit $?
@@ -233,7 +234,7 @@ if [ -d /sys/firmware/efi ]; then
   #clearing the mok password forces the user to set one at boot
   mokutil --clear-password || exit $?
   [ "${efiwriteable}" = "0" ] && ( mount -o remount,ro /sys/firmware/efi/efivars || exit $? )
-  chroot "${DESTDIR}" emerge --noreplace sys-boot/shim sys-boot/mokutil
+  chroot "${DESTDIR}" emerge --noreplace sys-boot/shim sys-boot/mokutil --nodeps
 else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1
 fi
@@ -255,7 +256,7 @@ if grep -q 'Error [0-9]*: ' "${DESTDIR}"/tmp/grub.log; then
 	exit 1
 fi
 
-chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2
+chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps
 chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:0
 
 show_dialog --msgbox "GRUB was successfully installed." 0 0

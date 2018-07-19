@@ -311,9 +311,12 @@ if [ -n "${unsyncd}" ]; then
   fi
 fi
 
+
 # pre-configure systems, these steps should happen only once
 # must mount chroot so pre/post installs don't fail out
 chroot_mount || exit $?
+
+show_dialog --infobox "Removing livecd only packages and configs from install..." 3 60
 
 # remove livecd stuff
 sed -i '/bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
@@ -356,7 +359,7 @@ sync || exit $?
 
 # automagic time!
 # any automatic configuration should go here
-show_dialog --infobox "Writing base configuration..." 6 40
+show_dialog --infobox "Writing base configuration..." 3 40
 auto_fstab "${CONFIG_LIST}" || exit $?
 auto_dmcrypt "${CONFIG_LIST}" || exit $?
 

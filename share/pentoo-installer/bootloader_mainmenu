@@ -51,14 +51,10 @@ else
 	SELECTION="$(show_dialog --menu "Which bootloader would you like to use? Grub2 is the Pentoo default." \
 		0 0 4 \
 		"GRUB2" "Use grub2 in legacy bios mode (default)" \
-		"GRUB-legacy" "Use the GRUB bootloader (very outdated)" \
 		"None" "Warning: you must install your own bootloader!")" \
 		|| exit $?
 fi
 case "${SELECTION}" in
-	"GRUB-legacy")
-		"${SHAREDIR}"/bootloader_grub "${CONFIG_LIST}" || exit $?
-		;;
 	"GRUB2")
 		"${SHAREDIR}"/bootloader_grub2 "${CONFIG_LIST}" || exit $?
 		;;

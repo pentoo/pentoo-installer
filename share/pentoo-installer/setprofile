@@ -43,6 +43,7 @@ CUR_PROF_NUM=""
 CUR_PROF=
 LINE=
 
+show_dialog --infobox "Checking available profiles..." 3 40
 CUR_PROF="$(chroot ${DESTDIR} eselect profile show | grep pentoo | awk '{match($1,"pentoo/.*",a)}END{print a[0]}')" || exit $?
 
 if [[ -n "$(echo ${CUR_PROF} | grep hardened)" ]]; then
@@ -86,6 +87,7 @@ fi
 # ask for new profile
 NEW_PROF_NUM="$(show_dialog --keep-tite --default-item "${CUR_PROF_NUM}" --menu "Select profile:" 0 0 16 "${OPTIONS[@]}")" || exit $?
 
+show_dialog --infobox "Setting profile..." 3 30
 # set new profile
 chroot "${DESTDIR}" eselect profile set "${NEW_PROF_NUM}" || exit $?
 

@@ -100,7 +100,7 @@ if [ $? -ne 0 ]; then
 	return 1
 fi
 
-chroot "${DESTDIR}" emerge --noreplace sys-boot/efibootmgr
+chroot "${DESTDIR}" emerge --noreplace sys-boot/efibootmgr --nodeps
 chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:0 sys-boot/grub:2
 
 show_dialog --msgbox "Success: Direct UEFI booting installed!" 0 0
