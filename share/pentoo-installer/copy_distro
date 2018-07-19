@@ -311,7 +311,6 @@ if [ -n "${unsyncd}" ]; then
   fi
 fi
 
-
 # pre-configure systems, these steps should happen only once
 # must mount chroot so pre/post installs don't fail out
 chroot_mount || exit $?

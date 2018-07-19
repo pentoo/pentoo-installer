@@ -31,18 +31,18 @@ source "${SHAREDIR}"/common.sh || exit $?
 # parameters (none)
 setbootopts() {
 	while true; do
-    local _MENU_ITEMS=()
-    if chroot "${DESTDIR}" rc-update show | grep NetworkManager | grep -q default; then
-      _MENU_ITEMS+=("BootQuiet"	"Disable Networking at boot")
-    else
-      _MENU_ITEMS+=("BootNet"		"Enable Networking automatically at boot")
-    fi
-    if chroot "${DESTDIR}" rc-update show | grep xdm | grep default; then
-      _MENU_ITEMS+=("BootConsole"	"Boot to console for login")
-    else
-      _MENU_ITEMS+=("BootX"		"Boot to X for login (xdm/slim)")
-    fi
-    _MENU_ITEMS+=("DONE"			"Return to Configuration Menu" )
+		local _MENU_ITEMS=()
+		if chroot "${DESTDIR}" rc-update show | grep NetworkManager | grep -q default; then
+			_MENU_ITEMS+=("BootQuiet"	"Disable Networking at boot")
+		else
+			_MENU_ITEMS+=("BootNet"		"Enable Networking automatically at boot")
+		fi
+		if chroot "${DESTDIR}" rc-update show | grep xdm | grep default; then
+			_MENU_ITEMS+=("BootConsole"	"Boot to console for login")
+		else
+			_MENU_ITEMS+=("BootX"		"Boot to X for login (xdm/slim)")
+		fi
+		_MENU_ITEMS+=("DONE"			"Return to Configuration Menu" )
 
 		# expand menu items array below
 		NEWSELECTION="$(show_dialog --menu 'Boot services' \
