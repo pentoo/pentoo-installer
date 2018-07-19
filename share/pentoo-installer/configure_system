@@ -24,6 +24,51 @@ source "${SHAREDIR}"/common.sh || exit $?
 #########################################
 ## START: dialog functions/definitions ##
 
+# setbootopts()
+# sets boot time services
+# chroot must be prepared outside this function!
+#
+# parameters (none)
+setbootopts() {
+	local _MENU_ITEMS=
+	if rc-update show | grep NetworkManager | grep -q default; then
+		_MENU_ITEMS+=("BootQuiet"	"Disable Networking at boot")
+	else
+		_MENU_ITEMS+=("BootNet"		"Enable Networking automatically at boot")
+	fi
+	if rc-update show | grep xdm | grep default; the
+		_MENU_ITEMS+=("BootConsole"	"Boot to console for login")
+	else
+		_MENU_ITEMS+=("BootX"		"Boot to X for login (xdm/slim)")
+	fi
+	_MENU_ITEMS+=("DONE"			"Return to Main Menu" )
+
+	while true; do
+		# expand menu items array below
+		NEWSELECTION="$(show_dialog --menu "Boot services" \
+			0 0 0 "${_MENU_ITEMS[@]}")" || exit $?
+		# call subscript by selected item
+		case "${NEWSELECTION}" in
+			# Return to main menu
+			"DONE")
+				return 0
+				;;
+			"BootQuiet")
+				chroot "${DESTDIR}" rc-service del NetworkManager
+				;;
+			"BootNet")
+				chroot "${DESTDIR}" rc-service add NetworkManager default
+				;;
+			"BootConsole")
+				chroot "${DESTDIR}" rc-service del xdm
+				;;
+			"BootX")
+				chroot "${DESTDIR}" rc-service add xdm default
+				;;
+		esac
+	done
+}
+
 # setpassword()
 # sets password for a user
 # chroot must be prepared outside this function!
@@ -76,17 +121,17 @@ chroot_mount || exit $?
 EDITOR="$(geteditor)" || exit $?
 
 # define menu items
-MENU_ITEMS=("Editor"					"System Editor" \
-			"/etc/conf.d/keymaps"		"Keymap" \
-			"/etc/fstab"				"Filesystem Mountpoints" \
-			"/etc/resolv.conf"			"DNS Servers" \
-			"/etc/hosts"				"Network Hosts" \
-			"/etc/locale.gen"			"Glibc Locales" \
-			"Root-Password"				"Set the root password" \
-			"Set-Username"				"Change your username from pentoo" \
-      "Change-Hostname"     "Change your hostname from pentoo" \
-			"DONE"						"Return to Main Menu" )
-#			"add-user"					"Add a new user" \
+MENU_ITEMS=("Editor"				"System Editor" \
+			"/etc/conf.d/keymaps"	"Keymap" \
+			"/etc/fstab"		"Filesystem Mountpoints" \
+			"/etc/resolv.conf"	"DNS Servers" \
+			"/etc/hosts"		"Network Hosts" \
+			"/etc/locale.gen"	"Glibc Locales" \
+			"BootOpts"		"Set Boot time options (Networking/X)" \
+			"Root-Password"		"Set the root password" \
+			"Set-Username"		"Change your username from pentoo" \
+			"Change-Hostname"	"Change your hostname from pentoo" \
+			"DONE"			"Return to Main Menu" )
 
 while true; do
 	# expand menu items array below
@@ -101,6 +146,10 @@ while true; do
 		"Editor")
 			EDITOR="$(seteditor)"
 			# capture sub script exit
+			RETSUB=$?
+			;;
+		"BootOpts")
+			setbootopts
 			RETSUB=$?
 			;;
 		# root password
