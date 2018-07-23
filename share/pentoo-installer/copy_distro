@@ -266,7 +266,7 @@ fi
 #new repo location
 if [ -d "/mnt/overlay/.upper/var/db/repos" ]; then
   show_dialog_rsync '-av --progress' \
-    "/var/lib/layman/*" "${DESTDIR}/var/db/repos/" "Syncing pentoo overlay ..." || exit $?
+    "/var/db/repos/*" "${DESTDIR}/var/db/repos/" "Syncing pentoo overlay ..." || exit $?
 fi
 
 # check if we need to prompt user about syncing more things
