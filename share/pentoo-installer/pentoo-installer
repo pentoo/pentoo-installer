@@ -169,8 +169,8 @@ if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pen
 			'Yes' 'I would like to exit and update pentoo-installer to get the latest fixes' \
 			'No' 'Why bother to get the latest fixes? I am elite enough to fix it.')"
 		if [ "${UPDATE_NOW}" = "Yes" ]; then
-			printf "Installation aborted. Please ensure you are connected to the internet (see motd)\n"
-			printf "then run 'emerge -1 pentoo-installer' and re-run pentoo-installer after it is up to date.\n"
+			dialog --msgbox "Please ensure you have an internet connection then press OK to update pentoo-installer.\nYou will need to rerun pentoo-installer after it is updated." 8 50
+			exec emerge -1 pentoo-installer
 			exit 1
 		fi
 	fi
