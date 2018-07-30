@@ -121,6 +121,9 @@ checkvm() {
 #####################
 ## begin execution ##
 
+# display welcome txt depending on used dialog
+WHICHDIALOG="$(get_dialog)"
+
 # check if this boot was verified and warn the user to verify the checksums if not
 if ! grep -q verify /proc/cmdline; then
 	VERIFY="$(show_dialog \
@@ -169,15 +172,14 @@ if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pen
 			'Yes' 'I would like to exit and update pentoo-installer to get the latest fixes' \
 			'No' 'Why bother to get the latest fixes? I am elite enough to fix it.')"
 		if [ "${UPDATE_NOW}" = "Yes" ]; then
-			dialog --msgbox "Please ensure you have an internet connection then press OK to update pentoo-installer.\nYou will need to rerun pentoo-installer after it is updated." 8 50
+			show_dialog --msgbox "Please ensure you have an internet connection then press OK to update pentoo-installer.\nYou will need to rerun pentoo-installer after it is updated." 8 50
+      show_dialog --infobox "Updating pentoo-installer..." 3 35
 			exec emerge -1 pentoo-installer
 			exit 1
 		fi
 	fi
 fi
 
-# display welcome txt depending on used dialog
-WHICHDIALOG="$(get_dialog)"
 show_dialog --textbox "${SHAREDIR}/welcome.${WHICHDIALOG}.txt" 0 0 || exit $?
 [ -n "${DISPLAY}" ] && wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz #if we are running in X, maximize
 
