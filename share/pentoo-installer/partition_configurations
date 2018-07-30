@@ -172,6 +172,7 @@ while true; do
 			;;
 		'DONE')
 			# print result to STDOUT
+      show_dialog --infobox "Partitioning and formatting drives..." 3 45
 			echo "${CONFIG_LIST}"
 			exit 0
 			;;
