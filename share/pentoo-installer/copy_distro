@@ -315,7 +315,7 @@ fi
 # must mount chroot so pre/post installs don't fail out
 chroot_mount || exit $?
 
-show_dialog --infobox "Removing livecd only packages and configs from install..." 3 60
+show_dialog --infobox "Removing livecd only packages and configs from install..." 3 70
 
 # remove livecd stuff
 sed -i '/bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
