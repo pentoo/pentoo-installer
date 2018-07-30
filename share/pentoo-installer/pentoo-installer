@@ -174,7 +174,9 @@ if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pen
 		if [ "${UPDATE_NOW}" = "Yes" ]; then
 			show_dialog --msgbox "Please ensure you have an internet connection then press OK to update pentoo-installer.\nYou will need to rerun pentoo-installer after it is updated." 8 50
       show_dialog --infobox "Updating pentoo-installer..." 3 35
-			exec emerge -1 pentoo-installer
+      mkdir -p /etc/portage/profile/package.accept_keywords || exit $?
+      echo "pentoo/pentoo-installer **" >> /etc/portage/profile/package.accept_keywords/pentoo-installer || exit $?
+			exec /bin/bash -c 'emerge -1 pentoo-installer; rm /etc/portage/profile/package.accept_keywords/pentoo-installer'
 			exit 1
 		fi
 	fi
