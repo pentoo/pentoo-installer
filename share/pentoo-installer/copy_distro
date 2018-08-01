@@ -118,6 +118,7 @@ auto_dmcrypt() {
 	if [ "${_DO_RCUPDATE}" -eq 1 ]; then
 		chroot ${DESTDIR} /bin/bash <<EOF
 rc-update add dmcrypt boot || exit $?
+rc-update add device-mapper boot || exit $?
 EOF
 		_RET_SUB=$?
 		[ "${_RET_SUB}" -ne 0 ] && return "${_RET_SUB}"
