@@ -182,7 +182,7 @@ EDITOR="$(geteditor)" || exit $?
 
 #maybe move the stat check a LOT earlier?
 if [ -d /sys/firmware/efi ]; then
-  if [ mountpoint -q -- /sys/firmware/efi/efivars ]; then
+  if mountpoint -q -- /sys/firmware/efi/efivars ; then
     efivars="1"
     if [ -w /sys/firmware/efi/efivars ]; then
       efiwriteable="1"

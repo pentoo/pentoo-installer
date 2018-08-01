@@ -22,6 +22,16 @@ readonly SHAREDIR="/usr/share/pentoo-installer"
 # also get functions to save settings
 source "${SHAREDIR}"/save_settings.sh || exit $?
 
+if [ -d /sys/firmware/efi ];then
+  if ! mountpoint -q -- /sys/firmware/efi/efivars ; then
+    if [ "$(uname -m)" = "i686" ] && [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
+      show_dialog --msgbox "STOP NOW.  You are installing 32 bit on a 64 bit system.  Not only do you not want to do that, but you will not have control over any efivars which makes booting...interesting.  What you want to do is install the amd64 verson of pentoo.  At worst you want to reboot and boot non-uefi to install in legacy mode.  You really really really don't want to continue." 0 0
+    else
+      show_dialog --msgbox "Something is wrong with your system and we are unable to mount efivars.  Please report this issue.  You like don't want to continue trying to install without active support." 0 0
+    fi
+  fi
+fi
+
 checkvm() {
 	#this entire section of code is completely stolen from Carlos Perez's work in checkvm.rb for metasploit and rewritten (poorly) in sh
 	#check loaded modules
@@ -134,7 +144,7 @@ if ! grep -q verify /proc/cmdline; then
 	if [ "${VERIFY}" = "Yes" ]; then
 		printf "Installation aborted, please reboot and choose \"verify\" from the boot menu\n"
 		exit 1
-        fi
+  fi
 fi
 
 ## start by exiting if the user doesn't have enough RAM for the install to work
