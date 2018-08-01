@@ -147,8 +147,6 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 		else
 			CRYPTNAME='root'
 		fi
-    #we use device-mapper here, so we should probably start it
-    rc-service device-mapper status || rc-service device-mapper start
 		CONFIG_ITEM="$("${SHAREDIR}"/FSspec setvalue "${CONFIG_ITEM}" 'cryptname' "${CRYPTNAME}")" || exit $?
 		# create crypt-key and use cryptsetup
 		CRYPTKEY="$(partition_crypt_setup "${PARTITION}" "${CRYPTNAME}" "${CRYPTTYPE}")" || exit $?
