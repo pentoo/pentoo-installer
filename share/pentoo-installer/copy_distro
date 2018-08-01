@@ -350,6 +350,7 @@ elif [ -r /etc/issue.logo ]; then
 elif [ -r /etc/issue.old ]; then
   mv /etc/issue.old /etc/issue
 fi
+eselect pinentry set pinentry-gtk-2 || eselect pinentry set pinentry-curses
 mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh # || exit $?
 EOF
 RET_SUB=$?
