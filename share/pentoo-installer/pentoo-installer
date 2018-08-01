@@ -183,7 +183,8 @@ if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pen
 fi
 
 show_dialog --textbox "${SHAREDIR}/welcome.${WHICHDIALOG}.txt" 0 0 || exit $?
-[ -n "${DISPLAY}" ] && wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz #if we are running in X, maximize
+#try to maximize, this will quietly do nothing in console mode
+wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz
 
 # 'controller' vars
 # CONFIG_LIST: One string with 0 or more items of defined FSspec:
