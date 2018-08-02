@@ -103,9 +103,14 @@ while true; do
 	# handle errors from sub-script/functions using a common utility function
 	if ! catch_menuerror "$(basename $0)" "${NEWSELECTION}" "${RETSUB}"; then
 		# everything ok, increase selection for next menu item
-		# jump from auto-prepare directly to mountpoints
 		if [ "${SELECTION}" -eq 0 ]; then
-			SELECTION=2
+			if [ -n "${INSTALLER_HEADLESS:-}" ]; then
+				# jump from auto-prepare directly to create-FS and exit (headless mode)
+				SELECTION=3
+			else
+				# jump from auto-prepare directly to mountpoints
+				SELECTION=2
+			fi
 		else
 			SELECTION="$((NEWSELECTION+1))" || exit $?
 		fi
