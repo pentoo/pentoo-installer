@@ -301,7 +301,7 @@ FSspec_merge() {
 		fi
 	done
 	# sort result
-	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | sort | tr '\n' ' ')" || return $?
+	_LIST_RESULT="$(echo "${_LIST_RESULT}" | tr ' ' '\n' | LC_ALL=C sort | tr '\n' ' ')" || return $?
 	# write result to STDOUT
 	echo "${_LIST_RESULT}"
 	return 0
@@ -523,7 +523,7 @@ FSspec_sort() {
 		_LIST_RESULT="${_LIST_RESULT}${_TMPVALUE}${_SEPARATOR}${_ITEM}"
 	done
 	# sort the result
-	_LIST_RESULT="$(echo -n "${_LIST_RESULT}" | sort ${_DIRECTION})" || return $?
+	_LIST_RESULT="$(echo -n "${_LIST_RESULT}" | LC_ALL=C sort ${_DIRECTION})" || return $?
 	# loop line by line and print second field
 	while read -r _LINE; do
 		# prepend space
@@ -566,7 +566,7 @@ FSspec_mountall() {
 		return 1
 	fi
 	# sort by mountpoint
-	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 1)" || return $?
+	_CONFIG_LIST="$(FSspec_sort "${_CONFIG_LIST}" 'mountpoint' 0)" || return $?
 	for _CONFIG_ITEM in ${_CONFIG_LIST}; do
 		_PARTITION="$(FSspec_parse "${_CONFIG_ITEM}" 'partition')" || return $?
 		_MOUNTPOINT="$(FSspec_parse "${_CONFIG_ITEM}" 'mountpoint')" || return $?

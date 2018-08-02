@@ -212,7 +212,7 @@ mount_umountall() {
 	# umount -R "${DESTDIR}" 2>/dev/null
 	chroot_umount
 	if lsblk -o MOUNTPOINT | grep -Eq '^/mnt/gentoo(/.*)?'; then
-		umount `lsblk -o MOUNTPOINT | grep -E '^/mnt/gentoo(/.*)?' | sort -r | tr '\n' ' '` || return $?
+		umount `lsblk -o MOUNTPOINT | grep -E '^/mnt/gentoo(/.*)?' | LC_ALL=C sort -r | tr '\n' ' '` || return $?
 	fi
 	# do a first run, swapoff, check mountpoints and collect cryptsetup stuff
 	for _DISC in ${_DISCLIST}; do
