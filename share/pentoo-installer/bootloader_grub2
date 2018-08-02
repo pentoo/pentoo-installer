@@ -181,8 +181,10 @@ fi
 # set system editor (if not already defined)
 chroot_mount || exit $?
 EDITOR="$(geteditor)" || exit $?
-# let user edit grub menu file
-"${EDITOR}" "${GRUBCONFIG}" || exit $?
+# let user edit grub menu file (skipped for headless mode)
+if [ -z "${INSTALLER_HEADLESS:-}" ]; then
+	"${EDITOR}" "${GRUBCONFIG}" || exit $?
+fi
 
 #maybe move the stat check a LOT earlier?
 if [ -d /sys/firmware/efi ]; then
