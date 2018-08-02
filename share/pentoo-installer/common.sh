@@ -78,6 +78,10 @@ catch_menuerror() {
 			echo "WARNING: Received ERROR '${_RETSUB}' after selection of '${_SELECTION}' in ${_FUNCNAME}" 1>&2
 			# inform user
 			show_dialog --msgbox "WARNING: The last step returned an error!" 0 0
+			# exit completly on error in headless mode
+			if [ -n "${INSTALLER_HEADLESS:-}" ]; then
+				exit 1
+			fi
 		fi
 		return 0
 	fi
@@ -338,26 +342,41 @@ show_dialog() {
 	# this script supports dialog and Xdialog but writes result to STDOUT
 	# returns 64 if user cancels or closes the box!
 	# detect auto-width and auto-height
-	local _ARGUMENTS=
+	local _ARGUMENTS=()
 	local _HEIGHT=
 	local _WIDTH=
 	local _BOXOPTION_INDEX=
 	local _INDEX=0
 	local _WHICHDIALOG=
-	local ANSWER=
+	local _ANSWER=
 	local _DIALOGRETURN=
 	local _XDIALOG_AUTOSIZE_PERCENTAGE=33
+	local _DEFAULTITEM=
+	local _DEFAULTVALUE=
+	local _DIALOGBOX=
 	# copy array of arguments so we can write to it
 	# also prepend our own arguments
-	_ARGUMENTS=("$@") || return $?
-	_ARGUMENTS=( '--backtitle' "${TITLE}" '--aspect' '15' "$@") || return $?
+	# add timeout for headless mode
+	if [ -n "${INSTALLER_HEADLESS:-}" ]; then
+		_ARGUMENTS+=('--timeout' '3');
+	fi
+	_ARGUMENTS+=( '--backtitle' "${TITLE}" '--aspect' '15' "$@") || return $?
 	# decide which dialog to use
 	_WHICHDIALOG="$(get_dialog)"
-	# for Xdialog: autosize does not work well with a title, use percentage of max-size
-	if [ "${_WHICHDIALOG}" = 'Xdialog' ]; then
-		# loop arguments and search for the box option
-		# also swap --title and --backtitle
-		while [ "${_INDEX}" -lt "${#_ARGUMENTS[@]}" ]; do
+	
+	# loop arguments and search for options
+	while [ "${_INDEX}" -lt "${#_ARGUMENTS[@]}" ]; do
+		# get box type
+		case "${_ARGUMENTS[$_INDEX]}" in
+			'--buildlist' | '--calendar' | '--checklist' | '--dselect' | '--editbox' | '--form' | '--fselect' | '--gauge' | '--infobox' | '--inputbox' | '--inputmenu' | '--menu' | '--mixedform' | '--mixedgauge' | '--msgbox' | '--passwordbox' | '--passwordform' | '--pause' | '--prgbox' | '--programbox' | '--progressbox' | '--radiolist' | '--rangebox' | '--tailbox' | '--tailboxbg' | '--textbox' | '--timebox' | '--treeview' | '--yesno')
+			_DIALOGBOX="${_ARGUMENTS[$_INDEX]}"
+			;;
+		esac
+
+		# for Xdialog: autosize does not work well with a title, use percentage of max-size
+		if [ "${_WHICHDIALOG}" = 'Xdialog' ]; then
+			# search for the box option
+			# also swap --title and --backtitle
 			case "${_ARGUMENTS[$_INDEX]}" in
 				# all of these have the format: --<boxoption> text height width
 				'--calendar' | '--checklist' | '--dselect' | '--editbox' | '--form' | '--fselect' | '--gauge' | '--infobox' | '--inputbox' | '--inputmenu' | '--menu' | '--mixedform' | '--mixedgauge' | '--msgbox' | '--passwordbox' | '--passwordform' | '--pause' | '--progressbox' | '--radiolist' | '--tailbox' | '--tailboxbg' | '--textbox' | '--timebox' | '--yesno')
@@ -375,8 +394,29 @@ show_dialog() {
 					;;
 				*) ;;
 			esac
-			_INDEX="$((_INDEX+1))" || return $?
-		done
+		fi
+		# store default item for menu
+		if [ "${_ARGUMENTS[$_INDEX]}" == '--default-item' ]; then
+			_DEFAULTITEM="${_ARGUMENTS[$((_INDEX+1))]}" || exit $?
+		# suppress defaultno in yesno dialog (headless mode only)
+		elif [ -n "${INSTALLER_HEADLESS:-}" ] && [ "${_ARGUMENTS[$_INDEX]}" == '--defaultno' ]; then
+			_ARGUMENTS[$_INDEX]='--nocancel'
+		elif [ "${_ARGUMENTS[$_INDEX]}" == '--inputbox' ]; then
+			if [ "$((${_INDEX}+4))" -le "${#_ARGUMENTS[@]}" ]; then
+				_DEFAULTVALUE="${_ARGUMENTS[$((_INDEX+4))]}" || exit $?
+			fi
+		elif [ "${_ARGUMENTS[$_INDEX]}" == '--menu' ]; then
+			if [ "$((${_INDEX}+4))" -ge "${#_ARGUMENTS[@]}" ]; then
+				echo "ERROR: cannot find the first menu item'. Exiting with an error!" 1>&2
+				return 1
+			fi
+			_DEFAULTVALUE="${_ARGUMENTS[$((_INDEX+5))]}" || exit $?
+		fi
+		_INDEX="$((_INDEX+1))" || return $?
+	done
+
+	# for Xdialog: autosize does not work well with a title, use percentage of max-size
+	if [ "${_WHICHDIALOG}" = 'Xdialog' ]; then
 		# check if box option was found
 		if [ -z "${_BOXOPTION_INDEX}" ]; then
 			echo "ERROR: Cannot find box option. Exiting with an error!" 1>&2
@@ -410,11 +450,25 @@ show_dialog() {
 			*) ;;
 		esac
 	fi
+
 	#not sure how this redirection will work for Xdialog, but for now this makes catching logs perfect
 	_ANSWER=$("${_WHICHDIALOG}" "${_ARGUMENTS[@]}" 2>&1 >/dev/tty)
 	_DIALOGRETURN=$?
+	# check for timeout return when running headless
+	if [ -n "${INSTALLER_HEADLESS:-}" ] && [ "${_DIALOGRETURN}" -eq "255" ]; then
+		_DIALOGRETURN=0
+		# return default selection for --menu
+		if [ -n "${_DEFAULTITEM}" ]; then
+			_ANSWER="${_DEFAULTITEM}"
+		elif [ -n "${_DEFAULTVALUE}" ]; then
+			_ANSWER="${_DEFAULTVALUE}"
+		elif [ "${_DIALOGBOX}" == '--calendar' ]; then
+			_ANSWER="$(date +'%m/%d/%Y')" || exit $?
+		elif [ "${_DIALOGBOX}" == '--timebox' ]; then
+			_ANSWER="$(date +'%T')" || exit $?
+		fi
 	# check if user clicked cancel or closed the box
-	if [ "${_DIALOGRETURN}" -eq "1" ] || [ "${_DIALOGRETURN}" -eq "255" ]; then
+	elif [ "${_DIALOGRETURN}" -eq "1" ] || [ "${_DIALOGRETURN}" -eq "255" ]; then
 		return ${ERROR_CANCEL}
 	elif [ "${_DIALOGRETURN}" -ne "0" ]; then
 		return "${_DIALOGRETURN}"
