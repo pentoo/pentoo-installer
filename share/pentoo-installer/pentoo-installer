@@ -136,6 +136,23 @@ checkvm() {
 #####################
 ## begin execution ##
 
+# INSTALLER_HEADLESS: emtpy=false
+export INSTALLER_HEADLESS=
+
+# check passed arguments
+while [[ $# -gt 0 ]]; do
+  case "${1}" in
+    --headless)
+      export INSTALLER_HEADLESS=1
+      shift
+      ;;
+    *)    # unknown option
+      show_dialog --msgbox "ERROR: Unknown option '${1}'. Aborting with  error." 0 0
+      printf "ERROR: Unknown option '${1}'. Aborting with error." 1>&2 && exit 1
+      ;;
+  esac
+done
+
 # display welcome txt depending on used dialog
 WHICHDIALOG="$(get_dialog)"
 
