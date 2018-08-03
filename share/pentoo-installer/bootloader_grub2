@@ -253,7 +253,9 @@ if [ -d /sys/firmware/efi ]; then
   fi
   #clearing the mok password forces the user to set one at boot
   if [ "${efivars}" = "1" ]; then
-    mokutil --clear-password || exit $?
+    if mokutil --sb-state; then
+      mokutil --clear-password || exit $?
+    fi
     chroot "${DESTDIR}" emerge --noreplace sys-boot/mokutil --nodeps || exit $?
   fi
   if [ "${efivars}" = "1" ] && [ "${efiwriteable}" = "0" ]; then
