@@ -155,6 +155,10 @@ if [ -f "${DESTDIR}"/usr/share/grub/themes/pentoo/pentoosplash.png ]; then
   sed -i 's/^#GRUB_THEME/GRUB_THEME/' "${GRUBCONFIG}" || exit $?
   sed -i 's/starfield/pentoo/' "${GRUBCONFIG}" || exit $?
 fi
+# for uefi set efifb for video
+if [ -d /sys/firmware/efi ]; then
+  sed -i 's#video=.* #video=efifb #' "${GRUBCONFIG}" || exit $?
+fi
 
 # inform user about target disk, partitions and such, last chance to abort ;)
 show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BOOT}'.\nPlease confirm this.\n\nYou will then be put into the editor to review the GRUB configuration file.\nInstallation will continue after you exit the editor." 0 0 || exit $?
