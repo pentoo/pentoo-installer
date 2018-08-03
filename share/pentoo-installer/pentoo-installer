@@ -126,6 +126,9 @@ checkvm() {
 			[ -n "${vm}" ] && vm_from="dmesg"
 		fi
 	fi
+
+  [ -n "${vm}" ] && export vm
+  [ -n "${vm_from}" ] && export vm_from
 }
 
 #####################

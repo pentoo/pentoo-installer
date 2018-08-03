@@ -320,9 +320,14 @@ show_dialog --infobox "Removing livecd only packages and configs from install...
 
 # remove livecd stuff
 sed -i '/bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
-chroot "${DESTDIR}" emerge --rage-clean app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer app-admin/pwgen sys-apps/hwsetup sys-apps/hwdata-gentoo x11-misc/mkxf86config
+chroot "${DESTDIR}" emerge --rage-clean app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer app-admin/pwgen sys-apps/hwsetup sys-apps/hwdata-gentoo x11-misc/mkxf86config net-dialup/mingetty wmctrl
 rm -f "${DESTDIR}/home/pentoo/Desktop/pentoo-installer.desktop"
 rm -f "${DESTDIR}/home/pentoo/Desktop/networkmanager.desktop"
+#mark open-vm-tools to keep if we are on a vm
+if [ -n "${vm}" ] && [ -n "${vm_from}" ]; then
+  printf "Detecting ${vm} using ${vm_from}, marking open-vm-tools required.\n"
+  chroot "${DESTDIR}" emerge --noreplace app-emulation/open-vm-tools --nodeps || exit $?
+fi
 
 #prevent livecd bashrc from being on install
 rm -f "${DESTDIR}"/root/.bashrc
