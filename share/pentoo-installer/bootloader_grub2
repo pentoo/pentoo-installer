@@ -238,7 +238,7 @@ if [ -d /sys/firmware/efi ]; then
   fi
   #so uefi implementations suck, like lots of them.  So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
   mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
-  cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/grubx64.efi || exit $?
+  cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/GRUBX64.EFI || exit $?
   #add shim for secure boot to the fallback location
   if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
     confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
