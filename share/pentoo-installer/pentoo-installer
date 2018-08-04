@@ -33,6 +33,8 @@ if [ -d /sys/firmware/efi ];then
 fi
 
 checkvm() {
+  vm=""
+  vm_from=""
 	#this entire section of code is completely stolen from Carlos Perez's work in checkvm.rb for metasploit and rewritten (poorly) in sh
 	#check loaded modules
 	if [ -x "$(command -v lsmod 2>&1)" ]; then
@@ -127,8 +129,8 @@ checkvm() {
 		fi
 	fi
 
-  [ -n "${vm}" ] && export vm
-  [ -n "${vm_from}" ] && export vm_from
+  export vm
+  export vm_from
 }
 
 #####################
