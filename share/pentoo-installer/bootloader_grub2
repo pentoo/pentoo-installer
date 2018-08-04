@@ -192,7 +192,7 @@ if [ -d /sys/firmware/efi ]; then
       efiwriteable="1"
     else
       efiwriteable="0"
-      mount -o remount,rw /sys/firmware/efi/efivars
+      mount -o remount,rw /sys/firmware/efi/efivars || exit $?
     fi
   else
     efivars="0"
