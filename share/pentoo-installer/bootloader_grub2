@@ -192,7 +192,7 @@ if [ -d /sys/firmware/efi ]; then
       efiwriteable="1"
     else
       efiwriteable="0"
-      mount -o remount,rw /sys/firmware/efi/efivars
+      mount -o remount,rw /sys/firmware/efi/efivars || exit $?
     fi
   else
     efivars="0"
@@ -265,6 +265,10 @@ else
 fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
 chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg || exit $?
+
+chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps || exit $?
+chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:0 || exit $?
+
 sync
 chroot_umount || exit $?
 
@@ -280,9 +284,6 @@ if grep -q 'Error [0-9]*: ' "${DESTDIR}"/tmp/grub.log; then
 	show_dialog --msgbox "Error installing GRUB. (see ${LOG} for output)" 0 0
 	exit 1
 fi
-
-chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps
-chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:0
 
 show_dialog --msgbox "GRUB was successfully installed." 0 0
 exit 0
