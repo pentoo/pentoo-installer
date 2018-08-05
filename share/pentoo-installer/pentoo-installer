@@ -163,6 +163,8 @@ if [ "${RAMSIZE}" -le "1500" ]; then
     show_dialog --msgbox "WARNING: the install speed will be reduced due to the low system RAM." 0 0
   fi
 fi
+[ -z "${vm+x}" ] && export vm=
+[ -z "${vm_from+x}" ] && export vm_from=
 
 if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pentoo-installer-99999999" ]; then
 
