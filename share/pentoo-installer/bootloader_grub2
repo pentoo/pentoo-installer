@@ -267,7 +267,9 @@ cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
 chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg || exit $?
 
 chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps || exit $?
-chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:0 || exit $?
+if equery -q list sys-boot/grub:0 1>/dev/null; then
+  chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:0 || exit $?
+fi
 
 sync
 chroot_umount || exit $?
