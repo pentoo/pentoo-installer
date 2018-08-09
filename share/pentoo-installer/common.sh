@@ -51,7 +51,7 @@ add_option_label() {
 # catch errors from sub-script/functions
 #
 # returns 0 when an error was given
-# otherwise returns 0
+# otherwise returns 1
 #
 # parameters (required):
 #  _FUNCNAME: name of calling function/script
