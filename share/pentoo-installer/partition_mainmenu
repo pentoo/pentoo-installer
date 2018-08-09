@@ -31,6 +31,12 @@ MAXSELECTION="0"
 CONFIG_LIST=
 CONFIG_LIST_NEW=
 
+# run from config-file
+if [ -n "${INSTALLER_CONFIGFILE:-}" ]; then
+	CONFIG_LIST="$("${SHAREDIR}"/partition_autoconfig)" || exit $?
+	SELECTION='3'
+fi
+
 while true; do
 	# define menu items
 	MENU_ITEMS=("0" "Guided Partitioning (erases the ENTIRE hard drive)" \
