@@ -402,7 +402,7 @@ show_dialog() {
 		elif [ -n "${INSTALLER_HEADLESS:-}" ] && [ "${_ARGUMENTS[$_INDEX]}" == '--defaultno' ]; then
 			_ARGUMENTS[$_INDEX]='--nocancel'
 		elif [ "${_ARGUMENTS[$_INDEX]}" == '--inputbox' ]; then
-			if [ "$((${_INDEX}+4))" -le "${#_ARGUMENTS[@]}" ]; then
+			if [ "$((${_INDEX}+4))" -lt "${#_ARGUMENTS[@]}" ]; then
 				_DEFAULTVALUE="${_ARGUMENTS[$((_INDEX+4))]}" || exit $?
 			fi
 		elif [ "${_ARGUMENTS[$_INDEX]}" == '--menu' ]; then
