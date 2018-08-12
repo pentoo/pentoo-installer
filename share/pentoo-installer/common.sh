@@ -198,7 +198,7 @@ get_yesno() {
 # arguments (required):
 #  _DISCLIST: List of involved discs or partitions
 #
-# exits: !=1 is an error
+# exits: !=0 is an error
 #
 mount_umountall() {
 	# check input
@@ -466,6 +466,12 @@ show_dialog() {
 			_ANSWER="$(date +'%m/%d/%Y')" || exit $?
 		elif [ "${_DIALOGBOX}" == '--timebox' ]; then
 			_ANSWER="$(date +'%T')" || exit $?
+		# inputbox without default value, catch timeout
+		elif [ "${_DIALOGBOX}" == '--inputbox' ]; then
+			if [ "${_ANSWER}" == $'\ntimeout' ]; then
+				echo "Error: input box in headless mode without default returned timeout" 1>&2
+				exit 1
+			fi
 		fi
 	# check if user clicked cancel or closed the box
 	elif [ "${_DIALOGRETURN}" -eq "1" ] || [ "${_DIALOGRETURN}" -eq "255" ]; then
