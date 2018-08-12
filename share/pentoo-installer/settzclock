@@ -46,7 +46,7 @@ sed -Ei 's#^clock="[^"]*"$#clock="'"${HARDWARECLOCK:0:5}"'"#' /etc/conf.d/hwcloc
 # the sed commands make the few necessary changes
 cp /usr/bin/tzselect /tmp/tzselect.patched \
 	&& sed -i 's#^\t+#\t*#' /tmp/tzselect.patched \
-	&& patch --silent /tmp/tzselect.patched -i "${SHAREDIR}"/timezone-data-2015e-dialog.patch
+	&& patch --silent /tmp/tzselect.patched -i "${SHAREDIR}"/timezone-data-2018d-dialog.patch
 	TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched)" \
 	&& rm /tmp/tzselect.patched \
 	|| exit $?
