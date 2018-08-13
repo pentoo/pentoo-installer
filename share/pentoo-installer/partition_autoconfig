@@ -1,0 +1,271 @@
+#!/bin/bash -x
+# This script is released under the GNU General Public License 3.0
+# Check the COPYING file included with this distribution
+
+# partition_autoconfig
+# apply preconfigured partition layout
+# parameters: none
+#
+# returns $ERROR_CANCEL=64 on user cancel
+# anything else is a real error
+# reason: show_dialog() needs a way to exit "Cancel"
+#
+# writes menus and noise to STDERR
+#
+# prints result to STDOUT
+
+# location of other scripts to source
+readonly SHAREDIR="$(dirname ${0})" || exit $?
+
+# source partitioning commons
+source "${SHAREDIR}"/partition_common.sh || exit $?
+
+#########################################
+## START: dialog functions/definitions ##
+
+# autoconfig_createpartition()
+# creates a partition
+#
+# returns 0 on success
+#
+# prints new JSON to STDOUT
+#
+# parameters (required):
+#  disk: json
+#  partnum: index in partition array
+#
+autoconfig_createpartition() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local disk="${1}"
+	local partnum="${2}"
+	local diskblock="$(echo "${disk}" | jq -jr '."device"')" || return $?
+	local parttable="$(autoconfig_getpartitiontable "${disk}")" || return $?
+	local part="$(echo "${disk}" | jq -j ".partitions["${partnum}"]")" || return $?
+	local parttype="$(echo "$part" | jq -jr '.create."partition-type" // empty')" || return $?
+	local label="$(echo "$part" | jq -jr '.create.label // empty')" || return $?
+	local start="$(echo "$part" | jq -jr '.create.start')" || return $?
+	local end="$(echo "$part" | jq -jr '.create.end')" || return $?
+	local before="$(parted --script "${diskblock}" print | sed -e '/^$/d' -e '1,/^Number/d' | awk '{print $1}' | LC_ALL=C sort)" || return $?
+	local beforeDevices="$(blkid -o device | LC_ALL=C sort)" || return $?
+	local after=
+	local afterDevices=
+	local newDevice=
+	local index=
+	local flags=
+	local flagkey=
+	local flagvalue=
+	case "${parttable}" in
+		gpt)
+			parted -a optimal --script "${diskblock}" mkpart "${label}" ext4 $start $end || return $?
+			;;
+		msdos)
+			# default to primary
+			if [ -z "${parttype}" ]; then
+				parttype=primary
+			fi
+			case "${parttype}" in
+				primary|logical)
+					parted -a optimal --script "${diskblock}" mkpart "${parttype}" ext4 $start $end || return $?
+					;;
+				extended)
+					parted -a optimal --script "${diskblock}" mkpart "${parttype}" $start $end || return $?
+					;;
+				*)	echo "ERROR: Unknown partition type '${parttype}'." 1>&2
+					return 1 ;;
+			esac
+			;;
+		*) echo "ERROR: Unknown partition table '${parttable}'." 1>&2
+			return 1 ;;
+	esac
+	after="$(parted --script "${diskblock}" print | sed -e '/^$/d' -e '1,/^Number/d' | awk '{print $1}' | LC_ALL=C sort)" || return $?
+	afterDevices="$(blkid -o device | LC_ALL=C sort)" || return $?
+	index="$(join -v 2 <(echo "${before}") <(echo "${after}"))" || return $?
+	newDevice="$(join -v 2 <(echo "${beforeDevices}") <(echo "${afterDevices}"))" || return $?
+	echo "newDevice='${newDevice}'" 1>&2 || return $?
+	# flags is set
+	if echo "${part}" | jq -e ".create.flags" 1>/dev/null; then
+		flags="$(echo "${part}" | jq -j ".create.flags")" || return $?
+		for flagkey in $(echo "${flags}" | jq -r 'keys | .[]'); do
+			flagvalue="$(echo "${part}" | jq -j ".flags.${flagkey}")" || return $?
+			parted --script "${diskblock}" set "${index}" "${flagkey}"  || return $?
+		done
+	fi
+	# modify json to return new object
+	# add existing object
+	disk="$(echo "${disk}" | jq -e ".partitions[${partnum}].existing = {\"device\":\"${newDevice}\"}")"
+	# remove create object
+	disk="$(echo "${disk}" | jq -e "del(.partitions[${partnum}].create)")"
+	if [ "${parttype}" == 'extended' ]; then
+		# add extended=true
+		disk="$(echo "${disk}" | jq -e ".partitions[${partnum}].existing.extended = true")"
+	else
+		# set format = true
+		disk="$(echo "${disk}" | jq -e ".partitions[${partnum}].existing.format = true")"
+	fi
+	# print new json
+	echo "${disk}"
+	return 0
+}
+
+# autoconfig_printpartition()
+# prints partition
+#
+# returns 0 on success
+#
+# parameters (required):
+#  disk: json
+#  partnum: index in partition array
+#
+autoconfig_printpartition() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local disk="${1}"
+	local partnum="${2}"
+	local part="$(echo "${disk}" | jq -j ".partitions["${partnum}"]")" || return $?
+	# don't print/use msdos extended partitions
+	if !(echo "${part}" | jq -e ".existing.extended" 1>/dev/null); then
+		local partblock="$(echo "${part}" | jq -jr '.existing.device')" || return $?
+		local mountpoint="$(echo "${part}" | jq -jr '."mountpoint"')" || return $?
+		local filesystem="$(echo "${part}" | jq -jr '.filesystem')" || return $?
+		local crypttype="$(echo "${part}" | jq -jr '.crypttype // empty')" || return $?
+		local format=0
+		# format is set
+		if echo "${part}" | jq -e ".existing.format" 1>/dev/null; then
+			format=1
+		fi
+		# validate
+		"${SHAREDIR}"/FSspec create "${partblock}" "${mountpoint}" "${filesystem}" "${crypttype}" "${format}" 1>/dev/null || return $?
+		local fsspec="$("${SHAREDIR}"/FSspec create "${partblock}" "${mountpoint}" "${filesystem}" "${crypttype}" "${format}")" || return $?
+		echo -n "${fsspec}"
+	fi
+}
+
+# autoconfig_getpartitionindex()
+# prints partition index
+#
+# returns 0 on success
+#
+# parameters (required):
+#  disk: json
+#  partnum: index in partition array
+#  
+#
+autoconfig_getpartitionindex() {
+	# check input
+	check_num_args "${FUNCNAME}" 2 $# || return $?
+	local disk="${1}"
+	local partnum="${2}"
+	local diskblock="$(echo "${disk}" | jq -jr '."device"')" || return $?
+	local parttable="$(autoconfig_getpartitiontable "${disk}")" || return $?
+	local part="$(echo "${disk}" | jq -j ".partitions["${partnum}"]")" || return $?
+	local partblock="$(echo "${part}" | jq -jr '."device"')" || return $?
+	local partshort="$(basename "${partblock}")" || return $?
+	local maxpart="$(lsblk -J /dev/sda | jq -j '..|.children? // empty | length')" || return $?
+	local partnum
+	local partname=
+	for (( partnum=0; partnum<${maxpart}; partnum++ )); do
+		partname="$(lsblk -J /dev/sda | jq -jr "..|.children? // empty | .[$partnum].name")" || return $?
+		if [ "${partname}" == "${partshort}" ]; then
+			echo -n "$((partnum + 1))"; return  $?
+		fi
+	done
+	return 1
+}
+
+# autoconfig_getpartitiontable()
+# prints partition table
+# either from config file or current
+#
+# returns 0 on success
+#
+# parameters (required):
+#  disk: json
+#
+autoconfig_getpartitiontable() {
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local disk="${1}"
+	# partition table is set
+	if echo "${disk}" | jq -e '."partition-table"' 1>/dev/null; then
+		echo "${disk}" | jq -jr '."partition-table"'; return $?
+	else
+		parted --script "${disk}" print | sed -En 's#^Partition Table: (.*)#\1#p'; return $?
+	fi
+}
+
+## END: dialog functions/definitions ##
+#######################################
+
+#####################
+## begin execution ##
+
+# remove comments
+CONF_FULL="$(cat "${INSTALLER_CONFIGFILE}" | jq 'del(..|.["#"]?)')" || exit $?
+# get array of disks with partitions
+CONF_DISKS="$(echo "${CONF_FULL}" | jq '..|.disks? // empty')" || exit $?
+
+LEN_DISKS="$(echo "${CONF_DISKS}" | jq -j 'length')" || exit $?
+
+# loop disks
+DISKNUM=
+PARTNUM=
+for (( DISKNUM=0; DISKNUM<${LEN_DISKS}; DISKNUM++ )); do
+	DISK="$(echo "${CONF_DISKS}" | jq ".[${DISKNUM}]")" || exit $?
+	DISK_BLOCK="$(echo "${DISK}" | jq -jr '."device"')" || exit $?
+	# wipe is set
+	if echo "${DISK}" | jq -e '.wipe' 1>/dev/null; then
+		PARTTABLE="$(autoconfig_getpartitiontable "${DISK}")" || exit $?
+		# set partition table
+		parted --script "${DISK_BLOCK}" mklabel "${PARTTABLE}" || exit $?
+	fi
+	# loop partitions to create them
+	LEN_PARTS="$(echo "${DISK}" | jq -j '.partitions | length')" || exit $?
+	for (( PARTNUM=0; PARTNUM<${LEN_PARTS}; PARTNUM++ )); do
+		CREATEPART=1
+		USEPART=1
+		# check if create is set
+		if echo "${DISK}" | jq -e ".partitions[${PARTNUM}].create" 1>/dev/null; then
+			CREATEPART=0
+		fi
+		# check if existing is set
+		if echo "${DISK}" | jq -e ".partitions[${PARTNUM}].existing" 1>/dev/null; then
+			USEPART=0
+		fi
+		# safety check
+		if [ $((CREATEPART+USEPART)) -ne 1 ]; then
+			echo "ERROR: Either 'create' or 'existing' must be used, not both." 1>&2
+			exit 1
+		fi
+		if [ $CREATEPART -eq 0 ]; then
+			DISK="$(autoconfig_createpartition "${DISK}" "${PARTNUM}")" || exit $?
+			# replace in parent json
+			CONF_DISKS="$(echo "${CONF_DISKS}" | jq ".[${DISKNUM}] = ${DISK}")" || exit $?
+		fi
+	done
+	# loop partitions to maximise them
+	for (( PARTNUM=0; PARTNUM<${LEN_PARTS}; PARTNUM++ )); do
+		# want_maximised is set
+		if echo "${DISK}" | jq -e ".partitions[${PARTNUM}].want_maximised" 1>/dev/null; then
+			PARTINDEX="$(autoconfig_getpartitionindex "${DISK}" "${PARTNUM}")"
+			if growpart -N "${DISK_BLOCK}" "${PARTINDEX}" 1>&2; then
+				growpart "${DISK_BLOCK}" "${PARTINDEX}" 1>&2 || exit $?
+			fi
+		fi
+	done
+done
+
+# print output
+# loop disks
+for (( DISKNUM=0; DISKNUM<${LEN_DISKS}; DISKNUM++ )); do
+	DISK="$(echo "${CONF_DISKS}" | jq ".[${DISKNUM}]")" || exit $?
+	# loop partitions
+	LEN_PARTS="$(echo "${DISK}" | jq -j '.partitions | length')" || exit $?
+	for (( PARTNUM=0; PARTNUM<${LEN_PARTS}; PARTNUM++ )); do
+		if [ $DISKNUM -gt 0 ] || [ $PARTNUM -gt 0 ];then
+			echo -n ' '
+		fi
+		autoconfig_printpartition "${DISK}" "${PARTNUM}" || exit $?
+	done
+done
+echo
