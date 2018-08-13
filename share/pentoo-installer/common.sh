@@ -463,7 +463,7 @@ show_dialog() {
 		elif [ -n "${_DEFAULTVALUE}" ]; then
 			_ANSWER="${_DEFAULTVALUE}"
 		elif [ "${_DIALOGBOX}" == '--calendar' ]; then
-			_ANSWER="$(date +'%m/%d/%Y')" || exit $?
+			_ANSWER="$(date +'%d/%m/%Y')" || exit $?
 		elif [ "${_DIALOGBOX}" == '--timebox' ]; then
 			_ANSWER="$(date +'%T')" || exit $?
 		# inputbox without default value, catch timeout
