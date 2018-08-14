@@ -55,6 +55,7 @@ cp /usr/bin/tzselect /tmp/tzselect.patched \
 if [ "${TIMEZONE}" != "" -a -e "/usr/share/zoneinfo/${TIMEZONE}" ]; then
 	echo "setting timezone to: ${TIMEZONE}" 1>&2
 	echo "${TIMEZONE}" > /etc/timezone
+	emerge --config sys-libs/timezone-data || exit $?
 fi
 
 # display and ask to set date/time
