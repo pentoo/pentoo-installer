@@ -95,6 +95,7 @@ partition_findpartitions() {
 	local _DEV=""
 	local _DEVPATH=""
 	local _DISC=
+	local _LIST_RESULT=
 	local _PART=
 	local _PARTPATH=
 	for _DEVPATH in $(partition_finddisks); do
@@ -105,44 +106,48 @@ partition_findpartitions() {
 			# TODO: fdisk output for gpt is completely different
 			if ! cat /proc/mdstat 2>/dev/null | grep -q "${_PART}" \
 				&& ! file -s /dev/"${_PART}" | grep -qi lvm2 \
-				&& ! fdisk -l /dev/"${_DISC}" | grep "^/dev/${_PART}[[:space:]]" | sed 's/ \* /   /' | awk '{print $5}' | grep -q 5 \
+				&& ( \
+					! fdisk -l /dev/"${_PART}" | grep "Disklabel type:" | grep -q 'msdos' \
+					|| ! fdisk -l /dev/"${_DISC}" | grep "^/dev/${_PART}[[:space:]]" | sed 's/ \* /   /' | awk '{print $5}' | grep -q 5 \
+				) \
 				; then
 				if [ -d "${_PARTPATH}" ]; then
-					echo "/dev/${_PART}"
+					_LIST_RESULT+="/dev/${_PART}\n"
 				fi
 			fi
 		done
 	done
 	# include any mapped devices
 	for _DEVPATH in $(ls /dev/mapper 2>/dev/null | grep -v control); do
-		echo "/dev/mapper/${_DEVPATH}"
+		_LIST_RESULT+="/dev/mapper/${_DEVPATH}\n"
 	done
 	# include any raid md devices
 	for _DEVPATH in $(ls -d /dev/md* | grep '[0-9]' 2>/dev/null); do
 		if cat /proc/mdstat | grep -qw $(echo ${_DEVPATH} | sed -e 's|/dev/||g'); then
-			echo "${_DEVPATH}"
+			_LIST_RESULT+="${_DEVPATH}\n"
 		fi
 	done
 	# include cciss controllers
 	if [ -d /dev/cciss ] ; then
 		for _DEV in $(ls /dev/cciss | egrep 'p'); do
-			echo "/dev/cciss/${_DEV}"
+			_LIST_RESULT+="/dev/cciss/${_DEV}\n"
 		done
 	fi
 	# include Smart 2 controllers
 	if [ -d /dev/ida ] ; then
 		for _DEV in $(ls /dev/ida | egrep 'p'); do
-			echo "/dev/ida/${_DEV}"
+			_LIST_RESULT+="/dev/ida/${_DEV}\n"
 		done
 	fi
 	#emmc
 	for _DEVPATH in $(ls /dev/mmcblk* | egrep 'p'); do
-		echo "/dev/${_DEVPATH}"
+		_LIST_RESULT+="${_DEVPATH}\n"
 	done
 	#NVMe
 	for _DEVPATH in $(ls /dev/nvme* | egrep 'p'); do
-		echo "/dev/${_DEVPATH}"
+		_LIST_RESULT+="${_DEVPATH}\n"
 	done
+	echo -e "${_LIST_RESULT}" | LC_ALL=C sort -u
 	return 0
 }
 # end of partition_findpartitions()

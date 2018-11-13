@@ -1,8 +1,8 @@
 based on original work by wuodan here:
-https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
+https://github.com/Wuodan/tz
 
---- tzselect.patched	2015-09-19 23:23:37.357786123 -0400
-+++ tzselect.patched2	2015-09-19 23:49:50.395684504 -0400
+--- tzselect.patched
++++ tzselect.patched
 @@ -36,6 +36,7 @@
  # Specify default values for environment variables if they are unset.
  : ${AWK=awk}
@@ -127,35 +127,39 @@ https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
  		"coord - I want to use geographical coordinates." \
 -		"TZ - I want to specify the time zone using the Posix TZ format."
 -	    continent=$select_result
-+		"TZ - I want to specify the time zone using the Posix TZ format."` || exit $?
++		"TZ - I want to specify the timezone using the Posix TZ format."` || exit $?
  	    case $continent in
  	    Americas) continent=America;;
  	    *" "*) continent=`expr "$continent" : '\''\([^ ]*\)'\''`
-@@ -340,11 +382,9 @@
+@@ -340,13 +382,10 @@
  	TZ)
  		# Ask the user for a Posix TZ string.  Check that it conforms.
  		while
 -			echo >&2 'Please enter the desired value' \
 -				'of the TZ environment variable.'
--			echo >&2 'For example, GST-10 is a zone named GST' \
--				'that is 10 hours ahead (east) of UTC.'
+-			echo >&2 'For example, AEST-10 is a zone named AEST' \
+-				'that is 10 hours'
+-			echo >&2 'ahead (east) of Greenwich,' \
+-				'with no daylight saving time.'
 -			read TZ
 +			TZ=`"${SHOWDIALOG}" inputbox \
 +				'Please enter the desired value of the TZ environment variable.
-+For example, GST-10 is a zone named GST that is 10 hours ahead (east) of UTC.'` || exit $?
++For example, AEST-10 is abbreviated AEST and is 10 hours
++ahead (east) of Greenwich, with no daylight saving time.'` || exit $?
  			$AWK -v TZ="$TZ" 'BEGIN {
- 				tzname = "[^-+,0-9][^-+,0-9][^-+,0-9]+"
- 				time = "[0-2]?[0-9](:[0-5][0-9](:[0-5][0-9])?)?"
-@@ -357,7 +397,7 @@
+ 				tzname = "(<[[:alnum:]+-]{3,}>|[[:alpha:]]{3,})"
+ 				time = "(2[0-4]|[0-1]?[0-9])" \
+@@ -362,7 +401,8 @@
  				exit 0
  			}'
  		do
 -		    say >&2 "'$TZ' is not a conforming Posix time zone string."
-+			"${SHOWDIALOG}" msgbox "'$TZ' is not a conforming Posix time zone string."
++			"${SHOWDIALOG}" msgbox \
++				"'$TZ' is not a conforming Posix time zone string."
  		done
  		TZ_for_date=$TZ;;
  	*)
-@@ -365,12 +405,10 @@
+@@ -370,12 +410,10 @@
  		coord)
  		    case $coord in
  		    '')
@@ -172,7 +176,7 @@ https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
  		    esac
  		    distance_table=`$AWK \
  			    -v coord="$coord" \
-@@ -383,12 +421,10 @@
+@@ -388,13 +426,11 @@
  		      BEGIN { FS = "\t" }
  		      { print $NF }
  		    '`
@@ -182,14 +186,16 @@ https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
 -			    "of distance from $coord".
 -		    doselect $regions
 -		    region=$select_result
+-		    TZ=`say "$distance_table" | $AWK -v region="$region" '
 +		    region=`"${SHOWDIALOG}" menu \
-+		    "Please select one of the following time zone regions,
++		      "Please select one of the following timezones,
 +listed roughly in increasing order of distance from $coord." \
-+		    $regions` || exit $?
- 		    TZ=`say "$distance_table" | $AWK -v region="$region" '
++		      $regions` || exit $?
++		    TZ=`echo "$distance_table" | $AWK -v region="$region" '
  		      BEGIN { FS="\t" }
  		      $NF == region { print $4 }
-@@ -425,10 +461,9 @@
+ 		    '`
+@@ -430,10 +466,9 @@
  		# If there's more than one country, ask the user which one.
  		case $countries in
  		*"$newline"*)
@@ -203,7 +209,7 @@ https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
  		*)
  			country=$countries
  		esac
-@@ -457,10 +492,9 @@
+@@ -462,10 +497,9 @@
  		# If there's more than one region, ask the user which one.
  		case $regions in
  		*"$newline"*)
@@ -212,23 +218,23 @@ https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
 -			doselect $regions
 -			region=$select_result;;
 +			region=`"${SHOWDIALOG}" menu \
-+				'Please select one of the following time zone regions.' \
++				'Please select one of the following timezones.' \
 +				$regions` || exit $?;;
  		*)
  			region=$regions
  		esac
-@@ -518,22 +552,24 @@
+@@ -522,23 +556,24 @@
+ 
  
  	# Output TZ info and ask the user to confirm.
- 
--	echo >&2 ""
--	echo >&2 "The following information has been given:"
--	echo >&2 ""
 +	infomsg='
 +The following information has been given:
 +
 +'
-+
+ 
+-	echo >&2 ""
+-	echo >&2 "The following information has been given:"
+-	echo >&2 ""
  	case $country%$region%$coord in
 -	?*%?*%)	say >&2 "	$country$newline	$region";;
 -	?*%%)	say >&2 "	$country";;
@@ -239,7 +245,7 @@ https://github.com/Wuodan/tz/commit/5297b9ca06f79c334b9492713ce388b590e436e3
 +	?*%%)   infomsg="${infomsg}     $country";;
 +	%?*%?*) infomsg="${infomsg}     coord $coord$newline    $region";;
 +	%%?*)   infomsg="${infomsg}     coord $coord";;
-+	*)              infomsg="${infomsg}     TZ='$TZ'"
++	*)      infomsg="${infomsg}     TZ='$TZ'"
  	esac
 -	say >&2 ""
 -	say >&2 "Therefore TZ='$TZ' will be used.$extra_info"
