@@ -1,0 +1,116 @@
+{
+	"#": "optional (utc or localtime)",
+	"hwclock": "utc",
+
+	"#": "optional",
+	"timezone": "Europe/Zurich",
+
+	"#": "required",
+	"disks":[
+		{
+			"#": "required",
+			"device": "/dev/sda",
+
+			"#": "optional: will only be applied when set and different from current (msdos/gpt)",
+			"#": "requires wipe=true",
+			"partition-table": "msdos",
+
+			"#": "optional default=false",
+			"wipe": true,
+
+			"#": "required",
+			"partitions": [
+				{
+					"#": "semi-required: either 'create' or 'existing' must be present",
+					"create": {
+						"#": "optional (default=primary) for msdos: primary/extended/logical",
+						"#": "list extended before logical and only one extended per disk!",
+						"partition-type": "primary",
+
+						"#": "required",
+						"start": "1",
+
+						"#": "anything that parted understands",
+						"end": "129M",
+
+						"#": "optional",
+						"flags": {
+							"#": "anything that parted understands",
+							"boot": "on"
+						}
+					},
+
+					"#": "semi-required: either 'create' or 'existing' must be present",
+					"#": "below key is prepended with '#', since it's just an example!",
+					"#existing": {
+						"#": "required",
+						"device": "/dev/sda1",
+
+						"#": "optional, default=false",
+						"format": false
+					},
+
+					"#": "required: must be empty for swap",
+					"#": "ignored for msdos logical partitions",
+					"mountpoint": "/boot",
+
+					"#": "optional, default='' (one of: 'swap', 'luks', 'luks-gpg', '')",
+					"crypttype": "",
+
+					"#": "required",
+					"#": "ignored for msdos logical partitions",
+					"filesystem": "ext4-nojournal",
+
+					"#": "optional (default=false): maximise into free space",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"start": "129M",
+						"end": "1281M"
+					},
+					"mountpoint": "",
+					"filesystem": "swap",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"start": "1281M",
+						"end": "54G"
+					},
+					"mountpoint": "/",
+					"filesystem": "ext4",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"partition-type": "extended",
+						"start": "54G",
+						"end": "64G"
+					},
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"partition-type": "logical",
+						"start": "54G",
+						"end": "60G"
+					},
+					"mountpoint": "/mnt/logical1",
+					"filesystem": "ext4",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"partition-type": "logical",
+						"start": "60G",
+						"end": "64G"
+					},
+					"mountpoint": "/mnt/logical2",
+					"filesystem": "ext4",
+					"want_maximised": true
+				}
+			]
+		}
+	]
+}

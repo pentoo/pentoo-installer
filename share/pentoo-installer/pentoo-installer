@@ -136,6 +136,35 @@ checkvm() {
 #####################
 ## begin execution ##
 
+# INSTALLER_HEADLESS: emtpy=false
+export INSTALLER_HEADLESS=
+export INSTALLER_CONFIGFILE=
+
+# check passed arguments
+while [[ $# -gt 0 ]]; do
+  # these options require params
+  case "${1}" in
+    --config-file)
+	  if [ $# -lt 2 ] || [ "${2:0:2}" == '--' ]; then
+		  show_dialog --msgbox "ERROR: Option '${1}' requires a parameter. Aborting with  error." 0 0
+		  exit 1
+	  fi
+  esac
+  # process arguments
+  case "${1}" in
+    --headless)
+      export INSTALLER_HEADLESS=1
+      shift ;;
+    --config-file)
+      export INSTALLER_CONFIGFILE="${2}"
+      shift; shift ;;
+    *) # unknown option
+      show_dialog --msgbox "ERROR: Unknown option '${1}'. Aborting with  error." 0 0
+      exit 1
+      ;;
+  esac
+done
+
 # display welcome txt depending on used dialog
 WHICHDIALOG="$(get_dialog)"
 

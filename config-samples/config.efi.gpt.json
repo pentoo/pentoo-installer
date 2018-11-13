@@ -1,0 +1,111 @@
+{
+	"#": "optional (utc or localtime)",
+	"hwclock": "utc",
+
+	"#": "optional",
+	"timezone": "Europe/Zurich",
+
+	"#": "required",
+	"disks":[
+		{
+			"#": "required",
+			"device": "/dev/sda",
+
+			"#": "optional: will only be applied when set and different from current (msdos/gpt)",
+			"#": "requires wipe=true",
+			"partition-table": "gpt",
+
+			"#": "optional default=false",
+			"wipe": true,
+
+			"#": "required",
+			"partitions": [
+				{
+					"#": "semi-required: either 'create' or 'existing' must be present",
+					"create": {
+						"#": "optional (default=primary) for msdos: primary/extended/logical",
+						"#": "list extended before logical and only one extended per disk!",
+						"partition-type": "primary",
+
+						"#": "required",
+						"start": "1",
+
+						"#": "anything that parted understands",
+						"end": "551M",
+
+						"#": "optional, ignored for msdos",
+						"label": "boot",
+
+						"#": "optional",
+						"flags": {
+							"#": "anything that parted understands",
+							"boot": "on"
+						}
+					},
+
+					"#": "semi-required: either 'create' or 'existing' must be present",
+					"#": "below key is prepended with '#', since it's just an example!",
+					"#existing": {
+						"#": "required",
+						"device": "/dev/sda1",
+
+						"#": "optional, default=false",
+						"format": false
+					},
+
+					"#": "required: must be empty for swap",
+					"mountpoint": "/boot",
+
+					"#": "optional, default='' (one of: 'swap', 'luks', 'luks-gpg', '')",
+					"crypttype": "",
+
+					"#": "required",
+					"filesystem": "fat32",
+
+					"#": "optional (default=false): maximise into free space",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"start": "551M",
+						"end": "1575M",
+						"label": "swap"
+					},
+					"mountpoint": "",
+					"filesystem": "swap",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"start": "1575M",
+						"end": "54G",
+						"label": "root"
+					},
+					"mountpoint": "/",
+					"filesystem": "ext4",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"start": "54G",
+						"end": "60G",
+						"label": "test1"
+					},
+					"mountpoint": "/mnt/test1",
+					"filesystem": "ext4",
+					"want_maximised": true
+				},
+				{
+					"create": {
+						"start": "60G",
+						"end": "64G",
+						"label": "test2"
+					},
+					"mountpoint": "/mnt/test2",
+					"filesystem": "ext4",
+					"want_maximised": true
+				}
+			]
+		}
+	]
+}

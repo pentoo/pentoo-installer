@@ -1,2 +1,2 @@
 #!/bin/bash
-/usr/share/pentoo-installer/pentoo-installer 2> /tmp/pentoo-installer.log
+/usr/share/pentoo-installer/pentoo-installer "${@}" 2> /tmp/pentoo-installer.log

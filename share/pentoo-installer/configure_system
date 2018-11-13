@@ -124,6 +124,7 @@ EOF
 check_num_args "$(basename $0)" 1 $# || exit $?
 CONFIG_LIST="${1}"
 EDITOR=
+DEFAULTITEM=
 MENU_ITEMS=
 NEWSELECTION=
 USERNAME=
@@ -151,8 +152,12 @@ MENU_ITEMS=("Editor"				"System Editor" \
 			"DONE"			"Return to Main Menu" )
 
 while true; do
+	# shortcut for headless mode
+	if [ -n "${INSTALLER_HEADLESS:-}" ]; then
+		DEFAULTITEM='--default-item DONE'
+	fi
 	# expand menu items array below
-	NEWSELECTION="$(show_dialog --menu "Configuration" \
+	NEWSELECTION="$(show_dialog ${DEFAULTITEM} --menu "Configuration" \
 		0 0 0 "${MENU_ITEMS[@]}")" || exit $?
 	# call subscript by selected item
 	case "${NEWSELECTION}" in

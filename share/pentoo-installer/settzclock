@@ -26,8 +26,22 @@ readonly SHAREDIR="$(dirname ${0})" || exit $?
 # source common variables, functions and error handling
 source "${SHAREDIR}"/common.sh || exit $?
 
+HWCLOCK_DEFAULT=utc
+TIMEZONE_DEFAULT=
+if [ -n "${INSTALLER_CONFIGFILE}" ]; then
+	# remove comments
+	CONF_FULL="$(cat "${INSTALLER_CONFIGFILE}" | jq 'del(..|.["#"]?)')" || exit $?
+	# check if hwclock is set
+	if echo "${CONF_FULL}" | jq -e ".hwclock" 1>/dev/null; then
+		HWCLOCK_DEFAULT="$(echo "${CONF_FULL}" | jq -re ".hwclock")" || exit $?
+	fi
+	# check if timezone is set
+	if echo "${CONF_FULL}" | jq -e ".timezone" 1>/dev/null; then
+		TIMEZONE_DEFAULT="$(echo "${CONF_FULL}" | jq -re ".timezone")" || exit $?
+	fi
+fi
 # utc or local?
-HARDWARECLOCK="$(show_dialog --menu "Is your hardware clock in UTC or time?" 0 0 2 \
+HARDWARECLOCK="$(show_dialog --default-item "${HWCLOCK_DEFAULT}" --menu "Is your hardware clock in UTC or time?" 0 0 2 \
 	"utc" "UTC time" \
 	"localtime" "local time")" \
 	|| exit $?
@@ -46,10 +60,16 @@ sed -Ei 's#^clock="[^"]*"$#clock="'"${HARDWARECLOCK:0:5}"'"#' /etc/conf.d/hwcloc
 # the sed commands make the few necessary changes
 cp /usr/bin/tzselect /tmp/tzselect.patched \
 	&& sed -i 's#^\t+#\t*#' /tmp/tzselect.patched \
-	&& patch --silent /tmp/tzselect.patched -i "${SHAREDIR}"/timezone-data-2018d-dialog.patch
-	TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched)" \
+	&& patch --silent /tmp/tzselect.patched -i "${SHAREDIR}"/timezone-data-2018d-dialog.patch \
+	|| exit $?
+TIMEZONE="$(SHOWDIALOG="${SHAREDIR}"/tzselect_dialog /tmp/tzselect.patched)" \
 	&& rm /tmp/tzselect.patched \
 	|| exit $?
+
+if [ -n "${TIMEZONE_DEFAULT}" ]; then
+	echo "Overriding timezone with value from config file!" 1>&2
+	TIMEZONE="${TIMEZONE_DEFAULT}"
+fi
 
 # this will be copied to chroot later
 if [ "${TIMEZONE}" != "" -a -e "/usr/share/zoneinfo/${TIMEZONE}" ]; then
