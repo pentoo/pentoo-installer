@@ -157,7 +157,7 @@ if [ -f "${DESTDIR}"/usr/share/grub/themes/pentoo/pentoosplash.png ]; then
 fi
 # for uefi set efifb for video
 if [ -d /sys/firmware/efi ]; then
-  sed -i 's#video=.* #video=efifb #' "${GRUBCONFIG}" || exit $?
+  sed -i 's#video=\S* #video=efifb #' "${GRUBCONFIG}" || exit $?
 fi
 
 # inform user about target disk, partitions and such, last chance to abort ;)
