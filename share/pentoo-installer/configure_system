@@ -33,19 +33,19 @@ setbootopts() {
 	while true; do
 		local _MENU_ITEMS=()
 		if chroot "${DESTDIR}" rc-update show | grep NetworkManager | grep -q default; then
-			_MENU_ITEMS+=("BootQuiet"	"Disable NetworkManager at boot")
+			_MENU_ITEMS+=("BootQuiet"	"NetworkManager is currently enabled at boot, disable NetworkManager?")
 		else
-			_MENU_ITEMS+=("BootNet"		"Enable NetworkManager automatically at boot")
+			_MENU_ITEMS+=("BootNet"		"NetworkManager is currently disabled at boot, enable NetworkManager?")
 		fi
 		if chroot "${DESTDIR}" rc-update show | grep bluetooth | grep -q default; then
-			_MENU_ITEMS+=("BootNoBluetooth"	"Disable bluetooth at boot")
+			_MENU_ITEMS+=("BootNoBluetooth"	"Bluetooth is currently enabled at boot, disable bluetooth?")
 		else
-			_MENU_ITEMS+=("BootBluetooth"		"Enable bluetooth automatically at boot")
+			_MENU_ITEMS+=("BootBluetooth"		"Bluetooth is currently disabled at boot, enable bluetooth?")
 		fi
 		if chroot "${DESTDIR}" rc-update show | grep xdm | grep default; then
-			_MENU_ITEMS+=("BootConsole"	"Boot to console for login")
+			_MENU_ITEMS+=("BootConsole"	"Currently booting to X (xdm/slim), switch to console for login?")
 		else
-			_MENU_ITEMS+=("BootX"		"Boot to X for login (xdm/slim)")
+			_MENU_ITEMS+=("BootX"		"Currently booting to console, switch to X for login (xdm/slim)?")
 		fi
 		_MENU_ITEMS+=("DONE"			"Return to Configuration Menu" )
 
