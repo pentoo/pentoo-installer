@@ -226,7 +226,7 @@ if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pen
 	fi
 fi
 
-show_dialog --textbox "${SHAREDIR}/welcome.${WHICHDIALOG}.txt" 0 0 || exit $?
+show_dialog --exit-label " Continue " --textbox "${SHAREDIR}/welcome.${WHICHDIALOG}.txt" 0 0 || exit $?
 #try to maximize, this will quietly do nothing in console mode
 wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz
 
