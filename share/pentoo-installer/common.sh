@@ -104,9 +104,12 @@ chroot_mount() {
 	if [ ! -e "${DESTDIR}/dev" ]; then
 		mkdir "${DESTDIR}/dev" || return $?
 	fi
-	mount -t sysfs sysfs "${DESTDIR}/sys" || return $?
-	mount -t proc proc "${DESTDIR}/proc" || return $?
-	mount --rbind --make-rslave /dev "${DESTDIR}/dev" || return $?
+	#mount -t sysfs sysfs "${DESTDIR}/sys" || return $?
+	#mount -t proc proc "${DESTDIR}/proc" || return $?
+	for i in dev proc sys; do
+		mount --make-shared/${i} || return $?
+		mount --rbind --make-rslave /${i} "${DESTDIR}/${i}" || return $?
+	done
 	return 0
 }
 
