@@ -47,6 +47,10 @@ getkernelparams() {
 	else
 		_KERNEL_PARAMS="root=/dev/ram0 real_root=${_ROOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
 	fi
+  #wierd hack to disable amd memory encryption when nvidia is in use
+  if [ "$(uname -i)" = "AuthenticAMD" ] && grep -q nvidia /proc/modules; then
+    _KERNEL_PARAMS="${_KERNEL_PARAMS} mem_encrypt=off"
+  fi
 	# print result
 	echo "${_KERNEL_PARAMS}"
 	return 0
