@@ -159,7 +159,7 @@ partition_findpartitions() {
 partition_getdisccapacity() {
 	# check input
 	check_num_args "${FUNCNAME}" 1 $# || return $?
-	fdisk -l "${1}" | awk '/^Disk .*bytes/ { print $5 }' || return $?
+	fdisk -l "${1}" | awk '/^Disk .*bytes/ { print $5 }' || echo 0
 	return 0
 }
 
