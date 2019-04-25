@@ -163,12 +163,7 @@ fi
 # inform user about target disk, partitions and such, last chance to abort ;)
 show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BOOT}'.\nPlease confirm this.\n\nYou will then be put into the editor to review the GRUB configuration file.\nInstallation will continue after you exit the editor." 0 0 || exit $?
 
-show_dialog --infobox "Grub bootloader is being installed and prepared for booting. Please stand by..." 4 70
-#show_dialog --infobox "Installing the GRUB bootloader..." 0 0
-#if [ -d "${DESTDIR}"/usr/lib/grub/i386-pc ]; then
-#	cp -a "${DESTDIR}"/usr/lib/grub/i386-pc/* "${DESTDIR}"/boot/grub/ || exit $?
-#fi
-#sync
+show_dialog --infobox "Filesystem is being prepared for bootloader. Please stand by..." 4 65
 
 # freeze xfs filesystems to enable grub installation on xfs filesystems
 if [ -x /usr/sbin/xfs_freeze ]; then
@@ -186,6 +181,7 @@ if [ -z "${INSTALLER_HEADLESS:-}" ]; then
 	"${EDITOR}" "${GRUBCONFIG}" || exit $?
 fi
 
+show_dialog --infobox "Grub bootloader is being installed and prepared for booting. Please stand by..." 4 70
 #maybe move the stat check a LOT earlier?
 if [ -d /sys/firmware/efi ]; then
   if mountpoint -q -- /sys/firmware/efi/efivars ; then
