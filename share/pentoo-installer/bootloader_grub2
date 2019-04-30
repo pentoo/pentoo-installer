@@ -259,7 +259,7 @@ if [ -d /sys/firmware/efi ]; then
   fi
   chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || exit $?
 else
-	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
 fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
 chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg || exit $?
