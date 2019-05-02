@@ -86,13 +86,13 @@ show_dialog --msgbox "Now you'll be put into the ${PARTITIONEDITOR} program wher
 # switch STDOUT and STDERR
 sync
 # Partition disc
-"${PARTITIONEDITOR}" "${DISC}" 3>"${LOG}" 1>&2 2>&3
+"${PARTITIONEDITOR}" "${DISC}" 2>&1 > /dev/tty
 RET=$?
 sync
 if [ "${RET}" -ne 0 ]; then
 	echo "Partition editor ${PARTITIONEDITOR} failed" 1>&2
 	exit "${RET}"
 else
-	show_dialog --msgbox "Manual partitioning was successful" 0 0
+	show_dialog --msgbox "Partition editor ${PARTITIONEDITOR} exited successfully" 0 0
 	exit 0
 fi

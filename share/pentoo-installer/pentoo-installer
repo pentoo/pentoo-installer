@@ -146,7 +146,7 @@ while [[ $# -gt 0 ]]; do
   case "${1}" in
     --config-file)
 	  if [ $# -lt 2 ] || [ "${2:0:2}" == '--' ]; then
-		  show_dialog --msgbox "ERROR: Option '${1}' requires a parameter. Aborting with  error." 0 0
+		  show_dialog --msgbox "ERROR: Option '${1}' requires a parameter. Aborting with error." 0 0
 		  exit 1
 	  fi
   esac
@@ -159,7 +159,7 @@ while [[ $# -gt 0 ]]; do
       export INSTALLER_CONFIGFILE="${2}"
       shift; shift ;;
     *) # unknown option
-      show_dialog --msgbox "ERROR: Unknown option '${1}'. Aborting with  error." 0 0
+      show_dialog --msgbox "ERROR: Unknown option '${1}'. Aborting with error." 0 0
       exit 1
       ;;
   esac
