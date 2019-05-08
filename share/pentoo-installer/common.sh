@@ -119,10 +119,10 @@ chroot_mount() {
 chroot_umount() {
 	sleep 1
 	if mount | grep -q "${DESTDIR}/proc "; then
-		umount ${DESTDIR}/proc || return $?
+		umount -R ${DESTDIR}/proc || return $?
 	fi
 	if mount | grep -q "${DESTDIR}/sys "; then
-		umount ${DESTDIR}/sys || return $?
+		umount -R ${DESTDIR}/sys || return $?
 	fi
 	if mount | grep -q "${DESTDIR}/dev "; then
 		umount -R ${DESTDIR}/dev || return $?
