@@ -262,6 +262,7 @@ else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
 fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
+show_dialog --infobox "Grub bootloader is being configured for booting. Please stand by..." 4 70
 chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg || exit $?
 
 chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps || exit $?
