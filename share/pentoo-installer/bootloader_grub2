@@ -262,8 +262,20 @@ else
 	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
 fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
+#okay so wow, this is ugly
+#os-prober sucks, and to handle lvm volumes it needs lvmetad running
+#if it's not running, then it has to time out on a bunch of things like /dev/loop0 and /dev/ram0 which takes forever
+#easiest solution, run lvmetad
+show_dialog --infobox "Starting lvmetad to appease os-prober. Please stand by..." 4 70
+/etc/init.d/lvmetad start
+rm -rf "${DESTDIR}/run/*"
+mount --make-shared /run
+mount --rbind --make-rslave /run "${DESTDIR}/run"
 show_dialog --infobox "Grub bootloader is being configured for booting. Please stand by..." 4 70
-chroot "${DESTDIR}" bash -x /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg || exit $?
+chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg || exit $?
+umount -R "${DESTDIR}/run"
+show_dialog --infobox "Stopping lvmetad, no longer needed. Please stand by..." 4 70
+/etc/init.d/lvmetad stop
 
 chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps || exit $?
 
