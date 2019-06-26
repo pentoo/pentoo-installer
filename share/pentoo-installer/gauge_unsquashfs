@@ -101,7 +101,13 @@ sleep 1
 			echo "XXX"
 			echo "${MSG}"
 			echo " => "
-			echo "Progress Indicator Frozen at ${PERCENT} % (but no errors seen)"
+			if [[ "${PERCENTTEMP}" =~ "ailed" ]]; then
+				echo "Progress Indicator Frozen at ${PERCENT} % (${PERCENTTEMP})"
+				rm /tmp/setup-unsquashfs-running
+				sleep 4.5
+			else
+				echo "Progress Indicator Frozen at ${PERCENT} % (but no errors seen)"
+			fi
 			echo "XXX"
 		fi
 	done
@@ -126,8 +132,13 @@ fi
 #make sure we have a retcode
 if [ -z "$(cat /tmp/.unsquashfs-retcode)" ]; then
 	killall unsquashfs
-	show_dialog --title "Error unsquashing, no return code" --exit-label \
-		"OK" --textbox "/tmp/unsquashfs.log" 18 70
+	if [ -n "${PERCENTTEMP}" ] && [[ "${PERCENTTEMP}" =~ "ailed" ]]; then
+		show_dialog --title "Error unsquashing, possible error:" --exit-label \
+			"OK" --textbox "${PERCENTTEMP}" 18 70
+	else
+		show_dialog --title "Error unsquashing, no return code" --exit-label \
+			"OK" --textbox "/tmp/unsquashfs.log" 18 70
+	fi
 	exit 1
 fi
 #make sure the retcode is a number
