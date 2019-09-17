@@ -40,8 +40,8 @@ fi
 while true; do
 	# define menu items
 	MENU_ITEMS=("0" "Guided Partitioning (erases the ENTIRE hard drive)" \
-		"1" "Manually partition hard drives (advanced users only)" \
-		"2" "Fine-tune partition setup (add, edit, delete, encryption)"
+		"1" "Manually partition whole drives (advanced users only)" \
+		"2" "Fine-tune partition setup (add, edit, encrypt, preserve existing layout)"
 		)
 	# check if root partition is defined
 	if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/'; then
