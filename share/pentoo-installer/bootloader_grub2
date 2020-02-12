@@ -202,12 +202,12 @@ if [ -d /sys/firmware/efi ]; then
     show_dialog --msgbox "/boot/efi *MUST* be formatted FAT, aborting." 0 0
     exit 1
   fi
-  #run grub2-install
+  #run grub-install
   #copy shim into place
   #remove efi boot to grub
   #tell efi to boot shim (which boots grub)
   if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
-    chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=x86_64-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+    chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=x86_64-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
     cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
     cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
     if [ "${efivars}" = "1" ]; then
@@ -218,7 +218,7 @@ if [ -d /sys/firmware/efi ]; then
       efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTX64.EFI' --label "Pentoo" --verbose || exit $?
     fi
   elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
-    chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=i386-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+    chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=i386-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
     cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTIA32.EFI || exit $?
     cp "${DESTDIR}"/usr/share/shim/mmia32.efi "${DESTDIR}"/boot/efi/Pentoo/mmia32.efi || exit $?
     if [ "${efivars}" = "1" ]; then
@@ -228,7 +228,7 @@ if [ -d /sys/firmware/efi ]; then
       efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTIA32.EFI' --label "Pentoo" --verbose || exit $?
     fi
   else
-    chroot "${DESTDIR}" /usr/sbin/grub2-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+    chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
     cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
     cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
     if [ "${efivars}" = "1" ]; then
@@ -264,7 +264,7 @@ if [ -d /sys/firmware/efi ]; then
   fi
   chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || exit $?
 else
-	chroot "${DESTDIR}" /usr/sbin/grub2-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+	chroot "${DESTDIR}" /usr/sbin/grub-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
 fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
 #okay so wow, this is ugly
@@ -277,7 +277,7 @@ rm -rf "${DESTDIR}/run/*"
 mount --make-shared /run
 mount --rbind --make-rslave /run "${DESTDIR}/run"
 show_dialog --infobox "Grub bootloader is being configured for booting. Please stand by..." 4 70
-chroot "${DESTDIR}" /usr/sbin/grub2-mkconfig -o /boot/grub/grub.cfg || exit $?
+chroot "${DESTDIR}" /usr/sbin/grub-mkconfig -o /boot/grub/grub.cfg || exit $?
 umount -R "${DESTDIR}/run"
 show_dialog --infobox "Stopping lvmetad, no longer needed. Please stand by..." 4 70
 /etc/init.d/lvmetad stop
