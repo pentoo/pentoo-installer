@@ -170,15 +170,15 @@ WHICHDIALOG="$(get_dialog)"
 
 # check if this boot was verified and warn the user to verify the checksums if not
 if ! grep -q verify /proc/cmdline; then
-	VERIFY="$(show_dialog \
-		--menu "This boot was not verified, it is HIGHLY suggested that you abort and boot with the verify option to ensure integrity. Abort?" \
-		0 0 0 \
-		'Yes' 'I will reboot and select verify from the boot menu' \
-		'No' 'I will continue and do not care about the risks')"
-	if [ "${VERIFY}" = "Yes" ]; then
-		printf "Installation aborted, please reboot and choose \"verify\" from the boot menu\n"
-		exit 1
+  show_dialog --msgbox "Integrity was not verified at boot, verification will happen now" 0 0
+  pushd /mnt/cdrom || exit 1
+  if b2sum -c isoroot_b2sums; then
+    show_dialog --msgbox "Integrity check passed" 0 0
+  else
+    show_dialog --msgbox "Integrity check failed, exiting installer." 0 0
+    exit 1
   fi
+  popd || exit 1
 fi
 
 ## start by exiting if the user doesn't have enough RAM for the install to work
