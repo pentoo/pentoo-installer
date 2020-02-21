@@ -116,7 +116,7 @@ auto_dmcrypt() {
 	done
 	# run rc-update, chroot must be mounted outside this function!
 	if [ "${_DO_RCUPDATE}" -eq 1 ]; then
-		chroot ${DESTDIR} /bin/bash <<EOF
+		chroot "${DESTDIR}" /bin/bash <<EOF
 rc-update add dmcrypt boot || exit $?
 rc-update add device-mapper boot || exit $?
 EOF
@@ -154,7 +154,7 @@ auto_fstab() {
 	# append entries from new configuration
 	if [ -n "${_CONF_LIST}" ]; then
 		#clear out the scary warnings about this being the fstab on a livecd
-		rm -f ${DESTDIR}/etc/fstab
+		rm -f "${DESTDIR}/etc/fstab"
 	fi
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
@@ -202,7 +202,7 @@ auto_fstab() {
 			_FSTAB_ITEM="${_FSTAB_ITEM} 2"
 		fi
 		# add to fstab
-		echo "${_FSTAB_ITEM}" >>${DESTDIR}/etc/fstab || return $?
+		echo "${_FSTAB_ITEM}" >> "${DESTDIR}/etc/fstab" || return $?
 		# END: fstab setup
 	done
 	return 0
