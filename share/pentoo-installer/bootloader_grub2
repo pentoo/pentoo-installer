@@ -110,6 +110,7 @@ CONFIG_ITEM=
 # get root partition
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
 PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+ROOT_UUID="UUID=$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partuuid')" || exit $?
 # root partition encrypted?
 CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
 CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'cryptname')" || exit $?
@@ -119,6 +120,7 @@ if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; 
 	# get boot partition
 	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
 	PART_BOOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
+	BOOT_UUID="UUID=$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partuuid')" || exit $?
 	#PART_GRUB="$(mapdev ${PART_BOOT})" || exit $?
 	#SUBDIR=
 	DISK_BOOT="$(get_parent_disk "${PART_BOOT}")" || exit $?
@@ -132,7 +134,7 @@ KERNEL_PARAMS=
 # get kernel version
 #KERNVER="$(getkernelversion)" || exit $?
 # get kernel params
-KERNEL_PARAMS="$(getkernelparams "${PART_ROOT}" "${PART_BOOT}" "${CRYPTTYPE}" "${CRYPTNAME}")" || exit $?
+KERNEL_PARAMS="$(getkernelparams "${ROOT_UUID}" "${BOOT_UUID}" "${CRYPTTYPE}" "${CRYPTNAME}")" || exit $?
 
 #GRUBMENU="${DESTDIR}/boot/grub/grub.conf"
 GRUBCONFIG="${DESTDIR}/etc/default/grub"

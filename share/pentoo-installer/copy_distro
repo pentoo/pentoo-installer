@@ -141,6 +141,7 @@ auto_fstab() {
 	local _ITEM=
 	# properties of FSspec
 	local _PARTITION=
+	local _PARTUUID=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
 	local _CRYPTTYPE=
@@ -158,11 +159,12 @@ auto_fstab() {
 	fi
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
+		_PARTUUID="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partuuid')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
 		_FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'filesystem')" || exit $?
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
-		_PARTPATH="${_PARTITION}"
+		_PARTPATH="${_PARTUUID}"
 		# normalize filesystem
 		if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
 			_FILESYSTEM="ext4"
@@ -202,6 +204,7 @@ auto_fstab() {
 			_FSTAB_ITEM="${_FSTAB_ITEM} 2"
 		fi
 		# add to fstab
+		echo "#${_PARTITION}" >> "${DESTDIR}/etc/fstab" || return $?
 		echo "${_FSTAB_ITEM}" >> "${DESTDIR}/etc/fstab" || return $?
 		# END: fstab setup
 	done

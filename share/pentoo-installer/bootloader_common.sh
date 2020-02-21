@@ -40,17 +40,19 @@ getkernelparams() {
 	local _CRYPTTYPE="${3}"
 	local _CRYPTNAME="${4}"
 	local _KERNEL_PARAMS=
+	local _COMMON_PARAMS=
 	_KERNEL_PARAMS="$(parse_kernel_cmdline)" || return $?
 	# encrypted root partition
+	_COMMON_PARAMS="console=tty1 net.ifnames=0 ro"
 	if [ "${_CRYPTTYPE}" != '' ]; then
-		_KERNEL_PARAMS="root=/dev/ram0 real_root=/dev/mapper/${_CRYPTNAME} dogpg crypt_root=${_ROOTPART} root_key=/${_CRYPTNAME}.gpg root_keydev=${_BOOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
+		_KERNEL_PARAMS="real_root=/dev/mapper/${_CRYPTNAME} dogpg crypt_root=${_ROOTPART} root_key=/${_CRYPTNAME}.gpg root_keydev=${_BOOTPART} ${_KERNEL_PARAMS} ${_COMMON_PARAMS}"
 	else
-		_KERNEL_PARAMS="root=/dev/ram0 real_root=${_ROOTPART} ${_KERNEL_PARAMS} console=tty1 net.ifnames=0 ro"
+		_KERNEL_PARAMS="real_root=${_ROOTPART} ${_KERNEL_PARAMS} ${_COMMON_PARAMS}"
 	fi
-  #wierd hack to disable amd memory encryption when nvidia is in use
-  if [ "$(uname -i)" = "AuthenticAMD" ] && grep -q nvidia /proc/modules; then
-    _KERNEL_PARAMS="${_KERNEL_PARAMS} mem_encrypt=off"
-  fi
+	#wierd hack to disable amd memory encryption when nvidia is in use
+	if [ "$(uname -i)" = "AuthenticAMD" ] && grep -q nvidia /proc/modules; then
+		_KERNEL_PARAMS="${_KERNEL_PARAMS} mem_encrypt=off"
+	fi
 	# print result
 	echo "${_KERNEL_PARAMS}"
 	return 0
