@@ -159,7 +159,7 @@ auto_fstab() {
 	fi
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
-		_PARTUUID="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partuuid')" || exit $?
+		_PARTUUID="UUID=$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partuuid')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
 		_FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'filesystem')" || exit $?
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
