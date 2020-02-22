@@ -11,10 +11,11 @@
 #   partition
 #   mountpoint
 #   filesystem
-#	crypttype (one of: 'swap', 'luks', 'luks-gpg', '')
+#   crypttype (one of: 'swap', 'luks', 'luks-gpg', '')
 #   format (0=no 1=yes)
 #   cryptname (name used by cryptsetup)
-#   partuuid (PARTUUID, *not* the UUID)
+#   uuid
+#   partuuid (PARTUUID, is *not* the UUID)
 #   cryptkey
 #
 #  mountpoint of a swap partition must be empty
@@ -37,7 +38,7 @@ source "${SHAREDIR}"/common.sh || exit $?
 # DEBUG_CHECKS if '1', then time-consuming extra checks are done
 readonly DEBUG_CHECKS=0
 
-readonly FSspec_DEFINITION=(partition mountpoint filesystem crypttype format cryptname partuuid cryptkey) || exit $?
+readonly FSspec_DEFINITION=(partition mountpoint filesystem crypttype format cryptname uuid partuuid cryptkey) || exit $?
 readonly CONFIG_SEPARATOR=':' || exit $?
 
 
@@ -59,10 +60,12 @@ FSspec_create() {
 	# check input
 	check_num_args "${FUNCNAME}" 5 $# || return $?
 	local _PARTUUID=
+	local _UUID
 	# set partuuid
 	_PARTUUID="$(blkid -s PARTUUID -o value "${1}")" || return $?
+	_UUID="$(blkid -s UUID -o value "${1}")" || return $?
 	# simply call the internal create function with empty strings for missing FSspec items
-	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "" "${_PARTUUID}" ""
+	FSspec_createfull "${1}" "${2}" "${3}" "${4}" "${5}" "" "${_UUID}" "${_PARTUUID}" ""
 }
 
 # FSspec_createfull()
@@ -83,8 +86,9 @@ FSspec_createfull() {
 	local _CRYPTTYPE="${4}"
 	local _FORMAT="${5}"
 	local _CRYPTNAME="${6}"
-	local _PARTUUID="${7}"
-	local _CRYPTKEY="${8}"
+	local _UUID="${7}"
+	local _PARTUUID="${8}"
+	local _CRYPTKEY="${9}"
 	# check values for spaces or delimiter char
 	while (( "$#" )); do
 		if echo "${1}" | grep -q "[[:space:]${CONFIG_SEPARATOR}'\"]"; then
@@ -157,6 +161,8 @@ FSspec_createfull() {
 	echo -n "format${CONFIG_SEPARATOR}${_FORMAT}"
 	echo -n "${CONFIG_SEPARATOR}"
 	echo -n "cryptname${CONFIG_SEPARATOR}${_CRYPTNAME}"
+	echo -n "${CONFIG_SEPARATOR}"
+	echo -n "uuid${CONFIG_SEPARATOR}${_UUID}"
 	echo -n "${CONFIG_SEPARATOR}"
 	echo -n "partuuid${CONFIG_SEPARATOR}${_PARTUUID}"
 	echo -n "${CONFIG_SEPARATOR}"
@@ -330,6 +336,7 @@ FSspec_parse() {
 		local _CRYPTTYPE=
 		local _FORMAT=
 		local _CRYPTNAME=
+		local _UUID=
 		local _PARTUUID=
 		local _CRYPTKEY=
 		local _CHECKKEY=
@@ -356,8 +363,9 @@ FSspec_parse() {
 		_CRYPTTYPE="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f8)" || return $?
 		_FORMAT="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f10)" || return $?
 		_CRYPTNAME="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f12)" || return $?
-		_PARTUUID="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f14)" || return $?
-		_CRYPTKEY="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f16)" || return $?
+		_UUID="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f14)" || return $?
+		_PARTUUID="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f16)" || return $?
+		_CRYPTKEY="$(echo "${_ITEM}" | cut -d "${CONFIG_SEPARATOR}" -f18)" || return $?
 		# convert boolean values to 0 or 1
 		[ "${_FORMAT}" != '1' ] && _FORMAT=0
 		# validate
@@ -368,6 +376,7 @@ FSspec_parse() {
 			"${_CRYPTTYPE}" \
 			"${_FORMAT}" \
 			"${_CRYPTNAME}" \
+			"${_UUID}" \
 			"${_PARTUUID}" \
 			"${_CRYPTKEY}" \
 			1>/dev/null \
@@ -386,6 +395,8 @@ FSspec_parse() {
 				echo "${_FORMAT}";;
 			"cryptname")
 				echo "${_CRYPTNAME}";;
+			"uuid")
+				echo "${_UUID}";;
 			"partuuid")
 				echo "${_PARTUUID}";;
 			"cryptkey")
@@ -410,10 +421,12 @@ FSspec_parse() {
 				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f10 || return $? ;;
 			"cryptname")
 				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f12 || return $? ;;
-			"partuuid")
+			"uuid")
 				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f14 || return $? ;;
-			"cryptkey")
+			"partuuid")
 				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f16 || return $? ;;
+			"cryptkey")
+				echo "${1}" | cut -d "${CONFIG_SEPARATOR}" -f18 || return $? ;;
 			*)
 				echo "Unexpected varname '${2}' in ${FUNCNAME}()" 1>&2
 				return 1 ;;
@@ -445,6 +458,7 @@ FSspec_setvalue() {
 	local _CRYPTTYPE=
 	local _FORMAT=
 	local _CRYPTNAME=
+	local _UUID=
 	local _PARTUUID=
 	local _CRYPTKEY=
 	# parse the item values
@@ -454,6 +468,7 @@ FSspec_setvalue() {
 	_CRYPTTYPE="$(FSspec_parse "${_ITEM}" 'crypttype')" || return $?
 	_FORMAT="$(FSspec_parse "${_ITEM}" 'format')" || return $?
 	_CRYPTNAME="$(FSspec_parse "${_ITEM}" 'cryptname')" || return $?
+	_UUID="$(FSspec_parse "${_ITEM}" 'uuid')" || return $?
 	_PARTUUID="$(FSspec_parse "${_ITEM}" 'partuuid')" || return $?
 	_CRYPTKEY="$(FSspec_parse "${_ITEM}" 'cryptkey')" || return $?
 	# replace desired value
@@ -470,6 +485,8 @@ FSspec_setvalue() {
 			_FORMAT="${_VARVALUE}" ;;
 		"cryptname")
 			_CRYPTNAME="${_VARVALUE}" ;;
+		"uuid")
+			_UUID="${_VARVALUE}" ;;
 		"partuuid")
 			_PARTUUID="${_VARVALUE}" ;;
 		"cryptkey")
@@ -486,6 +503,7 @@ FSspec_setvalue() {
 		"${_CRYPTTYPE}" \
 		"${_FORMAT}" \
 		"${_CRYPTNAME}" \
+		"${_UUID}" \
 		"${_PARTUUID}" \
 		"${_CRYPTKEY}" \
 		|| return $?
@@ -555,11 +573,10 @@ FSspec_mountall() {
 	local _CRYPTTYPE=
 	local _FORMAT=
 	local _CRYPTNAME=
+	local _UUID=
 	local _PARTUUID=
 	local _CRYPTKEY=
 	local _PARTPATH=
-	local _UUID=
-	_UUID="$(uuidgen)" || return $?
 	# check if mountpoint '/' exists
 	if ! FSspec_list_haskeyvalue "${_CONFIG_LIST}" 'mountpoint' '/'; then
 		echo "ERROR: Root partition (with mountpoint '/') not found." 1>&2
@@ -574,6 +591,7 @@ FSspec_mountall() {
 		_FORMAT="$(FSspec_parse "${_CONFIG_ITEM}" 'format')" || return $?
 		_CRYPTTYPE="$(FSspec_parse "${_CONFIG_ITEM}" 'crypttype')" || return $?
 		_CRYPTNAME="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptname')" || return $?
+		_UUID="$(FSspec_parse "${_CONFIG_ITEM}" 'uuid')" || return $?
 		_PARTUUID="$(FSspec_parse "${_CONFIG_ITEM}" 'partuuid')" || return $?
 		_CRYPTKEY="$(FSspec_parse "${_CONFIG_ITEM}" 'cryptkey')" || return $?
 		_PARTPATH="${_PARTITION}"
