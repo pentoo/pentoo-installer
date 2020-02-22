@@ -218,7 +218,7 @@ fi
 
 # check if this boot was verified and warn the user to verify the checksums if not
 if ! grep -q verify /proc/cmdline; then
-  show_dialog --msgbox "Integrity was not verified at boot, verification will happen now" 0 0
+  show_dialog --infobox "Integrity was not verified at boot, verification will happen now" 0 0
   pushd /mnt/cdrom || exit 1
   if ! b2sum -c isoroot_b2sums; then
     show_dialog --msgbox "Integrity check failed, exiting installer." 0 0
