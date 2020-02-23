@@ -149,9 +149,6 @@ FSspec_createfull() {
 		echo "error parsing config, partition '${_PARTITION}' does not have expected partuuid '${_PARTUUID}'" 1>&2
 		return 1
 	fi
-	if [ -z "${_UUID}" ]; then
-		_UUID="$(blkid -s UUID -o value ${_PARTITION})"
-	fi
 	# everything ok, write to STDOUT and return 0
 	echo -n "partition${CONFIG_SEPARATOR}${_PARTITION}"
 	echo -n "${CONFIG_SEPARATOR}"
