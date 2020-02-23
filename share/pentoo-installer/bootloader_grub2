@@ -110,7 +110,7 @@ CONFIG_ITEM=
 # get root partition
 CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/')" || exit $?
 PART_ROOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
-ROOT_UUID="UUID=$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partuuid')" || exit $?
+ROOT_UUID="UUID=$(blkid -S UUID -o value ${PART_ROOT})" || exit $?
 # root partition encrypted?
 CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'crypttype')" || exit $?
 CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'cryptname')" || exit $?
@@ -120,7 +120,7 @@ if "${SHAREDIR}"/FSspec list_haskeyvalue "${CONFIG_LIST}" 'mountpoint' '/boot'; 
 	# get boot partition
 	CONFIG_ITEM="$("${SHAREDIR}"/FSspec listfind "${CONFIG_LIST}" 'mountpoint' '/boot')" || exit $?
 	PART_BOOT="$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partition')" || exit $?
-	BOOT_UUID="UUID=$("${SHAREDIR}"/FSspec parse "${CONFIG_ITEM}" 'partuuid')" || exit $?
+	BOOT_UUID="UUID=$(blkid -S UUID -o value ${PART_BOOT})" || exit $?
 	#PART_GRUB="$(mapdev ${PART_BOOT})" || exit $?
 	#SUBDIR=
 	DISK_BOOT="$(get_parent_disk "${PART_BOOT}")" || exit $?

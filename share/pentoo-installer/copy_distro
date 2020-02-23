@@ -159,20 +159,21 @@ auto_fstab() {
 	fi
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
-		_PARTUUID="UUID=$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partuuid')" || exit $?
+		_PARTUUID="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partuuid')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
 		_FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'filesystem')" || exit $?
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
-		_PARTPATH="${_PARTUUID}"
 		# normalize filesystem
 		if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
 			_FILESYSTEM="ext4"
 		elif [ "${_FILESYSTEM}" = "fat32" ]; then
 			_FILESYSTEM="vfat"
 		fi
-		if [ "${_CRYPTTYPE}" != '' ]; then
-			_PARTPATH="/dev/mapper/${_CRYPTNAME}"
+		if [ -n "${_CRYPTTYPE}" ]; then
+			_PARTPATH="UUID=$(blkid -s UUID -o value /dev/mapper/${_CRYPTNAME})"
+		else
+			_PARTPATH="UUID=$(blkid -s UUID -o value ${_PARTITION})"
 		fi
 		# START: fstab setup
 		# start defining fstab item
@@ -204,7 +205,11 @@ auto_fstab() {
 			_FSTAB_ITEM="${_FSTAB_ITEM} 2"
 		fi
 		# add to fstab
-		echo "#${_PARTITION}" >> "${DESTDIR}/etc/fstab" || return $?
+		if [ -n "${_CRYPTTYPE}" ]; then
+			echo "#/dev/mapper/${_CRYPTNAME}" >> "${DESTDIR}/etc/fstab" || return $?
+		else
+			echo "#${_PARTITION}" >> "${DESTDIR}/etc/fstab" || return $?
+		fi
 		echo "${_FSTAB_ITEM}" >> "${DESTDIR}/etc/fstab" || return $?
 		# END: fstab setup
 	done
