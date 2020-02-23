@@ -76,7 +76,7 @@ FSspec_create() {
 #
 FSspec_createfull() {
 	# check input
-	check_num_args "${FUNCNAME}" 9 $# || return $?
+	check_num_args "${FUNCNAME}" 8 $# || return $?
 	local _PARTITION="${1}"
 	local _MOUNTPOINT="${2}"
 	local _FILESYSTEM="${3}"
