@@ -171,9 +171,17 @@ auto_fstab() {
 			_FILESYSTEM="vfat"
 		fi
 		if [ -n "${_CRYPTTYPE}" ]; then
-			_PARTPATH="UUID=$(blkid -s UUID -o value /dev/mapper/${_CRYPTNAME})"
+			if [ "${_FILESYSTEM}" = 'swap' ]; then
+				_PARTPATH="/dev/mapper/${CRYPTNAME}"
+			else
+				_PARTPATH="UUID=$(blkid -s UUID -o value /dev/mapper/${_CRYPTNAME})"
+			fi
 		else
-			_PARTPATH="UUID=$(blkid -s UUID -o value ${_PARTITION})"
+			#if [ "${_FILESYSTEM}" = 'swap' ]; then
+			#	_PARTPATH="${_PARTITION}"
+			#else
+				_PARTPATH="UUID=$(blkid -s UUID -o value ${_PARTITION})"
+			#fi
 		fi
 		# START: fstab setup
 		# start defining fstab item
