@@ -50,7 +50,7 @@ partition_crypt_setup() {
 			# TODO swap key is shorter then before with -d /dev/urandom and
 			# Maximum keyfile size: 8192kB
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
-			cryptsetup -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			cryptsetup --batch-mode -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}" || return $?
 			# clean up
@@ -60,10 +60,10 @@ partition_crypt_setup() {
 			show_dialog --msgbox "We will now generate a GPG-encrypted luks key for ${_PARTITION}" 0 0 || return $?
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
 			su pentoo -c "gpg --symmetric --cipher-algo aes256 --armor /tmp/\"${_UUID}\"" || return $?
-			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
+			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup --batch-mode -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
 			# TODO, is this needed? Seems not
 			# show_dialog --msgbox "Please enter the GPG key for ${_PARTITION} (last time :-)" 0 0 || return $?
-			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup --batch-mode open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}".asc | base64 -w0 || return $?
 			# clean up
@@ -72,8 +72,8 @@ partition_crypt_setup() {
 			;;
 		'luks')
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
-			cat /tmp/"${_UUID}" | cryptsetup -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
-			cat /tmp/"${_UUID}" | cryptsetup open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			cat /tmp/"${_UUID}" | cryptsetup --batch-mode -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
+			cat /tmp/"${_UUID}" | cryptsetup --batch-mode open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}" || return $?
 			# clean up
