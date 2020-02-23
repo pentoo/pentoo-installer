@@ -141,7 +141,7 @@ auto_fstab() {
 	local _ITEM=
 	# properties of FSspec
 	local _PARTITION=
-	local _PARTUUID=
+	local _UUID=
 	local _MOUNTPOINT=
 	local _FILESYSTEM=
 	local _CRYPTTYPE=
@@ -159,12 +159,12 @@ auto_fstab() {
 	fi
 	for _ITEM in ${_CONF_LIST}; do
 		_PARTITION="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partition')" || exit $?
-		_PARTUUID="UUID=$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'partuuid')" || exit $?
+		_UUID="UUID=$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'uuid')" || exit $?
 		_MOUNTPOINT="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'mountpoint')" || exit $?
 		_FILESYSTEM="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'filesystem')" || exit $?
 		_CRYPTTYPE="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'crypttype')" || exit $?
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
-		_PARTPATH="${_PARTUUID}"
+		_PARTPATH="${_UUID}"
 		# normalize filesystem
 		if [ "${_FILESYSTEM}" = "ext4-nojournal" ]; then
 			_FILESYSTEM="ext4"
