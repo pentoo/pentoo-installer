@@ -242,8 +242,8 @@ MODULE=
 "${SHAREDIR}"/gauge_unsquashfs '/mnt/cdrom/image.squashfs' "${DESTDIR}" "Uncompressing base system" || exit $?
 
 # squashfs files created by flushchanges are ignored - they may contain whiteout files!
-# filenames used by flushchanged (old/new syntax): z_changes-* zz_changes-*
-for MODULE in $(ls -1 --color=never /mnt/cdrom/modules/*.lzm); do
+# filenames used by flushchanges (old/new syntax): z_changes-* zz_changes-*
+for MODULE in $(ls -1 --color=never /mnt/cdrom/modules/*.lzm | grep -v -e '/z_' -e '/zz_'); do
 	"${SHAREDIR}"/gauge_unsquashfs "${MODULE}" "${DESTDIR}" "Uncompressing ${MODULE%.lzm}" || exit $?
 done
 # Unconditionally rsync the minimum we expect for a working system
