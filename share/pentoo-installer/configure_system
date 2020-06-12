@@ -206,7 +206,7 @@ while true; do
 			# 4. copy root profile
 			# run rsync with nice dialog
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
-				&& chroot "${DESTDIR}" useradd -m -G users,wheel,audio,cdrom,video,cdrw,usb,plugdev,wireshark,kismet,android ${USERNAME} \
+				&& chroot "${DESTDIR}" useradd -m -G android,audio,cdrom,cdrw,kismet,pcscd,plugdev,portage,usb,users,uucp,video,wheel,wireshark ${USERNAME} \
 				&& setpassword "${USERNAME}" 2> /dev/null \
 				&& show_dialog_rsync '-r --progress --exclude=.svn --exclude=.subversion' \
 					"${DESTDIR}"'/root/.[!.]*' \
