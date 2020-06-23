@@ -172,7 +172,7 @@ auto_fstab() {
 		fi
 		if [ -n "${_CRYPTTYPE}" ]; then
 			if [ "${_FILESYSTEM}" = 'swap' ]; then
-				_PARTPATH="/dev/mapper/${CRYPTNAME}"
+				_PARTPATH="/dev/mapper/${_CRYPTNAME}"
 			else
 				_PARTPATH="UUID=$(blkid -s UUID -o value /dev/mapper/${_CRYPTNAME})"
 			fi
