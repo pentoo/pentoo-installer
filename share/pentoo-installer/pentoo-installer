@@ -139,6 +139,7 @@ checkvm() {
 # INSTALLER_HEADLESS: emtpy=false
 export INSTALLER_HEADLESS=
 export INSTALLER_CONFIGFILE=
+export INSTALLER_UNSAFE=
 
 # check passed arguments
 while [[ $# -gt 0 ]]; do
@@ -154,6 +155,9 @@ while [[ $# -gt 0 ]]; do
   case "${1}" in
     --headless)
       export INSTALLER_HEADLESS=1
+      shift ;;
+    --unsafe-skip-verify)
+      export INSTALLER_UNSAFE=1
       shift ;;
     --config-file)
       export INSTALLER_CONFIGFILE="${2}"
@@ -217,7 +221,7 @@ if [ "${RAMSIZE}" -le "1500" ]; then
 fi
 
 # check if this boot was verified and warn the user to verify the checksums if not
-if ! grep -q verify /proc/cmdline; then
+if [ -z ${INSTALLER_UNSAFE} ] && ! grep -q verify /proc/cmdline; then
   sleep 1
   show_dialog --infobox "Integrity was not verified at boot, verification will happen now" 0 0
   sleep 3
