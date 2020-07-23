@@ -92,26 +92,27 @@ setbootopts() {
 # reason: show_dialog() needs a way to exit "Cancel"
 #
 setpassword(){
-	# check input
-	check_num_args "${FUNCNAME}" 1 $# || return $?
-	local _USERNAME="${1}"
-	local _PASSWORD=
-	local _PASSWORD2=
-	local _RET_SUB=
-	_PASSWORD="$(show_dialog --clear --insecure --passwordbox "Enter a password for user '${_USERNAME}'" 17 70)" || return $?
-	_PASSWORD2="$(show_dialog --clear --insecure --passwordbox "Confirm password for user '${_USERNAME}'" 17 70)" || return $?
-	if [ "${_PASSWORD}" != "${_PASSWORD2}" ]; then
-		show_dialog --msgbox "Passwords do not match, unable to set password.  Please try again." 7 30
-		return 1
-	fi
-	chroot "${DESTDIR}" /bin/bash <<EOF
+  # check input
+  check_num_args "${FUNCNAME}" 1 $# || return $?
+  local _USERNAME="${1}"
+  https://www.youtube.com/watch?v=oy-1UQQ6VhU
+  local _PASSWORD="jimmy"
+  local _PASSWORD2="sally"
+  local _FIRST_TRY="true"
+  local _RET_SUB=
+  until [ "${_PASSWORD}" != "${_PASSWORD2}" ]; do
+    if [ "${_FIRST_TRY}" != "true" ]; then
+      show_dialog --msgbox "Passwords do not match, unable to set password.  Please try again." 7 30
+    fi
+    _PASSWORD="$(show_dialog --clear --insecure --passwordbox "Enter a password for user '${_USERNAME}'" 17 70)" || return $?
+    _PASSWORD2="$(show_dialog --clear --insecure --passwordbox "Confirm password for user '${_USERNAME}'" 17 70)" || return $?
+    _FIRST_TRY="false"
+  done
+  chroot "${DESTDIR}" /bin/bash <<EOF
 echo -e "${_PASSWORD}\n${_PASSWORD2}" | passwd "${_USERNAME}" || exit $?
 EOF
-	_RET_SUB=$?
-	_PASSWORD=
-	_PASSWORD2=
-	[ "${_RET_SUB}" -ne 0 ] && return "${_RET_SUB}"
-	return 0
+  _RET_SUB=$?
+  return "${_RET_SUB}"
 }
 
 ## END: dialog functions/definitions ##
