@@ -181,15 +181,17 @@ while true; do
 			RETSUB=$?
 			;;
 		"Set-Username")
+			# find username with UID=1000
+			OLD_USERNAME="$(chroot "${DESTDIR}" id --name --user --zero 1000)"
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
-				&& chroot "${DESTDIR}" usermod -l ${USERNAME} pentoo >> ${LOG} \
+				&& chroot "${DESTDIR}" usermod -l ${USERNAME} "${OLD_USERNAME}" >> ${LOG} \
 				&& chroot "${DESTDIR}" usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
 				&& setpassword "${USERNAME}" 2> /dev/null
 				RETSUB=$?
 				if [ "${RETSUB}" = 0 ]; then
-					[ -w "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks" ] && sed -i "s#/home/pentoo#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks"
-					[ -d "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/" ] && find "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/" -name "icons.*.rc" -print0 | xargs -0 -I {} -P 0 sed -i -e "s#/home/pentoo#/home/${USERNAME}#" {}
-					[ -d "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/" ] && find "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/" -name "*.xml" -print0 | xargs -0 -I {} -P 0 sed -i "s#/home/pentoo#/home/${USERNAME}#" {}
+					[ -w "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks" ] && sed -i "s#/home/${OLD_USERNAME}#/home/${USERNAME}#" "${DESTDIR}/home/${USERNAME}/.config/gtk-3.0/bookmarks"
+					[ -d "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/" ] && find "${DESTDIR}/home/${USERNAME}/.config/xfce4/desktop/" -name "icons.*.rc" -print0 | xargs -0 -I {} -P 0 sed -i -e "s#/home/${OLD_USERNAME}#/home/${USERNAME}#" {}
+					[ -d "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/" ] && find "${DESTDIR}/home/${USERNAME}/.config/xfce4/xfconf/xfce-perchannel-xml/" -name "*.xml" -print0 | xargs -0 -I {} -P 0 sed -i "s#/home/${OLD_USERNAME}#/home/${USERNAME}#" {}
 				fi
 			;;
 		"Change-Hostname")
