@@ -95,12 +95,11 @@ setpassword(){
   # check input
   check_num_args "${FUNCNAME}" 1 $# || return $?
   local _USERNAME="${1}"
-  https://www.youtube.com/watch?v=oy-1UQQ6VhU
   local _PASSWORD="jimmy"
   local _PASSWORD2="sally"
   local _FIRST_TRY="true"
   local _RET_SUB=
-  until [ "${_PASSWORD}" != "${_PASSWORD2}" ]; do
+  until [ "${_PASSWORD}" == "${_PASSWORD2}" ]; do
     if [ "${_FIRST_TRY}" != "true" ]; then
       show_dialog --msgbox "Passwords do not match, unable to set password.  Please try again." 7 30
     fi
