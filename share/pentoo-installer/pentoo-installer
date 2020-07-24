@@ -14,9 +14,16 @@
 # reason: show_dialog() needs a way to exit "Cancel"
 #
 
-#this really shouldn't fail, but somehow it did
-#readonly SHAREDIR="$(dirname ${0})/../share/pentoo-installer"
-readonly SHAREDIR="/usr/share/pentoo-installer"
+# This introspects the location of this script (pentoo-installer) in relation to
+# the structure of this repository and then builds a deterministic path to its
+# base location.
+#
+# It should be noted that both "dirname" and "realname" may encounter issues
+# when the installer is called with a path containing spaces in the event that
+# instances of ${SHAREDIR} are not properly quoted.  This combination of both
+# "dirname" and "realpath" should prove more robust to nuances with the
+# strucutres of paths in the future.
+readonly SHAREDIR="$(dirname "$(realpath -s "$0")")"
 
 # source common variables, functions and error handling
 # also get functions to save settings
