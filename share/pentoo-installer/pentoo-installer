@@ -42,6 +42,27 @@ fi
 checkvm() {
   vm=""
   vm_from=""
+  if [ -d /sys/bus/pci ] || [ -d /sys/bus/pci_express ] || [ -d /proc/bus/pci ]; then
+    PCI_DEVICES=0
+    if [ -d /sys/bus/pci/devices ] && [ "$(ls -1 /sys/bus/pci/devices 2>/dev/null | wc -l)" != '0' ]; then
+      PCI_DEVICES=1
+    elif [ -r /proc/bus/pci/devices ] && [ -n "$(cat /proc/bus/pci/devices 2>/dev/null)" ]; then
+      PCI_DEVICES=1
+    elif [ -d /sys/bus/pci_express/devices ] && [ "$(ls -1 /sys/bus/pci_express/devices 2>/dev/null | wc -l)" != '0' ]; then
+      PCI_DEVICES=1
+    fi
+    if [ ${PCI_DEVICES} -eq 0 ]; then
+      LSPCI=0
+    elif [ ! -x "$(command -v lspci 2>&1)" ]; then
+      printf "Please install lspci from your distro's package manager.\n"
+      exit 1
+    else
+      LSPCI=1
+    fi
+  else
+    LSPCI=0
+  fi
+
 	#this entire section of code is completely stolen from Carlos Perez's work in checkvm.rb for metasploit and rewritten (poorly) in sh
 	#check loaded modules
 	if [ -x "$(command -v lsmod 2>&1)" ]; then
