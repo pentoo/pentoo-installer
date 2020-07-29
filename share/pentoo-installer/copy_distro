@@ -254,7 +254,7 @@ show_dialog_rsync '-av --progress --exclude=/root/.bashrc' \
 show_dialog_rsync '-av --progress --exclude=/home/pentoo/.bashrc' \
   '/home/pentoo/*' "${DESTDIR}/home/pentoo/" "Syncing /home/pentoo ..." || exit $?
 show_dialog_rsync '-av --progress' \
-  "/lib/modules/$(uname -r)/*" "${DESTDIR}/lib/modules/$(uname -r)/" "Syncing kernel modules ..." || exit $?
+  "/lib/modules/*" "${DESTDIR}/lib/modules/" "Syncing kernel modules ..." || exit $?
 show_dialog_rsync '-av --progress' \
   "/var/lib/portage/*" "${DESTDIR}/var/lib/portage/" "Syncing portage information ..." || exit $?
 show_dialog_rsync '-av --progress' \
@@ -304,7 +304,7 @@ for i in $(ls -1 /mnt/overlay/.upper); do
   elif [ "${i}" = "home" ]; then
     tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
   elif [ "${i}" = "lib" ] || [ "${i}" = "lib64" ]; then
-    tmp_unsyncd=$(du -sh --exclude=modules/$(uname -r)/build --exclude=modules/$(uname -r)/source --exclude=rc/console/unicode "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
+    tmp_unsyncd=$(du -sh --exclude=modules --exclude=rc/console/unicode "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
   elif [ "${i}" = "sbin" ]; then
     tmp_unsyncd=$(du -sh --exclude=pentoo-installer "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
   elif [ "${i}" = "usr" ]; then
