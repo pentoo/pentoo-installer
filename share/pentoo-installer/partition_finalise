@@ -169,7 +169,6 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 			vfat)		mkfs.vfat ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			fat32)		mkfs.fat -F32 -n Pentoo ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			f2fs)   mkfs.f2fs ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
-			reiserfs)  mkfs.reiserfs ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			# swap
 			swap)		mkswap ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			*)
