@@ -157,7 +157,14 @@ while [ "${CONFIG_INDEX}" -lt "${#CONFIG_ARRAY[@]}" ]; do
 	# format partition
 	if [ "${FORMAT}" -eq 1 ]; then
 		case ${FILESYSTEM} in
-			btrfs)		mkfs.btrfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
+			btrfs)
+				if lsblk -nP -oSIZE ${PARTPATH} | grep -q 'G'; then
+					mkfs.btrfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?
+				else
+					#if the user selects btrfs for a small partition, eg /boot, --mixed mode is desired by no longer default
+					mkfs.btrfs --mixed -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?
+				fi
+			;;
 			xfs)		mkfs.xfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			jfs)		mkfs.jfs -q ${PARTPATH} >>"${LOG}" 2>&1 || exit $? ;;
 			reiserfs)	mkreiserfs -f ${PARTPATH} >>"${LOG}" 2>&1 || exit $?;;

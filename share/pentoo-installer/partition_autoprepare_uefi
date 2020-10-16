@@ -69,7 +69,7 @@ partition_getpartitionsize() {
 		elif [ "${_PART_SIZE}" -eq "0" -o "${_PART_SIZE}" -lt "${_MIN_SIZE}" ]; then
 				show_dialog --msgbox "ERROR: You have entered a too small size, please enter again." 0 0
 		else
-			# everyhing ok, print ot STDOUT and return
+			# everything ok, print ot STDOUT and return
 			echo "${_PART_SIZE}"
 			return $?
 		fi
@@ -190,5 +190,5 @@ FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}3" "" "swap" "" "1")" || exit $?
 echo -n "${FSSPEC}"
 echo -n ' '
 # root partition
-FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}2" "/" "ext4" "" "1")" || exit $?
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}2" "/" "btrfs" "" "1")" || exit $?
 echo "${FSSPEC}"

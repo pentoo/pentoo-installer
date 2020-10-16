@@ -193,5 +193,5 @@ FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}3" "" "swap" "" "1")" || exit $?
 echo -n "${FSSPEC}"
 echo -n ' '
 # root partition
-FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}2" "/" "ext4" "" "1")" || exit $?
+FSSPEC="$("${SHAREDIR}"/FSspec create "${DISC}2" "/" "btrfs" "" "1")" || exit $?
 echo "${FSSPEC}"
