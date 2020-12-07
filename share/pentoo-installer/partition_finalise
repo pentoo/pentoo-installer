@@ -57,7 +57,7 @@ partition_crypt_setup() {
 			rm /tmp/"${_UUID}" || return $?
 			;;
 		'luks-gpg')
-			show_dialog --msgbox "We will now generate a GPG-encrypted luks key for ${_PARTITION}" 0 0 || return $?
+			show_dialog --infobox "Now generating a GPG-encrypted luks key for ${_PARTITION}" 0 0
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
 			su pentoo -c "gpg --symmetric --cipher-algo aes256 --armor /tmp/\"${_UUID}\"" || return $?
 			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup --batch-mode -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
