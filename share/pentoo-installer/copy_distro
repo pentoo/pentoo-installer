@@ -248,17 +248,17 @@ for MODULE in $(ls -1 --color=never /mnt/cdrom/modules/*.lzm | grep -v -e '/z_' 
 done
 # Unconditionally rsync the minimum we expect for a working system
 show_dialog_rsync '-av --progress' \
-  '/etc/*' "${DESTDIR}/etc/" "Syncing /etc ..." || exit $?
+  '/etc/' "${DESTDIR}/etc" "Syncing /etc ..." || exit $?
 show_dialog_rsync '-av --progress --exclude=/root/.bashrc' \
-  '/root/*' "${DESTDIR}/root/" "Syncing /root ..." || exit $?
+  '/root/' "${DESTDIR}/root" "Syncing /root ..." || exit $?
 show_dialog_rsync '-av --progress --exclude=/home/pentoo/.bashrc' \
-  '/home/pentoo/*' "${DESTDIR}/home/pentoo/" "Syncing /home/pentoo ..." || exit $?
+  '/home/pentoo/' "${DESTDIR}/home/pentoo" "Syncing /home/pentoo ..." || exit $?
 show_dialog_rsync '-av --progress' \
-  "/lib/modules/*" "${DESTDIR}/lib/modules/" "Syncing kernel modules ..." || exit $?
+  "/lib/modules/" "${DESTDIR}/lib/modules" "Syncing kernel modules ..." || exit $?
 show_dialog_rsync '-av --progress' \
-  "/var/lib/portage/*" "${DESTDIR}/var/lib/portage/" "Syncing portage information ..." || exit $?
+  "/var/lib/portage/" "${DESTDIR}/var/lib/portage" "Syncing portage information ..." || exit $?
 show_dialog_rsync '-av --progress' \
-  "/var/log/*" "${DESTDIR}/var/log/" "Syncing logs ..." || exit $?
+  "/var/log/" "${DESTDIR}/var/log" "Syncing logs ..." || exit $?
 if [ -d "/mnt/overlay/.upper/var/lib/NetworkManager" ]; then
   show_dialog_rsync '-av --progress' \
     "/var/lib/NetworkManager" "${DESTDIR}/var/lib/" "Syncing NetworkManager config ..." || exit $?
@@ -273,17 +273,17 @@ if [ -d "/mnt/overlay/.upper/var/lib/dhcpcd" ]; then
 fi
 if [ -d "/mnt/overlay/.upper/usr/portage" ]; then
   show_dialog_rsync '-av --progress' \
-    "/usr/portage/*" "${DESTDIR}/usr/portage/" "Syncing gentoo portage tree ..." || exit $?
+    "/usr/portage/" "${DESTDIR}/usr/portage" "Syncing gentoo portage tree ..." || exit $?
 fi
 #old repo location
 if [ -d "/mnt/overlay/.upper/var/lib/layman" ]; then
   show_dialog_rsync '-av --progress' \
-    "/var/lib/layman/*" "${DESTDIR}/var/lib/layman/" "Syncing pentoo overlay ..." || exit $?
+    "/var/lib/layman/" "${DESTDIR}/var/lib/layman" "Syncing pentoo overlay ..." || exit $?
 fi
 #new repo location
 if [ -d "/mnt/overlay/.upper/var/db/repos" ]; then
   show_dialog_rsync '-av --progress' \
-    "/var/db/repos/*" "${DESTDIR}/var/db/repos/" "Syncing pentoo overlay ..." || exit $?
+    "/var/db/repos/" "${DESTDIR}/var/db/repos" "Syncing pentoo overlay ..." || exit $?
 fi
 
 # check if we need to prompt user about syncing more things
