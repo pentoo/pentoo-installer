@@ -366,11 +366,11 @@ if [ -r /etc/inittab.old ]; then
   mv /etc/inittab.old /etc/inittab # || exit $?
 fi
 if [ -r /etc/issue.pentoo.logo ]; then
-  mv /etc/issue.pentoo.logo /etc/issue
+  cp /etc/issue.pentoo.logo /etc/issue
 elif [ -r /etc/issue.logo ]; then
-  mv /etc/issue.logo /etc/issue
+  cp /etc/issue.logo /etc/issue
 elif [ -r /etc/issue.old ]; then
-  mv /etc/issue.old /etc/issue
+  cp /etc/issue.old /etc/issue
 fi
 (eselect pinentry set pinentry-gtk-2 || eselect pinentry set pinentry-curses) || exit $?
 if [ -e /etc/init.d/halt.sh.orig ]; then
