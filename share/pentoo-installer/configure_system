@@ -42,10 +42,12 @@ setbootopts() {
 		else
 			_MENU_ITEMS+=("BootBluetooth"		"Bluetooth is currently disabled at boot, enable bluetooth?")
 		fi
-		if chroot "${DESTDIR}" rc-update show | grep xdm | grep default; then
+		if chroot "${DESTDIR}" rc-update show | grep display-manager | grep -q default; then
+			_MENU_ITEMS+=("BootConsole"	"Currently booting to X (display-manager/slim), switch to console for login?")
+		elif chroot "${DESTDIR}" rc-update show | grep xdm | grep -q default; then
 			_MENU_ITEMS+=("BootConsole"	"Currently booting to X (xdm/slim), switch to console for login?")
 		else
-			_MENU_ITEMS+=("BootX"		"Currently booting to console, switch to X for login (xdm/slim)?")
+			_MENU_ITEMS+=("BootX"		"Currently booting to console, switch to X for login (display-manager/slim)?")
 		fi
 		_MENU_ITEMS+=("DONE"			"Return to Configuration Menu" )
 
@@ -71,10 +73,18 @@ setbootopts() {
 				chroot "${DESTDIR}" rc-update add bluetooth default
 				;;
 			"BootConsole")
-				chroot "${DESTDIR}" rc-update del xdm default
+        if [ -x "${DESTDIR}/etc/init.d/display-manager" ]; then
+  				chroot "${DESTDIR}" rc-update del display-manager default
+        elif [ -x "${DESTDIR}/etc/init.d/xdm" ]; then
+  				chroot "${DESTDIR}" rc-update del xdm default
+        fi
 				;;
 			"BootX")
-				chroot "${DESTDIR}" rc-update add xdm default
+        if [ -x "${DESTDIR}/etc/init.d/display-manager" ]; then
+				  chroot "${DESTDIR}" rc-update add display-manager default
+        elif [ -x "${DESTDIR}/etc/init.d/xdm" ]; then
+				  chroot "${DESTDIR}" rc-update add xdm default
+        fi
 				;;
 		esac
 	done
