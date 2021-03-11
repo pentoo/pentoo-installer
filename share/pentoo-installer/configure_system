@@ -73,18 +73,18 @@ setbootopts() {
 				chroot "${DESTDIR}" rc-update add bluetooth default
 				;;
 			"BootConsole")
-        if [ -x "${DESTDIR}/etc/init.d/display-manager" ]; then
-  				chroot "${DESTDIR}" rc-update del display-manager default
-        elif [ -x "${DESTDIR}/etc/init.d/xdm" ]; then
-  				chroot "${DESTDIR}" rc-update del xdm default
-        fi
+				if [ -x "${DESTDIR}/etc/init.d/display-manager" ]; then
+					chroot "${DESTDIR}" rc-update del display-manager default
+				elif [ -x "${DESTDIR}/etc/init.d/xdm" ]; then
+					chroot "${DESTDIR}" rc-update del xdm default
+				fi
 				;;
 			"BootX")
-        if [ -x "${DESTDIR}/etc/init.d/display-manager" ]; then
-				  chroot "${DESTDIR}" rc-update add display-manager default
-        elif [ -x "${DESTDIR}/etc/init.d/xdm" ]; then
-				  chroot "${DESTDIR}" rc-update add xdm default
-        fi
+				if [ -x "${DESTDIR}/etc/init.d/display-manager" ]; then
+					chroot "${DESTDIR}" rc-update add display-manager default
+				elif [ -x "${DESTDIR}/etc/init.d/xdm" ]; then
+					chroot "${DESTDIR}" rc-update add xdm default
+				fi
 				;;
 		esac
 	done
