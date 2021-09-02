@@ -20,7 +20,7 @@
 #
 # It should be noted that both "dirname" and "realname" may encounter issues
 # when the installer is called with a path containing spaces in the event that
-# instances of ${SHAREDIR} are not properly quoted.  This combination of both
+# instances of ${SHAREDIR} are not properly quoted. This combination of both
 # "dirname" and "realpath" should prove more robust to nuances with the
 # strucutres of paths in the future.
 readonly SHAREDIR="$(dirname "$(realpath -s "$0")")"
@@ -30,38 +30,38 @@ readonly SHAREDIR="$(dirname "$(realpath -s "$0")")"
 source "${SHAREDIR}"/save_settings.sh || exit $?
 
 if [ -d /sys/firmware/efi ];then
-  if ! mountpoint -q -- /sys/firmware/efi/efivars ; then
-    if [ "$(uname -m)" = "i686" ] && [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
-      show_dialog --msgbox "STOP NOW.  You are installing 32 bit on a 64 bit system.  Not only do you not want to do that, but you will not have control over any efivars which makes booting...interesting.  What you want to do is install the amd64 verson of pentoo.  At worst you want to reboot and boot non-uefi to install in legacy mode.  You really really really don't want to continue." 0 0
-    else
-      show_dialog --msgbox "Something is wrong with your system and we are unable to mount efivars.  Please report this issue.  You like don't want to continue trying to install without active support." 0 0
-    fi
-  fi
+	if ! mountpoint -q -- /sys/firmware/efi/efivars ; then
+		if [ "$(uname -m)" = "i686" ] && [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
+			show_dialog --msgbox "STOP NOW. You are installing 32 bit on a 64 bit system. Not only do you not want to do that, but you will not have control over any efivars which makes booting...interesting. What you want to do is install the amd64 verson of pentoo. At worst you want to reboot and boot non-uefi to install in legacy mode. You really really really don't want to continue." 0 0
+		else
+			show_dialog --msgbox "Something is wrong with your system and we are unable to mount efivars. Please report this issue. You like don't want to continue trying to install without active support." 0 0
+		fi
+	fi
 fi
 
 checkvm() {
-  vm=""
-  vm_from=""
-  if [ -d /sys/bus/pci ] || [ -d /sys/bus/pci_express ] || [ -d /proc/bus/pci ]; then
-    PCI_DEVICES=0
-    if [ -d /sys/bus/pci/devices ] && [ "$(ls -1 /sys/bus/pci/devices 2>/dev/null | wc -l)" != '0' ]; then
-      PCI_DEVICES=1
-    elif [ -r /proc/bus/pci/devices ] && [ -n "$(cat /proc/bus/pci/devices 2>/dev/null)" ]; then
-      PCI_DEVICES=1
-    elif [ -d /sys/bus/pci_express/devices ] && [ "$(ls -1 /sys/bus/pci_express/devices 2>/dev/null | wc -l)" != '0' ]; then
-      PCI_DEVICES=1
-    fi
-    if [ ${PCI_DEVICES} -eq 0 ]; then
-      LSPCI=0
-    elif [ ! -x "$(command -v lspci 2>&1)" ]; then
-      printf "Please install lspci from your distro's package manager.\n"
-      exit 1
-    else
-      LSPCI=1
-    fi
-  else
-    LSPCI=0
-  fi
+	vm=""
+	vm_from=""
+	if [ -d /sys/bus/pci ] || [ -d /sys/bus/pci_express ] || [ -d /proc/bus/pci ]; then
+		PCI_DEVICES=0
+		if [ -d /sys/bus/pci/devices ] && [ "$(ls -1 /sys/bus/pci/devices 2>/dev/null | wc -l)" != '0' ]; then
+			PCI_DEVICES=1
+		elif [ -r /proc/bus/pci/devices ] && [ -n "$(cat /proc/bus/pci/devices 2>/dev/null)" ]; then
+			PCI_DEVICES=1
+		elif [ -d /sys/bus/pci_express/devices ] && [ "$(ls -1 /sys/bus/pci_express/devices 2>/dev/null | wc -l)" != '0' ]; then
+			PCI_DEVICES=1
+		fi
+		if [ ${PCI_DEVICES} -eq 0 ]; then
+			LSPCI=0
+		elif [ ! -x "$(command -v lspci 2>&1)" ]; then
+			printf "Please install lspci from your distro's package manager.\n"
+			exit 1
+		else
+			LSPCI=1
+		fi
+	else
+		LSPCI=0
+	fi
 
 	#this entire section of code is completely stolen from Carlos Perez's work in checkvm.rb for metasploit and rewritten (poorly) in sh
 	#check loaded modules
@@ -118,7 +118,7 @@ checkvm() {
 	# Check using lscpu
 	if [ -z "${vm_from}" ]; then
 		if [ -x "$(command -v lscpu 2>&1)" ]; then
-                        lscpu_data="$(lscpu 2>&1)"
+			lscpu_data="$(lscpu 2>&1)"
 			printf "${lscpu_data}" | grep -iq "Xen" 2> /dev/null && vm="Xen"
 			printf "${lscpu_data}" | grep -iq "KVM" 2> /dev/null && vm="KVM"
 			printf "${lscpu_data}" | grep -iq "Microsoft" 2> /dev/null && vm="MS Hyper-V"
@@ -157,8 +157,8 @@ checkvm() {
 		fi
 	fi
 
-  export vm
-  export vm_from
+	export vm
+	export vm_from
 }
 
 #####################
@@ -170,27 +170,27 @@ export INSTALLER_CONFIGFILE=
 
 # check passed arguments
 while [[ $# -gt 0 ]]; do
-  # these options require params
-  case "${1}" in
-    --config-file)
-	  if [ $# -lt 2 ] || [ "${2:0:2}" == '--' ]; then
-		  show_dialog --msgbox "ERROR: Option '${1}' requires a parameter. Aborting with error." 0 0
-		  exit 1
-	  fi
-  esac
-  # process arguments
-  case "${1}" in
-    --headless)
-      export INSTALLER_HEADLESS=1
-      shift ;;
-    --config-file)
-      export INSTALLER_CONFIGFILE="${2}"
-      shift; shift ;;
-    *) # unknown option
-      show_dialog --msgbox "ERROR: Unknown option '${1}'. Aborting with error." 0 0
-      exit 1
-      ;;
-  esac
+	# these options require params
+	case "${1}" in
+		--config-file)
+		if [ $# -lt 2 ] || [ "${2:0:2}" == '--' ]; then
+			show_dialog --msgbox "ERROR: Option '${1}' requires a parameter. Aborting with error." 0 0
+			exit 1
+		fi
+	esac
+	# process arguments
+	case "${1}" in
+		--headless)
+			export INSTALLER_HEADLESS=1
+			shift ;;
+		--config-file)
+			export INSTALLER_CONFIGFILE="${2}"
+			shift; shift ;;
+		*) # unknown option
+			show_dialog --msgbox "ERROR: Unknown option '${1}'. Aborting with error." 0 0
+			exit 1
+			;;
+	esac
 done
 
 # display welcome txt depending on used dialog
@@ -220,9 +220,9 @@ if [ "$(equery --quiet list pentoo/pentoo-installer 2> /dev/null)" = "pentoo/pen
 			'No' 'Why bother to get the latest fixes? I am elite enough to fix it.')"
 		if [ "${UPDATE_NOW}" = "Yes" ]; then
 			show_dialog --msgbox "Please ensure you have an internet connection then press OK to update pentoo-installer.\nYou will need to rerun pentoo-installer after it is updated." 8 50
-      show_dialog --infobox "Updating pentoo-installer..." 3 35
-      mkdir -p /etc/portage/profile/package.accept_keywords || exit $?
-      echo "pentoo/pentoo-installer **" >> /etc/portage/profile/package.accept_keywords/pentoo-installer || exit $?
+			show_dialog --infobox "Updating pentoo-installer..." 3 35
+			mkdir -p /etc/portage/profile/package.accept_keywords || exit $?
+			echo "pentoo/pentoo-installer **" >> /etc/portage/profile/package.accept_keywords/pentoo-installer || exit $?
 			exec /bin/bash -c 'emerge -1 pentoo-installer; rm /etc/portage/profile/package.accept_keywords/pentoo-installer'
 			exit 1
 		fi
@@ -236,25 +236,25 @@ wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz
 RAMSIZE=$(awk '/MemTotal/ {printf( "%.0f\n", int ( $2 / 1024 ) + 1)}' /proc/meminfo)
 export RAMSIZE
 if [ "${RAMSIZE}" -le "1500" ]; then
-  checkvm
-  if [ -n "${vm}" ]; then
-    show_dialog --msgbox "WARNING: You appear to be running Pentoo in a VM with almost no RAM.  Performance will suffer and so will you. Please give your VM an appropriate amount of RAM for $(date +%Y).  If you continue, the install speed will be greatly reduced due to the low RAM limit." 0 0
-  else
-    show_dialog --msgbox "WARNING: the install speed will be reduced due to the low system RAM." 0 0
-  fi
+	checkvm
+	if [ -n "${vm}" ]; then
+		show_dialog --msgbox "WARNING: You appear to be running Pentoo in a VM with almost no RAM. Performance will suffer and so will you. Please give your VM an appropriate amount of RAM for $(date +%Y).	If you continue, the install speed will be greatly reduced due to the low RAM limit." 0 0
+	else
+		show_dialog --msgbox "WARNING: the install speed will be reduced due to the low system RAM." 0 0
+	fi
 fi
 
 # check if this boot was verified and warn the user to verify the checksums if not
 if ! grep -q verify /proc/cmdline; then
-  sleep 1
-  show_dialog --infobox "Integrity was not verified at boot, verification will happen now" 0 0
-  sleep 3
-  pushd /mnt/cdrom || exit 1
-  if ! b2sum -c isoroot_b2sums; then
-    show_dialog --msgbox "Integrity check failed, exiting installer." 0 0
-    exit 1
-  fi
-  popd || exit 1
+	sleep 1
+	show_dialog --infobox "Integrity was not verified at boot, verification will happen now" 0 0
+	sleep 3
+	pushd /mnt/cdrom || exit 1
+	if ! b2sum -c isoroot_b2sums; then
+		show_dialog --msgbox "Integrity check failed, exiting installer." 0 0
+		exit 1
+	fi
+	popd || exit 1
 fi
 
 # 'controller' vars

@@ -40,7 +40,7 @@ setbootopts() {
 		if chroot "${DESTDIR}" rc-update show | grep bluetooth | grep -q default; then
 			_MENU_ITEMS+=("BootNoBluetooth"	"Bluetooth is currently enabled at boot, disable bluetooth?")
 		else
-			_MENU_ITEMS+=("BootBluetooth"		"Bluetooth is currently disabled at boot, enable bluetooth?")
+			_MENU_ITEMS+=("BootBluetooth"	"Bluetooth is currently disabled at boot, enable bluetooth?")
 		fi
 		if chroot "${DESTDIR}" rc-update show | grep display-manager | grep -q default; then
 			_MENU_ITEMS+=("BootConsole"	"Currently booting to X (display-manager/slim), switch to console for login?")
@@ -102,26 +102,26 @@ setbootopts() {
 # reason: show_dialog() needs a way to exit "Cancel"
 #
 setpassword(){
-  # check input
-  check_num_args "${FUNCNAME}" 1 $# || return $?
-  local _USERNAME="${1}"
-  local _PASSWORD="jimmy"
-  local _PASSWORD2="sally"
-  local _FIRST_TRY="true"
-  local _RET_SUB=
-  until [ "${_PASSWORD}" == "${_PASSWORD2}" ]; do
-    if [ "${_FIRST_TRY}" != "true" ]; then
-      show_dialog --msgbox "Passwords do not match, unable to set password.  Please try again." 7 30
-    fi
-    _PASSWORD="$(show_dialog --clear --insecure --passwordbox "Enter a password for user '${_USERNAME}'" 17 70)" || return $?
-    _PASSWORD2="$(show_dialog --clear --insecure --passwordbox "Confirm password for user '${_USERNAME}'" 17 70)" || return $?
-    _FIRST_TRY="false"
-  done
-  chroot "${DESTDIR}" /bin/bash <<EOF
+	# check input
+	check_num_args "${FUNCNAME}" 1 $# || return $?
+	local _USERNAME="${1}"
+	local _PASSWORD="jimmy"
+	local _PASSWORD2="sally"
+	local _FIRST_TRY="true"
+	local _RET_SUB=
+	until [ "${_PASSWORD}" == "${_PASSWORD2}" ]; do
+		if [ "${_FIRST_TRY}" != "true" ]; then
+			show_dialog --msgbox "Passwords do not match, unable to set password. Please try again." 7 30
+		fi
+		_PASSWORD="$(show_dialog --clear --insecure --passwordbox "Enter a password for user '${_USERNAME}'" 17 70)" || return $?
+		_PASSWORD2="$(show_dialog --clear --insecure --passwordbox "Confirm password for user '${_USERNAME}'" 17 70)" || return $?
+		_FIRST_TRY="false"
+	done
+	chroot "${DESTDIR}" /bin/bash <<EOF
 echo -e "${_PASSWORD}\n${_PASSWORD2}" | passwd "${_USERNAME}" || exit $?
 EOF
-  _RET_SUB=$?
-  return "${_RET_SUB}"
+	_RET_SUB=$?
+	return "${_RET_SUB}"
 }
 
 ## END: dialog functions/definitions ##

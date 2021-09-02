@@ -102,7 +102,7 @@ fi
 
 chroot "${DESTDIR}" emerge --noreplace sys-boot/efibootmgr --nodeps
 if equery -q list sys-boot/grub:2 1>/dev/null; then
-  chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:2 || exit $?
+	chroot "${DESTDIR}" emerge --rage-clean sys-boot/grub:2 || exit $?
 fi
 
 show_dialog --msgbox "Success: Direct UEFI booting installed!" 0 0

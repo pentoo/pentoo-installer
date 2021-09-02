@@ -55,7 +55,7 @@ auto_dmcrypt() {
 		_CRYPTNAME="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptname')" || exit $?
 		_CRYPTKEY="$("${SHAREDIR}"/FSspec parse "${_ITEM}" 'cryptkey')" || exit $?
 		if [ "${_CRYPTTYPE}" != '' ]; then
-			# write all crypt-keys (except root-  and swap-partitions)
+			# write all crypt-keys (except root and swap-partitions)
 			if [ "${_CRYPTTYPE}" != 'swap' ] && [ "${_MOUNTPOINT}" != '/' ]; then
 				mkdir -p "${DESTDIR}/etc/keys/" || return $?
 				case "${_CRYPTTYPE}" in
@@ -132,7 +132,7 @@ EOF
 # according to partitioning/formatting stage
 #
 # parameters (required)
-#  CONFIG_LIST: One string with items of defined FSspec
+#	CONFIG_LIST: One string with items of defined FSspec
 #
 auto_fstab() {
 	# check input
@@ -248,84 +248,84 @@ for MODULE in $(ls -1 --color=never /mnt/cdrom/modules/*.lzm | grep -v -e '/z_' 
 done
 # Unconditionally rsync the minimum we expect for a working system
 show_dialog_rsync '-av --progress' \
-  '/etc/' "${DESTDIR}/etc" "Syncing /etc ..." || exit $?
+	'/etc/' "${DESTDIR}/etc" "Syncing /etc ..." || exit $?
 show_dialog_rsync '-av --progress --exclude=/root/.bashrc' \
-  '/root/' "${DESTDIR}/root" "Syncing /root ..." || exit $?
+	'/root/' "${DESTDIR}/root" "Syncing /root ..." || exit $?
 show_dialog_rsync '-av --progress --exclude=/home/pentoo/.bashrc' \
-  '/home/pentoo/' "${DESTDIR}/home/pentoo" "Syncing /home/pentoo ..." || exit $?
+	'/home/pentoo/' "${DESTDIR}/home/pentoo" "Syncing /home/pentoo ..." || exit $?
 show_dialog_rsync '-av --progress' \
-  "/lib/modules/" "${DESTDIR}/lib/modules" "Syncing kernel modules ..." || exit $?
+	"/lib/modules/" "${DESTDIR}/lib/modules" "Syncing kernel modules ..." || exit $?
 show_dialog_rsync '-av --progress' \
-  "/var/lib/portage/" "${DESTDIR}/var/lib/portage" "Syncing portage information ..." || exit $?
+	"/var/lib/portage/" "${DESTDIR}/var/lib/portage" "Syncing portage information ..." || exit $?
 show_dialog_rsync '-av --progress' \
-  "/var/log/" "${DESTDIR}/var/log" "Syncing logs ..." || exit $?
+	"/var/log/" "${DESTDIR}/var/log" "Syncing logs ..." || exit $?
 if [ -d "/mnt/overlay/.upper/var/lib/NetworkManager" ]; then
-  show_dialog_rsync '-av --progress' \
-    "/var/lib/NetworkManager" "${DESTDIR}/var/lib/" "Syncing NetworkManager config ..." || exit $?
+	show_dialog_rsync '-av --progress' \
+		"/var/lib/NetworkManager" "${DESTDIR}/var/lib/" "Syncing NetworkManager config ..." || exit $?
 fi
 if [ -d "/mnt/overlay/.upper/var/lib/gentoo/news" ]; then
-  show_dialog_rsync '-av --progress' \
-    "/var/lib/gentoo/news" "${DESTDIR}/var/lib/gentoo/" "Syncing Gentoo News ..." || exit $?
+	show_dialog_rsync '-av --progress' \
+		"/var/lib/gentoo/news" "${DESTDIR}/var/lib/gentoo/" "Syncing Gentoo News ..." || exit $?
 fi
 if [ -d "/mnt/overlay/.upper/var/lib/dhcpcd" ]; then
-  show_dialog_rsync '-av --progress' \
-    "/var/lib/dhcpcd" "${DESTDIR}/var/lib/" "Syncing dhcpcd config ..." || exit $?
+	show_dialog_rsync '-av --progress' \
+		"/var/lib/dhcpcd" "${DESTDIR}/var/lib/" "Syncing dhcpcd config ..." || exit $?
 fi
 if [ -d "/mnt/overlay/.upper/usr/portage" ]; then
-  show_dialog_rsync '-av --progress' \
-    "/usr/portage/" "${DESTDIR}/usr/portage" "Syncing gentoo portage tree ..." || exit $?
+	show_dialog_rsync '-av --progress' \
+		"/usr/portage/" "${DESTDIR}/usr/portage" "Syncing gentoo portage tree ..." || exit $?
 fi
 #old repo location
 if [ -d "/mnt/overlay/.upper/var/lib/layman" ]; then
-  show_dialog_rsync '-av --progress' \
-    "/var/lib/layman/" "${DESTDIR}/var/lib/layman" "Syncing pentoo overlay ..." || exit $?
+	show_dialog_rsync '-av --progress' \
+		"/var/lib/layman/" "${DESTDIR}/var/lib/layman" "Syncing pentoo overlay ..." || exit $?
 fi
 #new repo location
 if [ -d "/mnt/overlay/.upper/var/db/repos" ]; then
-  show_dialog_rsync '-av --progress' \
-    "/var/db/repos/" "${DESTDIR}/var/db/repos" "Syncing pentoo overlay ..." || exit $?
+	show_dialog_rsync '-av --progress' \
+		"/var/db/repos/" "${DESTDIR}/var/db/repos" "Syncing pentoo overlay ..." || exit $?
 fi
 
 # check if we need to prompt user about syncing more things
 unsyncd=""
 tmp_unsyncd=""
 for i in $(ls -1 /mnt/overlay/.upper); do
-  [ "${i}" = "root" ] && continue
-  [ "${i}" = "etc" ] && continue
-  [ "${i}" = "mnt" ] && continue
-  [ "${i}" = "proc" ] && continue
-  [ "${i}" = "dev" ] && continue
-  [ "${i}" = "sys" ] && continue
-  [ "${i}" = "run" ] && continue
-  [ "${i}" = "newroot" ] && continue
-  [ "${i}" = "tmp" ] && continue
-  if [ "${i}" = "var" ]; then
-    tmp_unsyncd=$(du -sh --exclude=cache --exclude=tmp --exclude=run --exclude=log --exclude=db/pkg/pentoo/pentoo-installer-* --exclude=lib/portage --exclude=lib/blueman/network.state --exclude=lib/misc/random-seed --exclude=lib/NetworkManager --exclude=lib/gentoo/news --exclude=lib/dhcpcd --exclude=lib/syslog-ng/syslog-ng.persist --exclude=lib/layman "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
-  elif [ "${i}" = "home" ]; then
-    tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
-  elif [ "${i}" = "lib" ] || [ "${i}" = "lib64" ]; then
-    tmp_unsyncd=$(du -sh --exclude=modules --exclude=rc/console/unicode "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
-  elif [ "${i}" = "sbin" ]; then
-    tmp_unsyncd=$(du -sh --exclude=pentoo-installer "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
-  elif [ "${i}" = "usr" ]; then
-    tmp_unsyncd=$(du -sh --exclude=share/applications/pentoo-installer.desktop --exclude=share/applications/sudo-pentoo-installer.desktop --exclude=share/pentoo-installer --exclude=portage "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
-  else
-    tmp_unsyncd=$(du -sh "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
-  fi
-  if [ -n "${tmp_unsyncd}" ]; then
-    unsyncd="${unsyncd}${tmp_unsyncd/\mnt\/overlay\/.upper\//}\n"
-  fi
+	[ "${i}" = "root" ] && continue
+	[ "${i}" = "etc" ] && continue
+	[ "${i}" = "mnt" ] && continue
+	[ "${i}" = "proc" ] && continue
+	[ "${i}" = "dev" ] && continue
+	[ "${i}" = "sys" ] && continue
+	[ "${i}" = "run" ] && continue
+	[ "${i}" = "newroot" ] && continue
+	[ "${i}" = "tmp" ] && continue
+	if [ "${i}" = "var" ]; then
+		tmp_unsyncd=$(du -sh --exclude=cache --exclude=tmp --exclude=run --exclude=log --exclude=db/pkg/pentoo/pentoo-installer-* --exclude=lib/portage --exclude=lib/blueman/network.state --exclude=lib/misc/random-seed --exclude=lib/NetworkManager --exclude=lib/gentoo/news --exclude=lib/dhcpcd --exclude=lib/syslog-ng/syslog-ng.persist --exclude=lib/layman "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
+	elif [ "${i}" = "home" ]; then
+		tmp_unsyncd=$(du -sh --exclude=home/pentoo "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
+	elif [ "${i}" = "lib" ] || [ "${i}" = "lib64" ]; then
+		tmp_unsyncd=$(du -sh --exclude=modules --exclude=rc/console/unicode "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
+	elif [ "${i}" = "sbin" ]; then
+		tmp_unsyncd=$(du -sh --exclude=pentoo-installer "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
+	elif [ "${i}" = "usr" ]; then
+		tmp_unsyncd=$(du -sh --exclude=share/applications/pentoo-installer.desktop --exclude=share/applications/sudo-pentoo-installer.desktop --exclude=share/pentoo-installer --exclude=portage "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
+	else
+		tmp_unsyncd=$(du -sh "/mnt/overlay/.upper/${i}" 2> /dev/null | grep -v -E '^0|^4\.0K')
+	fi
+	if [ -n "${tmp_unsyncd}" ]; then
+		unsyncd="${unsyncd}${tmp_unsyncd/\mnt\/overlay\/.upper\//}\n"
+	fi
 done
 
 if [ -n "${unsyncd}" ]; then
-  show_dialog --defaultno --yesno "The following unsynced changes to the running livecd have been detected:\n${unsyncd}\nWould you like to sync unsaved changes to your new install? (It is safe to say no here if no changes to the running livecd were intended.)" 0 0
-  RET_SUB=$?
+	show_dialog --defaultno --yesno "The following unsynced changes to the running livecd have been detected:\n${unsyncd}\nWould you like to sync unsaved changes to your new install? (It is safe to say no here if no changes to the running livecd were intended.)" 0 0
+	RET_SUB=$?
 
-  # run rsync with nice dialog
-  if [ "${RET_SUB}" = "0" ]; then
-    show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run --exclude=/newroot --exclude=/tmp --exclude=/var/tmp --exclude=/var/run --exclude=/var/lock' \
-      '/*' "${DESTDIR}/" "Syncing / ..." || exit $?
-  fi
+	# run rsync with nice dialog
+	if [ "${RET_SUB}" = "0" ]; then
+		show_dialog_rsync '-av --progress --exclude=/mnt --exclude=/proc --exclude=/dev --exclude=/sys --exclude=/run --exclude=/newroot --exclude=/tmp --exclude=/var/tmp --exclude=/var/run --exclude=/var/lock' \
+			'/*' "${DESTDIR}/" "Syncing / ..." || exit $?
+	fi
 fi
 
 # pre-configure systems, these steps should happen only once
@@ -341,8 +341,8 @@ rm -f "${DESTDIR}/home/pentoo/Desktop/pentoo-installer.desktop"
 rm -f "${DESTDIR}/home/pentoo/Desktop/networkmanager.desktop"
 #mark open-vm-tools to keep if we are on a vm
 if [ -n "${vm:-}" ] && [ -n "${vm_from:-}" ]; then
-  printf "Detecting ${vm} using ${vm_from}, marking open-vm-tools required.\n"
-  chroot "${DESTDIR}" emerge --noreplace app-emulation/open-vm-tools --nodeps || exit $?
+	printf "Detecting ${vm} using ${vm_from}, marking open-vm-tools required.\n"
+	chroot "${DESTDIR}" emerge --noreplace app-emulation/open-vm-tools --nodeps || exit $?
 fi
 
 #prevent livecd bashrc from being on install

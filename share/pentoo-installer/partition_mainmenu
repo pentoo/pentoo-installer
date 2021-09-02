@@ -92,7 +92,7 @@ while true; do
 		# Create filesystems, then exit this menu
 		"3")
 			# prints new configs to STDOUT on success
-      show_dialog --infobox "Partitioning and formatting drives..." 3 45
+			show_dialog --infobox "Partitioning and formatting drives..." 3 45
 			"${SHAREDIR}"/partition_finalise "${CONFIG_LIST}"
 			# capture sub script exit
 			RETSUB=$?

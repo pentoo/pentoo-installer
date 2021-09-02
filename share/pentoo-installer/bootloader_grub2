@@ -149,17 +149,17 @@ sed -i "s@#GRUB_CMDLINE_LINUX=\"\"@GRUB_CMDLINE_LINUX=\"${KERNEL_PARAMS}\"@" "${
 sed -i 's/Gentoo/Pentoo/' "${GRUBCONFIG}" || exit $?
 # old
 if [ -f "${DESTDIR}"/boot/grub/pentoosplash.png ]; then
-  sed -i 's/^#GRUB_BACKGROUND/GRUB_BACKGROUND/' "${GRUBCONFIG}" || exit $?
-  sed -i 's/mybackground/pentoosplash/' "${GRUBCONFIG}" || exit $?
+	sed -i 's/^#GRUB_BACKGROUND/GRUB_BACKGROUND/' "${GRUBCONFIG}" || exit $?
+	sed -i 's/mybackground/pentoosplash/' "${GRUBCONFIG}" || exit $?
 fi
 # new
 if [ -f "${DESTDIR}"/usr/share/grub/themes/pentoo/pentoosplash.png ]; then
-  sed -i 's/^#GRUB_THEME/GRUB_THEME/' "${GRUBCONFIG}" || exit $?
-  sed -i 's/starfield/pentoo/' "${GRUBCONFIG}" || exit $?
+	sed -i 's/^#GRUB_THEME/GRUB_THEME/' "${GRUBCONFIG}" || exit $?
+	sed -i 's/starfield/pentoo/' "${GRUBCONFIG}" || exit $?
 fi
 # for uefi set efifb for video
 if [ -d /sys/firmware/efi ]; then
-  sed -i 's#video=\S* #video=efifb #' "${GRUBCONFIG}" || exit $?
+	sed -i 's#video=\S* #video=efifb #' "${GRUBCONFIG}" || exit $?
 fi
 
 # inform user about target disk, partitions and such, last chance to abort ;)
@@ -186,94 +186,94 @@ fi
 show_dialog --infobox "Grub bootloader is being installed and prepared for booting. Please stand by..." 4 70
 #maybe move the stat check a LOT earlier?
 if [ -d /sys/firmware/efi ]; then
-  if mountpoint -q -- /sys/firmware/efi/efivars ; then
-    efivars="1"
-    if [ -w /sys/firmware/efi/efivars ]; then
-      efiwriteable="1"
-    else
-      efiwriteable="0"
-      mount -o remount,rw /sys/firmware/efi/efivars || exit $?
-    fi
-  else
-    efivars="0"
-  fi
+	if mountpoint -q -- /sys/firmware/efi/efivars ; then
+		efivars="1"
+		if [ -w /sys/firmware/efi/efivars ]; then
+			efiwriteable="1"
+		else
+			efiwriteable="0"
+			mount -o remount,rw /sys/firmware/efi/efivars || exit $?
+		fi
+	else
+		efivars="0"
+	fi
 
-  [ ! -d "${DESTDIR}"/boot/efi ] && mkdir -p "${DESTDIR}"/boot/efi
-  #this check is super loose, since we actually are putting all of /boot in ESP for simplicity
-  if [ "$(stat -f -c %T "${DESTDIR}"/boot/efi)" != "msdos" ]; then
-    show_dialog --msgbox "/boot/efi *MUST* be formatted FAT, aborting." 0 0
-    exit 1
-  fi
-  #run grub-install
-  #copy shim into place
-  #remove efi boot to grub
-  #tell efi to boot shim (which boots grub)
-  if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
-    chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=x86_64-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
-    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
-    cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
-    # mokmanager efi image is sometimes required in /boot/efi/boot
-    mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
-    cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/boot/mmx64.efi || exit $?
-    if [ "${efivars}" = "1" ]; then
-      #the kernel cannnot handle 32 bit userland and 64 bit efi well, so we can't do this
-      if efibootmgr | grep -q Pentoo; then
-        efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8) || exit $?
-      fi
-      efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTX64.EFI' --label "Pentoo" --verbose || exit $?
-    fi
-  elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
-    chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=i386-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
-    cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTIA32.EFI || exit $?
-    cp "${DESTDIR}"/usr/share/shim/mmia32.efi "${DESTDIR}"/boot/efi/Pentoo/mmia32.efi || exit $?
-    # mokmanager efi image is sometimes required in /boot/efi/boot
-    mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
-    cp "${DESTDIR}"/usr/share/shim/mmia32.efi "${DESTDIR}"/boot/efi/boot/mmia32.efi || exit $?
-    if [ "${efivars}" = "1" ]; then
-      if efibootmgr | grep -q Pentoo; then
-        efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8) || exit $?
-      fi
-      efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTIA32.EFI' --label "Pentoo" --verbose || exit $?
-    fi
-  else
-    chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
-    cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
-    cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
-    # mokmanager efi image is sometimes required in /boot/efi/boot
-    mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
-    cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/boot/mmx64.efi || exit $?
-    if [ "${efivars}" = "1" ]; then
-      if efibootmgr | grep -q Pentoo; then
-        efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8) || exit $?
-      fi
-      efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTX64.EFI' --label "Pentoo" --verbose || exit $?
-    fi
-  fi
-  #so uefi implementations suck, like lots of them.  So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
-  mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
-  if [ -f "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi ]; then
-    cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/GRUBX64.EFI || exit $?
-  fi
-  if [ -f "${DESTDIR}"/boot/efi/Pentoo/grubia32.efi ]; then
-    cp "${DESTDIR}"/boot/efi/Pentoo/grubia32.efi "${DESTDIR}"/boot/efi/boot/GRUBIA32.EFI || exit $?
-  fi
-  #add shim for secure boot to the fallback location
-  if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
-    confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
-  elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
-    confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/boot/BOOTIA32.EFI || exit $?
-  else
-    confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
-  fi
-  #clearing the mok password forces the user to set one at boot
-  if [ "${efivars}" = "1" ]; then
-    mokutil --clear-password || true
-    chroot "${DESTDIR}" emerge --noreplace sys-boot/mokutil --nodeps || exit $?
-  fi
-  if [ "${efivars}" = "1" ] && [ "${efiwriteable}" = "0" ]; then
-    mount -o remount,ro /sys/firmware/efi/efivars || exit $?
-  fi
-  chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || exit $?
+	[ ! -d "${DESTDIR}"/boot/efi ] && mkdir -p "${DESTDIR}"/boot/efi
+	#this check is super loose, since we actually are putting all of /boot in ESP for simplicity
+	if [ "$(stat -f -c %T "${DESTDIR}"/boot/efi)" != "msdos" ]; then
+		show_dialog --msgbox "/boot/efi *MUST* be formatted FAT, aborting." 0 0
+		exit 1
+	fi
+	#run grub-install
+	#copy shim into place
+	#remove efi boot to grub
+	#tell efi to boot shim (which boots grub)
+	if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
+		chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=x86_64-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+		cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
+		cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
+		# mokmanager efi image is sometimes required in /boot/efi/boot
+		mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
+		cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/boot/mmx64.efi || exit $?
+		if [ "${efivars}" = "1" ]; then
+			#the kernel cannnot handle 32 bit userland and 64 bit efi well, so we can't do this
+			if efibootmgr | grep -q Pentoo; then
+				efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8) || exit $?
+			fi
+			efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTX64.EFI' --label "Pentoo" --verbose || exit $?
+		fi
+	elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
+		chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=i386-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+		cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTIA32.EFI || exit $?
+		cp "${DESTDIR}"/usr/share/shim/mmia32.efi "${DESTDIR}"/boot/efi/Pentoo/mmia32.efi || exit $?
+		# mokmanager efi image is sometimes required in /boot/efi/boot
+		mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
+		cp "${DESTDIR}"/usr/share/shim/mmia32.efi "${DESTDIR}"/boot/efi/boot/mmia32.efi || exit $?
+		if [ "${efivars}" = "1" ]; then
+			if efibootmgr | grep -q Pentoo; then
+				efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8) || exit $?
+			fi
+			efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTIA32.EFI' --label "Pentoo" --verbose || exit $?
+		fi
+	else
+		chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+		cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
+		cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
+		# mokmanager efi image is sometimes required in /boot/efi/boot
+		mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
+		cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/boot/mmx64.efi || exit $?
+		if [ "${efivars}" = "1" ]; then
+			if efibootmgr | grep -q Pentoo; then
+				efibootmgr -B -b $(efibootmgr | grep Pentoo | awk -F'*' '{print $1}' | cut -b 5-8) || exit $?
+			fi
+			efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTX64.EFI' --label "Pentoo" --verbose || exit $?
+		fi
+	fi
+	#so uefi implementations suck, like lots of them. So let's populate the fallback location too, you know, for fun (if my intel nuc needs this, then it's required)
+	mkdir -p "${DESTDIR}"/boot/efi/boot || exit $?
+	if [ -f "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi ]; then
+		cp "${DESTDIR}"/boot/efi/Pentoo/grubx64.efi "${DESTDIR}"/boot/efi/boot/GRUBX64.EFI || exit $?
+	fi
+	if [ -f "${DESTDIR}"/boot/efi/Pentoo/grubia32.efi ]; then
+		cp "${DESTDIR}"/boot/efi/Pentoo/grubia32.efi "${DESTDIR}"/boot/efi/boot/GRUBIA32.EFI || exit $?
+	fi
+	#add shim for secure boot to the fallback location
+	if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
+		confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
+	elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
+		confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/boot/BOOTIA32.EFI || exit $?
+	else
+		confirm_overwrite_OSloader "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/boot/BOOTX64.EFI || exit $?
+	fi
+	#clearing the mok password forces the user to set one at boot
+	if [ "${efivars}" = "1" ]; then
+		mokutil --clear-password || true
+		chroot "${DESTDIR}" emerge --noreplace sys-boot/mokutil --nodeps || exit $?
+	fi
+	if [ "${efivars}" = "1" ] && [ "${efiwriteable}" = "0" ]; then
+		mount -o remount,ro /sys/firmware/efi/efivars || exit $?
+	fi
+	chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || exit $?
 else
 	chroot "${DESTDIR}" /usr/sbin/grub-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
 fi
