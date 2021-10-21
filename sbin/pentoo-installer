@@ -1,2 +1,8 @@
 #!/bin/bash
+if [ -n "${USERID}" ] && [ "${USERID}" != "0" ]; then
+	printf "Please run pentoo-installer as root, ex: 'sudo pentoo-installer'\n"
+  exit 1
+elif [ -z "${USERID}" ]; then
+	printf "Unable to determine user id, permission errors may occur.\n"
+fi
 /usr/share/pentoo-installer/pentoo-installer "${@}" 2> /tmp/pentoo-installer.log
