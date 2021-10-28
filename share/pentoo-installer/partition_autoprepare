@@ -96,8 +96,8 @@ FSSPEC=""
 DISC=$(partition_selectdisk) || exit $?
 # disk size in MiB
 DISC_SIZE=$(($(partition_getdisccapacity ${DISC}) / 2**20)) || exit $?
-# boot partition size
-BOOT_PART_SIZE=$(partition_getpartitionsize "/boot" "${DISC_SIZE}" 32 128) || exit $?
+# boot partition size (M)
+BOOT_PART_SIZE=$(partition_getpartitionsize "/boot" "${DISC_SIZE}" 128 512) || exit $?
 # calc remaining disk size
 DISC_SIZE=$((${DISC_SIZE}-${BOOT_PART_SIZE})) || exit $?
 # swap partition size
