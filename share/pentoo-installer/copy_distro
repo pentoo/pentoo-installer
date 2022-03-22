@@ -249,6 +249,9 @@ done
 # Unconditionally rsync the minimum we expect for a working system
 show_dialog_rsync '-av --progress' \
   '/etc/' "${DESTDIR}/etc" "Syncing /etc ..." || exit $?
+#firmware may have been installed at boot and we want to keep it
+show_dialog_rsync '-av --progress' \
+  '/lib/firmware/' "${DESTDIR}/lib/firmware" "Syncing /lib/firmware ..." || exit $?
 show_dialog_rsync '-av --progress --exclude=/root/.bashrc' \
   '/root/' "${DESTDIR}/root" "Syncing /root ..." || exit $?
 show_dialog_rsync '-av --progress --exclude=/home/pentoo/.bashrc' \
@@ -337,13 +340,19 @@ show_dialog --infobox "Removing livecd only packages and configs from install...
 # remove livecd stuff
 sed -i '/bindist livecd/d' "${DESTDIR}"/etc/portage/make.conf
 chroot "${DESTDIR}" emerge --rage-clean app-misc/livecd-tools pentoo/pentoo-livecd pentoo/pentoo-installer app-admin/pwgen sys-apps/hwsetup sys-apps/hwdata-gentoo x11-misc/mkxf86config net-dialup/mingetty wmctrl
-rm -f "${DESTDIR}/home/pentoo/Desktop/pentoo-installer.desktop"
 rm -f "${DESTDIR}/home/pentoo/Desktop/networkmanager.desktop"
+
 #mark open-vm-tools to keep if we are on a vm
 if [ -n "${vm:-}" ] && [ -n "${vm_from:-}" ]; then
   printf "Detecting ${vm} using ${vm_from}, marking open-vm-tools required.\n"
   chroot "${DESTDIR}" emerge --noreplace app-emulation/open-vm-tools --nodeps || exit $?
 fi
+#broadcom firmwares
+for chip in b43 b43legacy; do
+  if portageq has_version / sys-firmware/${chip}-firmware; then
+    chroot "${DESTDIR}" emerge --noreplace sys-firmware/${chip}-firmware --nodeps || exit $?
+  fi
+done
 
 #prevent livecd bashrc from being on install
 rm -f "${DESTDIR}"/root/.bashrc
