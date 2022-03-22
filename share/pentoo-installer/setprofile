@@ -76,7 +76,7 @@ while read -r LINE; do
 			CUR_PROF_NUM="${PROF_NUM}"
 		fi
 	fi
-done < <(chroot "${DESTDIR}" eselect profile list) || exit $?
+done < <(chroot "${DESTDIR}" eselect profile list | grep --color=never 'stable') || exit $?
 
 #check if any Pentoo profiles were found
 if [ "${#OPTIONS[@]}" -eq 0 ]; then
