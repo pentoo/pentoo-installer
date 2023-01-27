@@ -381,7 +381,7 @@ elif [ -r /etc/issue.logo ]; then
 elif [ -r /etc/issue.old ]; then
   cp /etc/issue.old /etc/issue
 fi
-(eselect pinentry set pinentry-gtk-2 || eselect pinentry set pinentry-curses) || exit $?
+(eselect pinentry set pinentry-gnome3 || eselect pinentry set pinentry-curses) || exit $?
 if [ -e /etc/init.d/halt.sh.orig ]; then
   mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh # || exit $?
 fi

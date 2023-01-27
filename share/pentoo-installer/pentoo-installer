@@ -295,7 +295,7 @@ if settings_check; then
 fi
 
 #set pinentry just in case user wants to encrypt
-(eselect pinentry set pinentry-gtk-2 || eselect pinentry set pinentry-curses) || exit $?
+(eselect pinentry set pinentry-gnome3 || eselect pinentry set pinentry-curses) || exit $?
 
 while [ true ]; do
 	# define menu items
