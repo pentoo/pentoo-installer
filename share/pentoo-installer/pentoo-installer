@@ -295,7 +295,12 @@ if settings_check; then
 fi
 
 #set pinentry just in case user wants to encrypt
-(eselect pinentry set pinentry-gnome3 || eselect pinentry set pinentry-curses) || exit $?
+if ! eselect pinentry set pinentry-gnome3; then
+  if ! eselect pinentry set pinentry-curses; then
+    show_dialog --msgbox "Unable to eselect pinentry, probably permissions errors.  Quitting." 0 0
+    exit $?
+  fi
+fi
 
 while [ true ]; do
 	# define menu items

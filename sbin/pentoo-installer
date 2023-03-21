@@ -1,8 +1,16 @@
 #!/bin/bash
+if [ -n "$(command -v id 2> /dev/null)" ]; then
+  USERID="$(id -u 2> /dev/null)"
+fi
+if [ -z "${USERID}" ] && [ -n "$(id -ru)" ]; then
+  USERID="$(id -ru)"
+fi
 if [ -n "${USERID}" ] && [ "${USERID}" != "0" ]; then
-	printf "Please run pentoo-installer as root, ex: 'sudo pentoo-installer'\n"
+  printf "Please run pentoo-installer as root, ex: 'sudo pentoo-installer'\n"
   exit 1
 elif [ -z "${USERID}" ]; then
-	printf "Unable to determine user id, permission errors may occur.\n"
+  printf "Unable to determine user id, permission errors may occur.\n"
+  printf "Press any key to continue anyway, or ctrl+c to quit..."
+  read -r
 fi
 /usr/share/pentoo-installer/pentoo-installer "${@}" 2> /tmp/pentoo-installer.log
