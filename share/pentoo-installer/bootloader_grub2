@@ -97,8 +97,10 @@ mapdev() {
 
 # freeze xfs filesystems to enable grub installation on xfs filesystems
 fs_sync_helper() {
-  # I strongly suspect this isn't needed at all, so let's test
   return
+  # I strongly suspect this isn't needed at all, so let's test
+  # Based on quick research this was all needed due to an incompatibility between grub <0.97 and xfs
+  # https://bugs.launchpad.net/ubuntu/+source/grub/+bug/8058
   sync
   if [ -x /usr/sbin/xfs_freeze ]; then
     for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
