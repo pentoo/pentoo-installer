@@ -95,6 +95,24 @@ mapdev() {
 	fi
 }
 
+# freeze xfs filesystems to enable grub installation on xfs filesystems
+fs_sync_helper() {
+  # I strongly suspect this isn't needed at all, so let's test
+  return
+  sync
+  if [ -x /usr/sbin/xfs_freeze ]; then
+    for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
+      if [ "${1}" = "freeze" ]; then
+        echo "INFO: Freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
+        /usr/sbin/xfs_freeze -f "${MOUNTPOINT_XFS}" 2>/dev/null
+      else
+        echo "INFO: Un-freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
+        /usr/sbin/xfs_freeze -u "${MOUNTPOINT_XFS}" 2>/dev/null
+      fi
+    done
+  fi
+}
+
 ## END: dialog functions/definitions ##
 #######################################
 
@@ -167,14 +185,6 @@ show_dialog --defaultno --yesno "GRUB bootloader will be installed to '${DISK_BO
 
 show_dialog --infobox "Filesystem is being prepared for bootloader. Please stand by..." 4 65
 
-# freeze xfs filesystems to enable grub installation on xfs filesystems
-if [ -x /usr/sbin/xfs_freeze ]; then
-	for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
-		echo "INFO: Freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
-		/usr/sbin/xfs_freeze -f "${MOUNTPOINT_XFS}" 2>/dev/null
-	done
-fi
-
 # set system editor (if not already defined)
 chroot_mount || exit $?
 EDITOR="$(geteditor)" || exit $?
@@ -209,7 +219,9 @@ if [ -d /sys/firmware/efi ]; then
   #remove efi boot to grub
   #tell efi to boot shim (which boots grub)
   if [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "64" ]; then
+    fs_sync_helper freeze
     chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=x86_64-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+    fs_sync_helper unfreeze
     cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
     cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
     # mokmanager efi image is sometimes required in /boot/efi/boot
@@ -223,7 +235,9 @@ if [ -d /sys/firmware/efi ]; then
       efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTX64.EFI' --label "Pentoo" --verbose || exit $?
     fi
   elif [ -r "/sys/firmware/efi/fw_platform_size" ] && [ "$(cat /sys/firmware/efi/fw_platform_size)" = "32" ]; then
+    fs_sync_helper freeze
     chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --target=i386-efi --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+    fs_sync_helper unfreeze
     cp "${DESTDIR}"/usr/share/shim/BOOTIA32.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTIA32.EFI || exit $?
     cp "${DESTDIR}"/usr/share/shim/mmia32.efi "${DESTDIR}"/boot/efi/Pentoo/mmia32.efi || exit $?
     # mokmanager efi image is sometimes required in /boot/efi/boot
@@ -236,7 +250,9 @@ if [ -d /sys/firmware/efi ]; then
       efibootmgr --create --disk "${DISK_BOOT}" --part ${PART_BOOT:(-1)} --loader '/EFI/Pentoo/BOOTIA32.EFI' --label "Pentoo" --verbose || exit $?
     fi
   else
+    fs_sync_helper freeze
     chroot "${DESTDIR}" /usr/sbin/grub-install -v --efi-directory=/boot --bootloader-id=Pentoo --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+    fs_sync_helper unfreeze
     cp "${DESTDIR}"/usr/share/shim/BOOTX64.EFI "${DESTDIR}"/boot/efi/Pentoo/BOOTX64.EFI || exit $?
     cp "${DESTDIR}"/usr/share/shim/mmx64.efi "${DESTDIR}"/boot/efi/Pentoo/mmx64.efi || exit $?
     # mokmanager efi image is sometimes required in /boot/efi/boot
@@ -275,7 +291,9 @@ if [ -d /sys/firmware/efi ]; then
   fi
   chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || exit $?
 else
-	chroot "${DESTDIR}" /usr/sbin/grub-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+  fs_sync_helper freeze
+  chroot "${DESTDIR}" /usr/sbin/grub-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+  fs_sync_helper unfreeze
 fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
 #okay so wow, this is ugly
@@ -297,14 +315,6 @@ chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps || exit $?
 
 sync
 chroot_umount || exit $?
-
-# unfreeze xfs filesystems
-if [ -x /usr/sbin/xfs_freeze ]; then
-	for MOUNTPOINT_XFS in $(mount | grep " ${DESTDIR}" | grep ' type xfs ' | cut -d' ' -f3); do
-		echo "INFO: Un-freezing XFS filesystem mounted at ${MOUNTPOINT_XFS}" 1>&2
-		/usr/sbin/xfs_freeze -u "${MOUNTPOINT_XFS}" 2>/dev/null
-	done
-fi
 
 if grep -q 'Error [0-9]*: ' "${DESTDIR}"/tmp/grub.log; then
 	show_dialog --msgbox "Error installing GRUB. (see ${LOG} for output)" 0 0
