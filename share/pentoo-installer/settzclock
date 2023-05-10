@@ -58,7 +58,7 @@ if [ -n "${TIMEZONE_DEFAULT}" ]; then
 	TIMEZONE="${TIMEZONE_DEFAULT}"
 else
   clear
-  TIMEZONE="$(tzselect)" || exit $?
+  TIMEZONE="$(tzselect 2>&3)" || exit $?
 fi
 
 # this will be copied to chroot later

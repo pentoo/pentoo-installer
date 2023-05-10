@@ -13,4 +13,5 @@ elif [ -z "${USERID}" ]; then
   printf "Press any key to continue anyway, or ctrl+c to quit..."
   read -r
 fi
+exec 3>&2
 /usr/share/pentoo-installer/pentoo-installer "${@}" 2> /tmp/pentoo-installer.log
