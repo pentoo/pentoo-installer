@@ -59,22 +59,22 @@ auto_dmcrypt() {
 			if [ "${_CRYPTTYPE}" != 'swap' ] && [ "${_MOUNTPOINT}" != '/' ]; then
 				mkdir -p "${DESTDIR}/etc/keys/" || return $?
 				case "${_CRYPTTYPE}" in
-					'luks-gpg')
+					'luks2-gpg')
 						# key is in base64 format
 						echo -n "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
 						;;
-					'luks')
+					'luks2')
 						echo -n "${_CRYPTKEY}" >"${DESTDIR}/etc/keys/${_CRYPTNAME}" || return $?
 						;;
 				esac
 			# write key for root-partition
 			elif [ "${_MOUNTPOINT}" = '/' ]; then
 				case "${_CRYPTTYPE}" in
-					'luks-gpg')
+					'luks2-gpg')
 						# key is in base64 format
 						echo "${_CRYPTKEY}" | base64 -d >"${DESTDIR}/boot/${_CRYPTNAME}.gpg" || return $?
 						;;
-					'luks')
+					'luks2')
 						# Info: this should not be possible for root partition and actually is disabled in the menu
 						echo "${_CRYPTKEY}" >"${DESTDIR}/boot/${_CRYPTNAME}.key" || return $?
 						;;
@@ -104,10 +104,10 @@ auto_dmcrypt() {
 				echo "target=${_CRYPTNAME}">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 				echo "source='${_PARTITION}'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 				case "${_CRYPTTYPE}" in
-					'luks-gpg')
+					'luks2-gpg')
 						echo "key='/etc/keys/${_CRYPTNAME}:gpg'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 						;;
-					'luks')
+					'luks2')
 						echo "key='/etc/keys/${_CRYPTNAME}'">>"${DESTDIR}/etc/conf.d/dmcrypt" || return $?
 						;;
 				esac

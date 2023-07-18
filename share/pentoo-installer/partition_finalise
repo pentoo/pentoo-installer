@@ -32,7 +32,7 @@ source "${SHAREDIR}"/partition_common.sh || exit $?
 # parameters (required)
 #  _PARTITION: The partition to encrypt
 #  _CRYPTNAME: name used by cryptsetup
-#  _CRYPTTYPE: one of: 'swap', 'luks', 'luks-gpg'
+#  _CRYPTTYPE: one of: 'swap', 'luks2', 'luks2-gpg'
 #
 # return !=0 on failure (including user abort with ERROR_CANCEL=64)
 #
@@ -50,30 +50,30 @@ partition_crypt_setup() {
 			# TODO swap key is shorter then before with -d /dev/urandom and
 			# Maximum keyfile size: 8192kB
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
-			cryptsetup --batch-mode -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			cryptsetup --batch-mode --cipher aes-xts-plain64:sha512 --key-size 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}" || return $?
 			# clean up
 			rm /tmp/"${_UUID}" || return $?
 			;;
-		'luks-gpg')
+		'luks2-gpg')
 			show_dialog --infobox "Now generating a GPG-encrypted luks key for ${_PARTITION}" 0 0
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
 			su pentoo -c "gpg --symmetric --cipher-algo aes256 --armor /tmp/\"${_UUID}\"" || return $?
-			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup --batch-mode -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
+			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup --batch-mode --type luks2 --hash sha512 --cipher aes-xts-plain64 --iter-time 3000 --key-size 512 --pbkdf argon2id --use-random luksFormat --align-payload=4096 "${_PARTITION}" || return $?
 			# TODO, is this needed? Seems not
 			# show_dialog --msgbox "Please enter the GPG key for ${_PARTITION} (last time :-)" 0 0 || return $?
-			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup --batch-mode open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			su pentoo -c "gpg --decrypt /tmp/\"${_UUID}\".asc" | cryptsetup --batch-mode open --type luks2 "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}".asc | base64 -w0 || return $?
 			# clean up
 			rm /tmp/"${_UUID}".asc || return $?
 			rm /tmp/"${_UUID}" || return $?
 			;;
-		'luks')
+		'luks2')
 			head -c60 /dev/urandom | base64 | head -n1 | tr -d '\n' > /tmp/"${_UUID}" || return $?
-			cat /tmp/"${_UUID}" | cryptsetup --batch-mode -h sha512 -c aes-xts-plain64 -s 512 luksFormat --align-payload=8192 "${_PARTITION}" || return $?
-			cat /tmp/"${_UUID}" | cryptsetup --batch-mode open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+			cat /tmp/"${_UUID}" | cryptsetup --batch-mode --type luks2 --hash sha512 --cipher aes-xts-plain64 --iter-time 3000 --key-size 512 --pbkdf argon2id --use-random luksFormat --align-payload=4096 "${_PARTITION}" || return $?
+			cat /tmp/"${_UUID}" | cryptsetup --batch-mode open --type luks2 "${_PARTITION}" "${_CRYPTNAME}" || return $?
 			# print to STDOUT
 			cat /tmp/"${_UUID}" || return $?
 			# clean up

@@ -56,7 +56,7 @@
 					"#": "required: must be empty for swap",
 					"mountpoint": "/boot",
 
-					"#": "optional, default='' (one of: 'swap', 'luks', 'luks-gpg', '')",
+					"#": "optional, default='' (one of: 'swap', 'luks2', 'luks2-gpg', '')",
 					"crypttype": "",
 
 					"#": "required",

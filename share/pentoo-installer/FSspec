@@ -11,7 +11,7 @@
 #   partition
 #   mountpoint
 #   filesystem
-#	crypttype (one of: 'swap', 'luks', 'luks-gpg', '')
+#	crypttype (one of: 'swap', 'luks2', 'luks2-gpg', '')
 #   format (0=no 1=yes)
 #   cryptname (name used by cryptsetup)
 #   partuuid (PARTUUID, *not* the UUID)
@@ -129,12 +129,12 @@ FSspec_createfull() {
 			# root partition
 			elif [ "${_MOUNTPOINT}" = '/' ]; then
 				# check crypttype
-				if [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+				if [ "${_CRYPTTYPE}" != 'luks2-gpg' ]; then
 					echo "error parsing config, wrong crypttype for root partition" 1>&2
 					return 1
 				fi
 			# non-root partition, check crypttype
-			elif [ "${_CRYPTTYPE}" != 'luks' ] && [ "${_CRYPTTYPE}" != 'luks-gpg' ]; then
+			elif [ "${_CRYPTTYPE}" != 'luks2' ] && [ "${_CRYPTTYPE}" != 'luks2-gpg' ]; then
 				echo "error parsing config, unexpected crypttype '${_CRYPTTYPE}'" 1>&2
 				return 1
 			fi
@@ -596,17 +596,17 @@ FSspec_mountall() {
 				echo -n "${_CRYPTKEY}" > /tmp/"${_UUID}" || return $?
 				case "${_CRYPTTYPE}" in
 					'swap')
-						cryptsetup --batch-mode -c aes-xts-plain64:sha512 -s 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						cryptsetup --batch-mode --cipher aes-xts-plain64:sha512 --key-size 512 -d /tmp/"${_UUID}" open --type plain "${_PARTITION}" "${_CRYPTNAME}" || return $?
 						;;
-					'luks-gpg')
+					'luks2-gpg')
 						# key is in base64 format
 						base64 -d /tmp/"${_UUID}" > /tmp/"${_UUID}".asc
-						gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup --batch-mode open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+						gpg --decrypt /tmp/"${_UUID}".asc | cryptsetup --batch-mode open --type luks2 "${_PARTITION}" "${_CRYPTNAME}" || return $?
 						# clean up
 						rm /tmp/"${_UUID}".asc || return $?
 						;;
-					'luks')
-						cat /tmp/"${_UUID}" | cryptsetup --batch-mode open --type luks "${_PARTITION}" "${_CRYPTNAME}" || return $?
+					'luks2')
+						cat /tmp/"${_UUID}" | cryptsetup --batch-mode open --type luks2 "${_PARTITION}" "${_CRYPTNAME}" || return $?
 						;;
 				esac
 				# clean up

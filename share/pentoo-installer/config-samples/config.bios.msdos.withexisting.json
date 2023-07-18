@@ -47,7 +47,7 @@
 					"#": "required: must be empty for swap",
 					"#": "ignored for msdos logical partitions",
 					"mountpoint": "/boot",
-					"#": "optional, default='' (one of: 'swap', 'luks', 'luks-gpg', '')",
+					"#": "optional, default='' (one of: 'swap', 'luks2', 'luks2-gpg', '')",
 					"crypttype": "",
 					"#": "required",
 					"#": "ignored for msdos logical partitions",

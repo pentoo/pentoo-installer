@@ -26,7 +26,7 @@ source "${SHAREDIR}"/common.sh || exit $?
 # parameters (required)
 #  _ROOTPART: root partition
 #  _BOOTPART: boot partition
-#  _CRYPTTYPE: encryption-type (should be '' or 'luks-gpg')
+#  _CRYPTTYPE: encryption-type (should be '' or 'luks2-gpg')
 #  _CRYPTNAME: cryptname of root partition
 #
 # returns 0 on success
