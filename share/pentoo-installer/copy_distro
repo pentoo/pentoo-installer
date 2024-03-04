@@ -365,6 +365,7 @@ mknod -m666 "${DESTDIR}"/dev/null c 1 3
 mknod -m600 "${DESTDIR}"/dev/console c 5 1
 mkdir -m755 "${DESTDIR}"/media/{cd,dvd,fl}
 
+#restore stock bashrc
 chroot "${DESTDIR}" /bin/bash <<EOF
 rc-update del autoconfig default # || exit $?
 rc-update del binary-driver-handler # || exit $?
@@ -387,6 +388,9 @@ fi
 if [ -e /etc/init.d/halt.sh.orig ]; then
   mv /etc/init.d/halt.sh.orig /etc/init.d/halt.sh # || exit $?
 fi
+cp /etc/skel/.bashrc /root
+cp /etc/skel/.bashrc /home/pentoo
+chown pentoo:users /home/pentoo/.bashrc
 EOF
 RET_SUB=$?
 [ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
