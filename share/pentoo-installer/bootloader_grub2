@@ -294,7 +294,9 @@ if [ -d /sys/firmware/efi ]; then
   chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || exit $?
 else
   fs_sync_helper freeze
-  chroot "${DESTDIR}" /usr/sbin/grub-install -v --themes=pentoo --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
+  # without --targets grub-install finds /sys/device-tree and gets confused that it's an ieee1275 system
+  # i386-pc is the target for all legacy boot systems
+  chroot "${DESTDIR}" /usr/sbin/grub-install -v --themes=pentoo --targets=i386-pc --recheck "${DISK_BOOT}" >/tmp/grub.log 2>&1 || exit $?
   fs_sync_helper unfreeze
 fi
 cat "${DESTDIR}"/tmp/grub.log >>"${LOG}"
