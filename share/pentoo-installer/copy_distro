@@ -391,6 +391,7 @@ fi
 cp /etc/skel/.bashrc /root
 cp /etc/skel/.bashrc /home/pentoo
 chown pentoo:users /home/pentoo/.bashrc
+eselect news read new > /dev/null 2>&1
 EOF
 RET_SUB=$?
 [ "${RET_SUB}" -ne 0 ] && exit "${RET_SUB}"
