@@ -196,6 +196,7 @@ while true; do
 			USERNAME="$(show_dialog --inputbox "Enter a username" 17 70)" \
 				&& chroot "${DESTDIR}" usermod -l ${USERNAME} "${OLD_USERNAME}" >> ${LOG} \
 				&& chroot "${DESTDIR}" usermod -d /home/${USERNAME} -m ${USERNAME} >> ${LOG} \
+				&& chroot "${DESTDIR}" groupmod --new-name "${USERNAME}" "${OLD_USERNAME}" >> ${LOG} \
 				&& setpassword "${USERNAME}" 2> /dev/null
 				RETSUB=$?
 				if [ "${RETSUB}" = 0 ]; then
