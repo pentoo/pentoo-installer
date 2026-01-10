@@ -286,12 +286,14 @@ if [ -d /sys/firmware/efi ]; then
   #clearing the mok password forces the user to set one at boot
   if [ "${efivars}" = "1" ]; then
     mokutil --clear-password || true
-    chroot "${DESTDIR}" emerge --noreplace sys-boot/mokutil --nodeps || exit $?
+    chroot "${DESTDIR}" emerge --noreplace sys-boot/mokutil --nodeps || \
+      echo "failed to emerge for some reasons, continuing anyway :)" >&2 
   fi
   if [ "${efivars}" = "1" ] && [ "${efiwriteable}" = "0" ]; then
     mount -o remount,ro /sys/firmware/efi/efivars || exit $?
   fi
-  chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || exit $?
+  chroot "${DESTDIR}" emerge --noreplace sys-boot/shim --nodeps || \
+    echo "failed to emerge for some reasons, continuing anyway :)" >&2
 else
   fs_sync_helper freeze
   # without --target grub-install finds /sys/device-tree and gets confused that it's an ieee1275 system
@@ -315,8 +317,9 @@ umount -R "${DESTDIR}/run"
 show_dialog --infobox "Stopping lvmetad, no longer needed. Please stand by..." 4 70
 /etc/init.d/lvmetad stop
 
-chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps || exit $?
-
+chroot "${DESTDIR}" emerge --noreplace sys-boot/grub:2 --nodeps || \
+  echo "failed to emerge for some reasons, continuing anyway :)" >&2
+  
 sync
 chroot_umount || exit $?
 
